@@ -52,4 +52,8 @@ Building
 
 This module is built using maven.  It depends on another project which is not in any public maven repositories, see https://github.com/couchbaselabs/couchbase-capi-server and run `mvn install` on that first.
 
+Then in this project run
+
     mvn package
+    
+The final plugin package will be in the target/releases folder.
