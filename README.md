@@ -25,6 +25,7 @@ Usage
 =====
 
 Preparing ElasticSearch
+
 1. Install the plugin on each node in your cluster.
 2. Create an ElasticSearch index to store the data from Couchbase (ie. default)
 3. Create another index with the same name followed by "_master" (ie. default_master)  This is used to store replication checkpoints.
