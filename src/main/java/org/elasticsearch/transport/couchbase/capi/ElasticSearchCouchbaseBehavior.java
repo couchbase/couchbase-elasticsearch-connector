@@ -34,6 +34,11 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     }
 
     @Override
+    public String getPoolUUID(String pool) {
+        return "00000000000000000000000000000000";
+    }
+
+    @Override
     public Map<String, Object> getPoolDetails(String pool) {
         if("default".equals(pool)) {
             Map<String, Object> bucket = new HashMap<String, Object>();
@@ -62,6 +67,11 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             return bucketNameList;
         }
         return null;
+    }
+
+    @Override
+    public String getBucketUUID(String pool, String bucket) {
+        return "00000000000000000000000000000000";
     }
 
     @Override
