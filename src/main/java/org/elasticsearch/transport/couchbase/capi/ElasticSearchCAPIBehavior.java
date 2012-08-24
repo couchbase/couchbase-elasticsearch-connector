@@ -1,5 +1,6 @@
 package org.elasticsearch.transport.couchbase.capi;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -8,6 +9,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
 
+import org.codehaus.jackson.map.ObjectMapper;
 import org.elasticsearch.action.admin.indices.exists.IndicesExistsRequestBuilder;
 import org.elasticsearch.action.admin.indices.exists.IndicesExistsResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -19,6 +21,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.Base64;
 import org.elasticsearch.common.logging.ESLogger;
 
 import com.couchbase.capi.CAPIBehavior;
@@ -30,6 +33,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     public static final String COUCHBASE_MASTER_DB_SUFFIX = "master";
     public static final String ELASTIC_SEARCH_MASTER_INDEX_SUFFIX = "_master";
 
+    protected ObjectMapper mapper = new ObjectMapper();
     protected Client client;
     protected ESLogger logger;
 
@@ -111,8 +115,21 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
             Map<String, Object> json = (Map<String, Object>)doc.get("json");
             if(json == null) {
-                logger.warn("Document without json in bulk_docs, ingorning...");
-                continue;
+                // no plain json, let's try looking for base64 data
+                String base64 = (String)doc.get("base64");
+                if(base64 != null) {
+                    try {
+                        byte[] decodedData = Base64.decode(base64);
+                        // now try to parse the decoded data as json
+                        json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
+                    } catch (IOException e) {
+                        logger.warn("Unable to parse decoded base64 data as JSON, ignoring...");
+                        continue;
+                    }
+                } else {
+                    logger.warn("Document without json or baes64 data in bulk_docs, ingorning...");
+                    continue;
+                }
             }
 
             String id = (String)meta.get("id");
