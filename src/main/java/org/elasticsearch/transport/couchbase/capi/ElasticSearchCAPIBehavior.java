@@ -148,7 +148,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             if(id.startsWith("_local/")) {
                 type = DOCUMENT_TYPE_CHECKPOINT;
             }
-            boolean deleted = meta.containsKey("_deleted") ? (Boolean)meta.get("_deleted") : false;
+            boolean deleted = meta.containsKey("deleted") ? (Boolean)meta.get("deleted") : false;
 
             if(deleted) {
                 DeleteRequest deleteRequest = client.prepareDelete(index, type, id).request();
