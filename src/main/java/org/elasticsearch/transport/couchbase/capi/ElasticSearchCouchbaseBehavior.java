@@ -42,7 +42,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     public Map<String, Object> getPoolDetails(String pool) {
         if("default".equals(pool)) {
             Map<String, Object> bucket = new HashMap<String, Object>();
-            bucket.put("uri", "/pools/" + pool + "/buckets");
+            bucket.put("uri", "/pools/" + pool + "/buckets?uuid=" + getPoolUUID(pool));
 
             Map<String, Object> responseMap = new HashMap<String, Object>();
             responseMap.put("buckets", bucket);
