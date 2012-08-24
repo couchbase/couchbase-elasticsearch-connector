@@ -19,6 +19,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.logging.ESLogger;
 
 import com.couchbase.capi.CAPIBehavior;
 
@@ -30,9 +31,11 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     public static final String ELASTIC_SEARCH_MASTER_INDEX_SUFFIX = "_master";
 
     protected Client client;
+    protected ESLogger logger;
 
-    public ElasticSearchCAPIBehavior(Client client) {
+    public ElasticSearchCAPIBehavior(Client client, ESLogger logger) {
         this.client = client;
+        this.logger = logger;
     }
 
     @Override
@@ -90,12 +93,15 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     public List<Object> bulkDocs(String database, List<Map<String, Object>> docs) {
         String index = getElasticSearchIndexNameFromDatabase(database);
 
+
         BulkRequestBuilder bulkBuilder = client.prepareBulk();
 
         // keep a map of the id - rev for building the response
         Map<String,String> revisions = new HashMap<String, String>();
 
         for (Map<String, Object> doc : docs) {
+
+            logger.debug("Bulk doc entry is {}", docs);
 
             String id = (String)doc.get("_id");
             String rev = (String)doc.get("_rev");

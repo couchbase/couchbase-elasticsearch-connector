@@ -70,7 +70,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
             throw new BindTransportException("Failed to resolve publish address", e);
         }
 
-        capiBehavior = new ElasticSearchCAPIBehavior(client);
+        capiBehavior = new ElasticSearchCAPIBehavior(client, logger);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client);
         server = new CAPIServer(capiBehavior, couchbaseBehavior, bindAddress);
         if(publishAddressString != null) {
