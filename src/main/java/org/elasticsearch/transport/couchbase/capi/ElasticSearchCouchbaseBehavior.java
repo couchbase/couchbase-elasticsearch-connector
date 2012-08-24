@@ -47,6 +47,9 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             Map<String, Object> responseMap = new HashMap<String, Object>();
             responseMap.put("buckets", bucket);
 
+            List<Object> nodes = getNodesServingBucket("default", "default");
+            responseMap.put("nodes", nodes);
+
             return responseMap;
         }
         return null;
