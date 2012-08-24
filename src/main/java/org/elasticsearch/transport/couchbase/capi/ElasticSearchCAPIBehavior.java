@@ -123,12 +123,12 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                         // now try to parse the decoded data as json
                         json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
                     } catch (IOException e) {
-                        logger.warn("Unable to parse decoded base64 data as JSON, ignoring...");
-                        continue;
+                        logger.warn("Unable to parse decoded base64 data as JSON, indexing stub...");
+                        json = new HashMap<String, Object>();
                     }
                 } else {
-                    logger.warn("Document without json or baes64 data in bulk_docs, ingorning...");
-                    continue;
+                    logger.warn("Document without json or baes64 data in bulk_docs, indexing stub...");
+                    json = new HashMap<String, Object>();
                 }
             }
 
