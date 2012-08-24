@@ -103,25 +103,42 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
             logger.debug("Bulk doc entry is {}", docs);
 
-            String id = (String)doc.get("_id");
-            String rev = (String)doc.get("_rev");
+            Map<String, Object> meta = (Map<String, Object>)doc.get("meta");
+            if(meta == null) {
+                logger.warn("Document without meta in bulk_docs, ignoring....");
+                continue;
+            }
+
+            Map<String, Object> json = (Map<String, Object>)doc.get("json");
+            if(json == null) {
+                logger.warn("Document without json in bulk_docs, ingorning...");
+                continue;
+            }
+
+            String id = (String)meta.get("id");
+            String rev = (String)meta.get("rev");
             if(rev == null) {
                 rev = generateRevisionNumber();
                 doc.put("_rev", rev);
             }
             revisions.put(id, rev);
+            // FIXME temporary hack to make this look like old format
+            // waiting for response to email inquiry on proper fix
+            json.put("_id", id);
+            json.put("_rev", rev);
+
             String type = DOCUMENT_TYPE_DOCUMENT;
             if(id.startsWith("_local/")) {
                 type = DOCUMENT_TYPE_CHECKPOINT;
             }
-            boolean deleted = doc.containsKey("_deleted") ? (Boolean)doc.get("_deleted") : false;
+            boolean deleted = meta.containsKey("_deleted") ? (Boolean)meta.get("_deleted") : false;
 
             if(deleted) {
                 DeleteRequest deleteRequest = client.prepareDelete(index, type, id).request();
                 bulkBuilder.add(deleteRequest);
             } else {
                 IndexRequestBuilder indexBuilder = client.prepareIndex(index, type, id);
-                indexBuilder.setSource(doc);
+                indexBuilder.setSource(json);
                 IndexRequest indexRequest = indexBuilder.request();
                 bulkBuilder.add(indexRequest);
             }
