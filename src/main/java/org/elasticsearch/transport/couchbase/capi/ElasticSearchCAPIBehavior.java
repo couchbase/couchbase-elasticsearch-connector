@@ -50,7 +50,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     public Map<String, Object> getDatabaseDetails(String database) {
         if(databaseExists(database)) {
             Map<String, Object> responseMap = new HashMap<String, Object>();
-            responseMap.put("db_name", database);
+            responseMap.put("db_name", getDatabaseNameWithoutUUID(database));
             return responseMap;
         }
         return null;
@@ -222,11 +222,19 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         if(pieces.length == 1) {
             return database;
         } else {
-            if(COUCHBASE_MASTER_DB_SUFFIX.equals(pieces[1])) {
+            if(pieces[1] != null && pieces[1].startsWith(COUCHBASE_MASTER_DB_SUFFIX)) {
                 return pieces[0] + ELASTIC_SEARCH_MASTER_INDEX_SUFFIX;
             } else {
                 return pieces[0];
             }
         }
+    }
+
+    protected String getDatabaseNameWithoutUUID(String database) {
+        int semicolonIndex = database.indexOf(';');
+        if(semicolonIndex >= 0) {
+            return database.substring(0, semicolonIndex);
+        }
+        return database;
     }
 }
