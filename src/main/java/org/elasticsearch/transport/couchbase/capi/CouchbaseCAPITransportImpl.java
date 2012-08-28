@@ -13,6 +13,10 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.BoundTransportAddress;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.http.BindHttpException;
+import org.elasticsearch.index.Index;
+import org.elasticsearch.index.service.IndexService;
+import org.elasticsearch.indices.IndicesLifecycle.Listener;
+import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.transport.BindTransportException;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPITransport;
@@ -28,6 +32,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private CAPIServer server;
     private Client client;
     private final NetworkService networkService;
+    private final IndicesService indicesService;
 
     private final String port;
     private final String bindHost;
@@ -36,9 +41,10 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private BoundTransportAddress boundAddress;
 
     @Inject
-    public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, Client client) {
+    public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, Client client) {
         super(settings);
         this.networkService = networkService;
+        this.indicesService = indicesService;
         this.client = client;
         this.port = componentSettings.get("port", settings.get("couchbase.port", "8091"));
         this.bindHost = componentSettings.get("bind_host");
@@ -47,6 +53,18 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     @Override
     protected void doStart() throws ElasticSearchException {
+
+        //see if we can register a listener for new indexes
+        indicesService.indicesLifecycle().addListener(new Listener() {
+
+            @Override
+            public void afterIndexCreated(IndexService indexService) {
+                Index theIndex = indexService.index();
+
+                logger.debug("I see index created event {}", theIndex.getName());
+            }
+
+        });
 
         // Bind and start to accept incoming connections.
         InetAddress hostAddressX;
