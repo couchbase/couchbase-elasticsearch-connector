@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequestBuilder;
@@ -13,6 +14,7 @@ import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.admin.indices.exists.IndicesExistsRequestBuilder;
 import org.elasticsearch.action.admin.indices.exists.IndicesExistsResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.collect.ImmutableMap;
 
@@ -35,7 +37,10 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     @Override
     public String getPoolUUID(String pool) {
-        return "00000000000000000000000000000000";
+        ClusterStateRequestBuilder builder = client.admin().cluster().prepareState();
+        ClusterStateResponse response = builder.execute().actionGet();
+        ClusterName name = response.getClusterName();
+        return UUID.nameUUIDFromBytes(name.toString().getBytes()).toString().replace("-", "");
     }
 
     @Override
@@ -47,7 +52,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             Map<String, Object> responseMap = new HashMap<String, Object>();
             responseMap.put("buckets", bucket);
 
-            List<Object> nodes = getNodesServingBucket("default", "default");
+            List<Object> nodes = getNodesServingPool(pool);
             responseMap.put("nodes", nodes);
 
             return responseMap;
@@ -74,56 +79,59 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     @Override
     public String getBucketUUID(String pool, String bucket) {
-        return "00000000000000000000000000000000";
+        IndicesExistsRequestBuilder existsBuilder = client.admin().indices().prepareExists(bucket);
+        IndicesExistsResponse response = existsBuilder.execute().actionGet();
+        if(response.exists()) {
+            return "00000000000000000000000000000000";
+        }
+        return null;
     }
 
     @Override
-    public List<Object> getNodesServingBucket(String pool, String bucket) {
+    public List<Object> getNodesServingPool(String pool) {
         if("default".equals(pool)) {
-            IndicesExistsRequestBuilder existBuilder = client.admin().indices().prepareExists(bucket);
-            IndicesExistsResponse response = existBuilder.execute().actionGet();
-            if(response.exists()) {
-                NodesInfoRequestBuilder infoBuilder = client.admin().cluster().prepareNodesInfo((String[]) null);
-                NodesInfoResponse infoResponse = infoBuilder.execute().actionGet();
 
-                // extract what we need from this response
-                List<Object> nodes = new ArrayList<Object>();
-                for (NodeInfo nodeInfo : infoResponse.getNodes()) {
+            NodesInfoRequestBuilder infoBuilder = client.admin().cluster().prepareNodesInfo((String[]) null);
+            NodesInfoResponse infoResponse = infoBuilder.execute().actionGet();
 
-                    // FIXME there has to be a better way than
-                    // parsing this string
-                    // but so far I have not found it
-                    if (nodeInfo.serviceAttributes() != null) {
-                        for (Map.Entry<String, String> nodeAttribute : nodeInfo
-                                .serviceAttributes().entrySet()) {
-                            if (nodeAttribute.getKey().equals(
-                                    "couchbase_address")) {
-                                int start = nodeAttribute
-                                        .getValue()
-                                        .lastIndexOf("/");
-                                int end = nodeAttribute
-                                        .getValue()
-                                        .lastIndexOf("]");
-                                String hostPort = nodeAttribute
-                                        .getValue().substring(
-                                                start + 1, end);
-                                String[] parts = hostPort.split(":");
+            // extract what we need from this response
+            List<Object> nodes = new ArrayList<Object>();
+            for (NodeInfo nodeInfo : infoResponse.getNodes()) {
 
-                                Map<String, Object> nodePorts = new HashMap<String, Object>();
-                                nodePorts.put("direct", Integer.parseInt(parts[1]));
+                // FIXME there has to be a better way than
+                // parsing this string
+                // but so far I have not found it
+                if (nodeInfo.serviceAttributes() != null) {
+                    for (Map.Entry<String, String> nodeAttribute : nodeInfo
+                            .serviceAttributes().entrySet()) {
+                        if (nodeAttribute.getKey().equals(
+                                "couchbase_address")) {
+                            int start = nodeAttribute
+                                    .getValue()
+                                    .lastIndexOf("/");
+                            int end = nodeAttribute
+                                    .getValue()
+                                    .lastIndexOf("]");
+                            String hostPort = nodeAttribute
+                                    .getValue().substring(
+                                            start + 1, end);
+                            String[] parts = hostPort.split(":");
 
-                                Map<String, Object> node = new HashMap<String, Object>();
-                                node.put("couchApiBase", String.format("http://%s/%s", hostPort, bucket));
-                                node.put("hostname", hostPort);
-                                node.put("ports", nodePorts);
+                            Map<String, Object> nodePorts = new HashMap<String, Object>();
+                            nodePorts.put("direct", Integer.parseInt(parts[1]));
 
-                                nodes.add(node);
-                            }
+                            Map<String, Object> node = new HashMap<String, Object>();
+                            node.put("couchApiBase", String.format("http://%s/", hostPort));
+                            node.put("hostname", hostPort);
+                            node.put("ports", nodePorts);
+
+                            nodes.add(node);
                         }
                     }
                 }
-                return nodes;
             }
+            return nodes;
+
         }
         return null;
     }
