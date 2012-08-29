@@ -70,20 +70,21 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
                 logger.debug("I see index created event {}", theIndex.getName());
 
                 IndexSettingsService indexSettingsService = indexService.settingsService();
-                indexSettingsService.addListener(new IndexSettingsService.Listener() {
-
-                    @Override
-                    public void onRefreshSettings(Settings changedSettings) {
-                        logger.debug("told to refresh settings");
-                        String documentTypeField = changedSettings.get("couchbase.document_type_field");
-
-                        logger.debug("refreshed index {} has config setting couchbase.document_type_field value {}", theIndex.getName(), documentTypeField);
-                    }
-                });
+//                indexSettingsService.addListener(new IndexSettingsService.Listener() {
+//
+//                    @Override
+//                    public void onRefreshSettings(Settings changedSettings) {
+//                        logger.debug("told to refresh settings");
+//                        String documentTypeField = changedSettings.get("couchbase.document_type_field");
+//
+//                        logger.debug("refreshed index {} has config setting couchbase.document_type_field value {}", theIndex.getName(), documentTypeField);
+//                    }
+//                });
                 Settings indexSettings = indexSettingsService.getSettings();
                 String documentTypeField = indexSettings.get("couchbase.document_type_field");
-
-                logger.debug("index {} has config setting couchbase.document_type_field value {}", theIndex.getName(), documentTypeField);
+                if(documentTypeField != null) {
+                    logger.debug("index {} has config setting couchbase.document_type_field value {}", theIndex.getName(), documentTypeField);
+                }
 
             }
 
