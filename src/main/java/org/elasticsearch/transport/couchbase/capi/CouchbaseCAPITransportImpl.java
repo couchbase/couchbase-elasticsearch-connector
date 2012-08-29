@@ -6,6 +6,7 @@ import java.net.InetSocketAddress;
 
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.MetaDataMappingService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.network.NetworkService;
@@ -15,6 +16,7 @@ import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.http.BindHttpException;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.service.IndexService;
+import org.elasticsearch.index.settings.IndexSettingsService;
 import org.elasticsearch.indices.IndicesLifecycle.Listener;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.rest.RestController;
@@ -33,6 +35,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private Client client;
     private final NetworkService networkService;
     private final IndicesService indicesService;
+    private final MetaDataMappingService metaDataMappingService;
 
     private final String port;
     private final String bindHost;
@@ -41,10 +44,11 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private BoundTransportAddress boundAddress;
 
     @Inject
-    public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, Client client) {
+    public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
         super(settings);
         this.networkService = networkService;
         this.indicesService = indicesService;
+        this.metaDataMappingService = metaDataMappingService;
         this.client = client;
         this.port = componentSettings.get("port", settings.get("couchbase.port", "8091"));
         this.bindHost = componentSettings.get("bind_host");
@@ -57,11 +61,30 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         //see if we can register a listener for new indexes
         indicesService.indicesLifecycle().addListener(new Listener() {
 
+
+
             @Override
             public void afterIndexCreated(IndexService indexService) {
-                Index theIndex = indexService.index();
+                final Index theIndex = indexService.index();
 
                 logger.debug("I see index created event {}", theIndex.getName());
+
+                IndexSettingsService indexSettingsService = indexService.settingsService();
+                indexSettingsService.addListener(new IndexSettingsService.Listener() {
+
+                    @Override
+                    public void onRefreshSettings(Settings changedSettings) {
+                        logger.debug("told to refresh settings");
+                        String documentTypeField = changedSettings.get("couchbase.document_type_field");
+
+                        logger.debug("refreshed index {} has config setting couchbase.document_type_field value {}", theIndex.getName(), documentTypeField);
+                    }
+                });
+                Settings indexSettings = indexSettingsService.getSettings();
+                String documentTypeField = indexSettings.get("couchbase.document_type_field");
+
+                logger.debug("index {} has config setting couchbase.document_type_field value {}", theIndex.getName(), documentTypeField);
+
             }
 
         });
