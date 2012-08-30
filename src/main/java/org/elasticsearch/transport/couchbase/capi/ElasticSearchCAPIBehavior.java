@@ -31,7 +31,6 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     public static final String DOCUMENT_TYPE_DOCUMENT = "couchbaseDocument";
     public static final String DOCUMENT_TYPE_CHECKPOINT = "couchbaseCheckpoint";
     public static final String COUCHBASE_MASTER_DB_SUFFIX = "master";
-    public static final String ELASTIC_SEARCH_MASTER_INDEX_SUFFIX = "_master";
 
     protected ObjectMapper mapper = new ObjectMapper();
     protected Client client;
@@ -107,42 +106,40 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
             logger.debug("Bulk doc entry is {}", docs);
 
+            // these are the top-level elements that could be in the document sent by Couchbase
             Map<String, Object> meta = (Map<String, Object>)doc.get("meta");
+            Map<String, Object> json = (Map<String, Object>)doc.get("json");
+            String base64 = (String)doc.get("base64");
+
             if(meta == null) {
+                // if there is no meta-data section, there is nothing we can do
                 logger.warn("Document without meta in bulk_docs, ignoring....");
                 continue;
-            }
-
-            Map<String, Object> json = (Map<String, Object>)doc.get("json");
-            if(json == null) {
-                // no plain json, let's try looking for base64 data
-                String base64 = (String)doc.get("base64");
-                if(base64 != null) {
-                    try {
-                        byte[] decodedData = Base64.decode(base64);
-                        // now try to parse the decoded data as json
-                        json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
-                    } catch (IOException e) {
-                        logger.warn("Unable to parse decoded base64 data as JSON, indexing stub...");
-                        json = new HashMap<String, Object>();
-                    }
-                } else {
-                    logger.warn("Document without json or baes64 data in bulk_docs, indexing stub...");
+            } else if("non-JSON mode".equals(meta.get("attr_reason"))) {
+                // optimization, this tells us the body isn't json
+                json = new HashMap<String, Object>();
+            } else if(json == null && base64 != null) {
+                // no plain json, let's try parsing the base64 data
+                try {
+                    byte[] decodedData = Base64.decode(base64);
+                    // now try to parse the decoded data as json
+                    json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
+                } catch (IOException e) {
+                    logger.warn("Unable to parse decoded base64 data as JSON, indexing stub...");
                     json = new HashMap<String, Object>();
                 }
             }
 
+            // at this point we know we have the document meta-data
+            // and the document contents to be indexed are in json
+
+            Map<String, Object> toBeIndexed = new HashMap<String, Object>();
+            toBeIndexed.put("meta", meta);
+            toBeIndexed.put("doc", json);
+
             String id = (String)meta.get("id");
             String rev = (String)meta.get("rev");
-            if(rev == null) {
-                rev = generateRevisionNumber();
-                doc.put("_rev", rev);
-            }
             revisions.put(id, rev);
-            // FIXME temporary hack to make this look like old format
-            // waiting for response to email inquiry on proper fix
-            json.put("_id", id);
-            json.put("_rev", rev);
 
             String type = DOCUMENT_TYPE_DOCUMENT;
             if(id.startsWith("_local/")) {
@@ -155,7 +152,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 bulkBuilder.add(deleteRequest);
             } else {
                 IndexRequestBuilder indexBuilder = client.prepareIndex(index, type, id);
-                indexBuilder.setSource(json);
+                indexBuilder.setSource(toBeIndexed);
                 IndexRequest indexRequest = indexBuilder.request();
                 bulkBuilder.add(indexRequest);
             }
@@ -259,14 +256,10 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
     protected String getElasticSearchIndexNameFromDatabase(String database) {
         String[] pieces = database.split("/", 2);
-        if(pieces.length == 1) {
+        if(pieces.length < 2) {
             return database;
         } else {
-            if(pieces[1] != null && pieces[1].startsWith(COUCHBASE_MASTER_DB_SUFFIX)) {
-                return pieces[0] + ELASTIC_SEARCH_MASTER_INDEX_SUFFIX;
-            } else {
-                return pieces[0];
-            }
+            return pieces[0];
         }
     }
 

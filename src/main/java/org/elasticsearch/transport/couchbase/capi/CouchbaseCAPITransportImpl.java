@@ -14,10 +14,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.BoundTransportAddress;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.http.BindHttpException;
-import org.elasticsearch.index.Index;
-import org.elasticsearch.index.service.IndexService;
-import org.elasticsearch.index.settings.IndexSettingsService;
-import org.elasticsearch.indices.IndicesLifecycle.Listener;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.transport.BindTransportException;
@@ -57,44 +53,6 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     @Override
     protected void doStart() throws ElasticSearchException {
-
-        //see if we can register a listener for new indexes
-        indicesService.indicesLifecycle().addListener(new Listener() {
-
-
-
-            @Override
-            public void afterIndexCreated(IndexService indexService) {
-                final Index theIndex = indexService.index();
-
-                logger.debug("I see index created event {}", theIndex.getName());
-                IndexSettingsService indexSettingsService = indexService.settingsService();
-                if(indexSettingsService != null) {
-                    logger.debug("indexSettingsService not null");
-                    Settings indexSettings = indexSettingsService.getSettings();
-                    if(indexSettings != null) {
-                        logger.debug("indexSettings not null");
-                        String documentTypeField = indexSettings.get("couchbase.document_type_field");
-                        if(documentTypeField != null) {
-                            logger.debug("index {} has config setting couchbase.document_type_field value {}", theIndex.getName(), documentTypeField);
-                        }
-                    }
-                }
-//                indexSettingsService.addListener(new IndexSettingsService.Listener() {
-//
-//                    @Override
-//                    public void onRefreshSettings(Settings changedSettings) {
-//                        logger.debug("told to refresh settings");
-//                        String documentTypeField = changedSettings.get("couchbase.document_type_field");
-//
-//                        logger.debug("refreshed index {} has config setting couchbase.document_type_field value {}", theIndex.getName(), documentTypeField);
-//                    }
-//                });
-
-
-            }
-
-        });
 
         // Bind and start to accept incoming connections.
         InetAddress hostAddressX;
