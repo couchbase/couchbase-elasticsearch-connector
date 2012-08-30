@@ -192,7 +192,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected Map<String, Object> getDocumentElasticSearch(String index, String docId, String docType) {
         GetResponse response = client.prepareGet(index, docType, docId).execute().actionGet();
         if(response != null && response.exists()) {
-            return response.sourceAsMap();
+            Map<String,Object> esDocument = response.sourceAsMap();
+            return (Map<String, Object>)esDocument.get("doc");
         }
         return null;
     }
