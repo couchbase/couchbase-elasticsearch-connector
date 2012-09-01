@@ -46,7 +46,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.indicesService = indicesService;
         this.metaDataMappingService = metaDataMappingService;
         this.client = client;
-        this.port = componentSettings.get("port", settings.get("couchbase.port", "8091"));
+        this.port = componentSettings.get("port", settings.get("couchbase.port", "9091"));
         this.bindHost = componentSettings.get("bind_host");
         this.publishHost = componentSettings.get("publish_host");
     }
