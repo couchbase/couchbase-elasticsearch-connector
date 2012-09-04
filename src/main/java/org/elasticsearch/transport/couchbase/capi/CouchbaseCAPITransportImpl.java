@@ -37,6 +37,9 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private final String bindHost;
     private final String publishHost;
 
+    private final String username;
+    private final String password;
+
     private BoundTransportAddress boundAddress;
 
     @Inject
@@ -49,6 +52,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.port = componentSettings.get("port", settings.get("couchbase.port", "9091"));
         this.bindHost = componentSettings.get("bind_host");
         this.publishHost = componentSettings.get("publish_host");
+        this.username = settings.get("couchbase.username", "Administrator");
+        this.password = settings.get("couchbase.password", "");
     }
 
     @Override
@@ -78,7 +83,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
         capiBehavior = new ElasticSearchCAPIBehavior(client, logger);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client);
-        server = new CAPIServer(capiBehavior, couchbaseBehavior, bindAddress);
+        server = new CAPIServer(capiBehavior, couchbaseBehavior, bindAddress, this.username, this.password);
         if(publishAddressString != null) {
             server.setPublishAddress(publishAddressString);
         }
