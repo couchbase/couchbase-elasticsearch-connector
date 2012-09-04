@@ -21,12 +21,12 @@ public class CouchbaseCAPITransportPlugin extends AbstractPlugin {
 
     @Override
     public String name() {
-        return "transport-couchbase-xdcr";
+        return "transport-couchbase";
     }
 
     @Override
     public String description() {
-        return "Couchbase Transport (via XDCR)";
+        return "Couchbase Transport";
     }
 
     @Override

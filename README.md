@@ -1,4 +1,4 @@
-Couchbase XDCR Transport Plugin for ElasticSearch
+Couchbase Transport Plugin for ElasticSearch
 =================================================
 
 This plugin makes your ElasticSearch node appear like a Couchbase Server node.  After installation you can use the Cross-datacenter Replication (XDCR) feature of Couchbase Server 2.0 to transfer data continuously.
@@ -6,7 +6,7 @@ This plugin makes your ElasticSearch node appear like a Couchbase Server node.  
 Installation
 ============
 
-In order to install the plugin, download the zip file from the Downloads page, then run `bin/plugin -install transport-couchbase-xdcr -url file:///tmp/elasticsearch-transport-couchbase-xdcr-1.0.0-SNAPSHOT-plugin.zip`
+In order to install the plugin, download the zip file from the Downloads page, then run `bin/plugin -install transport-couchbase -url file:///tmp/elasticsearch-transport-couchbase-1.0.0-SNAPSHOT-plugin.zip`
 
     +---------------------------------------------------+
     |  Plugin        |  Couchbase    | ElasticSearch    |
