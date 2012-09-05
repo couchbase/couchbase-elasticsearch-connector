@@ -2,15 +2,10 @@
     "template" : "*",
     "order" : 10,
     "mappings" : {
-        "_default_" : {
-            "properties" : {
-                "meta" : {
-                    "type" : "object",
-                    "enabled" : false
-                }
-            }
-        },
-        "couchbase_checkpoint" : {
+        "couchbaseCheckpoint" : {
+            "_source" : {
+                "includes" : ["doc.*"]
+            },
             "dynamic_templates": [
                 {
                     "store_no_index": {
@@ -23,6 +18,17 @@
                     }
                 }
             ]
+        },
+        "_default_" : {
+            "_source" : {
+                "includes" : ["meta.*"]
+            },
+            "properties" : {
+                "meta" : {
+                    "type" : "object",
+                    "enabled" : false
+                }
+            }
         }
     }
 }
