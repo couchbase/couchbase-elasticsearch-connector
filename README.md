@@ -11,17 +11,17 @@ In order to install the plugin, download the zip file from the Downloads page, t
     +---------------------------------------------------+
     |  Plugin        |  Couchbase    | ElasticSearch    |
     +---------------------------------------------------+
-    | master         |  2.0 (1464)   | 0.19.8           |
+    | master         |  2.0 (1464)   | 0.19.9           |
     +---------------------------------------------------+
-    | 1.0.1-SNAPSHOT |  2.0 (1464)   | 0.19.8           |
-    +---------------------------------------------------+
-    | 1.0.0-SNAPSHOT |  2.0 (1453)   | 0.19.2           |
+    | 1.0.0-beta     |  2.0 (1554)   | 0.19.9           |
     +---------------------------------------------------+
     
 Configuration
 =============
 
-- couchbase.port - the port the plugin will listen on, default 8091
+- couchbase.port - the port the plugin will listen on, default 9091
+- couchbase.username - the username for HTTP basic auth, default Administrator
+- couchbase.password - the password for HTTP basic auth, no default
 
 Usage
 =====
@@ -29,8 +29,9 @@ Usage
 Preparing ElasticSearch
 
 1. Install the plugin on each node in your cluster.
-2. Create an ElasticSearch index to store the data from Couchbase (ie. default)
-3. Create another index with the same name followed by "_master" (ie. default_master)  This is used to store replication checkpoints.
+2. Install the Couchbase template
+    curl -XPUT http://localhost:9200/_template/couchbase -d @plugins/transport-couchbase/couchbase_template.json
+3. Create an ElasticSearch index to store the data from Couchbase (ie. default)
 
 Preparing Couchbase
 
@@ -38,8 +39,8 @@ Preparing Couchbase
 2. Select the Replications tab.
 3. Press the button labeled "Create Cluster Reference"
 4. Choose a name for your ElasticSearch cluster
-5. In the IP/Hostname field provide an address of one of the nodes in your ES cluster
-6. Currently Username/Password are not used
+5. In the IP/Hostname and field provide an address and port of one of the nodes in your ES cluster (127.0.0.1:9091)
+6. Enter the Username and Password corresponding to your "couchbase.username" and "couchbase.password" settings in ElasticSearch
 7. Press the "Save" button
 
 Starting Data Transfer
