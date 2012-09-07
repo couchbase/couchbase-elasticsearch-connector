@@ -22,6 +22,8 @@ Configuration
 - couchbase.port - the port the plugin will listen on, default 9091
 - couchbase.username - the username for HTTP basic auth, default Administrator
 - couchbase.password - the password for HTTP basic auth, no default
+- couchbase.defaultDocumentType - the document type to store documents as, defaults to "couchbaseDocument"
+- couchbase.checkpointDocumentType - the document type to store replication checkpoint documents as defaults to "couchbaseCheckpoint"
 
 Usage
 =====

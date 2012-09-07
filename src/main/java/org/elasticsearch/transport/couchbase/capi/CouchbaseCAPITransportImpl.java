@@ -38,6 +38,9 @@ import com.couchbase.capi.CouchbaseBehavior;
 
 public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<CouchbaseCAPITransport> implements CouchbaseCAPITransport {
 
+    public static final String DEFAULT_DOCUMENT_TYPE_DOCUMENT = "couchbaseDocument";
+    public static final String DEFAULT_DOCUMENT_TYPE_CHECKPOINT = "couchbaseCheckpoint";
+
     private CAPIBehavior capiBehavior;
     private CouchbaseBehavior couchbaseBehavior;
     private CAPIServer server;
@@ -55,6 +58,10 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     private BoundTransportAddress boundAddress;
 
+    private String defaultDocumentType;
+    private String checkpointDocumentType;
+    private String dynamicTypePath;
+
     @Inject
     public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
         super(settings);
@@ -67,6 +74,9 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.publishHost = componentSettings.get("publish_host");
         this.username = settings.get("couchbase.username", "Administrator");
         this.password = settings.get("couchbase.password", "");
+        this.defaultDocumentType = settings.get("couchbase.defaultDocumentType", DEFAULT_DOCUMENT_TYPE_DOCUMENT);
+        this.checkpointDocumentType = settings.get("couchbase.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
+        this.dynamicTypePath = settings.get("couchbase.dynamicTypePath");
     }
 
     @Override
@@ -94,7 +104,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
             throw new BindTransportException("Failed to resolve publish address", e);
         }
 
-        capiBehavior = new ElasticSearchCAPIBehavior(client, logger);
+        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, defaultDocumentType, checkpointDocumentType, dynamicTypePath);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client);
         server = new CAPIServer(capiBehavior, couchbaseBehavior, bindAddress, this.username, this.password);
         if(publishAddressString != null) {

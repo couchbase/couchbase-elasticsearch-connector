@@ -41,17 +41,20 @@ import com.couchbase.capi.CAPIBehavior;
 
 public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
-    public static final String DOCUMENT_TYPE_DOCUMENT = "couchbaseDocument";
-    public static final String DOCUMENT_TYPE_CHECKPOINT = "couchbaseCheckpoint";
-    public static final String COUCHBASE_MASTER_DB_SUFFIX = "master";
-
     protected ObjectMapper mapper = new ObjectMapper();
     protected Client client;
     protected ESLogger logger;
 
-    public ElasticSearchCAPIBehavior(Client client, ESLogger logger) {
+    protected String defaultDocumentType;
+    protected String checkpointDocumentType;
+    protected String dynamicTypePath;
+
+    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, String defaultDocumentType, String checkpointDocumentType, String dynamicTypePath) {
         this.client = client;
         this.logger = logger;
+        this.defaultDocumentType = defaultDocumentType;
+        this.checkpointDocumentType = checkpointDocumentType;
+        this.dynamicTypePath = dynamicTypePath;
     }
 
     @Override
@@ -154,9 +157,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             String rev = (String)meta.get("rev");
             revisions.put(id, rev);
 
-            String type = DOCUMENT_TYPE_DOCUMENT;
+            String type = defaultDocumentType;
             if(id.startsWith("_local/")) {
-                type = DOCUMENT_TYPE_CHECKPOINT;
+                type = checkpointDocumentType;
             }
             boolean deleted = meta.containsKey("deleted") ? (Boolean)meta.get("deleted") : false;
 
@@ -194,12 +197,12 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
     @Override
     public Map<String, Object> getDocument(String database, String docId) {
-        return getDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, DOCUMENT_TYPE_DOCUMENT);
+        return getDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, defaultDocumentType);
     }
 
     @Override
     public Map<String, Object> getLocalDocument(String database, String docId) {
-        return getDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, DOCUMENT_TYPE_CHECKPOINT);
+        return getDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, checkpointDocumentType);
     }
 
     protected Map<String, Object> getDocumentElasticSearch(String index, String docId, String docType) {
@@ -213,13 +216,13 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
     @Override
     public String storeDocument(String database, String docId, Map<String, Object> document) {
-        return storeDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, document, DOCUMENT_TYPE_DOCUMENT);
+        return storeDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, document, defaultDocumentType);
     }
 
     @Override
     public String storeLocalDocument(String database, String docId,
             Map<String, Object> document) {
-        return storeDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, document, DOCUMENT_TYPE_CHECKPOINT);
+        return storeDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, document, checkpointDocumentType);
     }
 
     protected String storeDocumentElasticSearch(String index, String docId, Map<String, Object> document, String docType) {
