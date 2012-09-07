@@ -6,7 +6,7 @@ This plugin makes your ElasticSearch node appear like a Couchbase Server node.  
 Installation
 ============
 
-In order to install the plugin, download the zip file from the Downloads page, then run `bin/plugin -install transport-couchbase -url file:///tmp/elasticsearch-transport-couchbase-1.0.0-SNAPSHOT-plugin.zip`
+In order to install the plugin, download the zip file from the Downloads page, then run `bin/plugin -install couchbaselabs/elasticsearch-transport-couchbase/1.0.0-beta`
 
     +---------------------------------------------------+
     |  Plugin        |  Couchbase    | ElasticSearch    |
