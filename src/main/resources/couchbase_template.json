@@ -26,7 +26,7 @@
             "properties" : {
                 "meta" : {
                     "type" : "object",
-                    "enabled" : false
+                    "include_in_all" : false
                 }
             }
         }

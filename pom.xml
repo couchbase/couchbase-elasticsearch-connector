@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.couchbase</groupId>
   <artifactId>elasticsearch-transport-couchbase</artifactId>
-  <version>1.0.0-dp</version>
+  <version>1.0.0-dp2-SNAPSHOT</version>
   
     <properties>
         <elasticsearch.version>0.19.9</elasticsearch.version>
