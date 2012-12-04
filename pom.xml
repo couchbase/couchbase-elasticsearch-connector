@@ -5,7 +5,7 @@
   <version>1.0.0-dp2-SNAPSHOT</version>
   
     <properties>
-        <elasticsearch.version>0.19.9</elasticsearch.version>
+        <elasticsearch.version>0.19.11</elasticsearch.version>
     </properties>
     
     <repositories>
