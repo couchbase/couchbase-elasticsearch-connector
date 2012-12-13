@@ -185,7 +185,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                     // now try to parse the decoded data as json
                     json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
                 } catch (IOException e) {
-                    logger.warn("Unable to parse decoded base64 data as JSON, indexing stub...");
+                    logger.warn("Unable to parse decoded base64 data as JSON, indexing stub for id: {}", meta.get("id"));
                     json = new HashMap<String, Object>();
                 }
             }
