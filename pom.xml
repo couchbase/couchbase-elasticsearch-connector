@@ -5,7 +5,7 @@
   <version>1.0.0-beta-SNAPSHOT</version>
   
     <properties>
-        <elasticsearch.version>0.19.11</elasticsearch.version>
+        <elasticsearch.version>0.20.2</elasticsearch.version>
     </properties>
     
     <repositories>

@@ -24,8 +24,8 @@ import java.util.Map.Entry;
 import java.util.UUID;
 
 import org.codehaus.jackson.map.ObjectMapper;
-import org.elasticsearch.action.admin.indices.exists.IndicesExistsRequestBuilder;
-import org.elasticsearch.action.admin.indices.exists.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequestBuilder;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
