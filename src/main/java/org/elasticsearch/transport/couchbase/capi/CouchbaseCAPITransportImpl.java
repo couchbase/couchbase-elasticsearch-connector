@@ -65,6 +65,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private String checkpointDocumentType;
     private String dynamicTypePath;
 
+    private final int numVbuckets;
+
     @Inject
     public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
         super(settings);
@@ -81,6 +83,14 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.checkpointDocumentType = settings.get("couchbase.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
         this.dynamicTypePath = settings.get("couchbase.dynamicTypePath");
         this.resolveConflicts = settings.getAsBoolean("couchbase.resolveConflicts", true);
+
+        int defaultNumVbuckets = 1024;
+        if(System.getProperty("os.name").toLowerCase().contains("mac")) {
+            logger.info("Detected platform is Mac, changing default num_vbuckets to 64");
+            defaultNumVbuckets = 64;
+        }
+
+        this.numVbuckets = settings.getAsInt("couchbase.num_vbuckets", defaultNumVbuckets);
     }
 
     @Override
@@ -118,7 +128,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
                     server = new CAPIServer(capiBehavior, couchbaseBehavior,
                             new InetSocketAddress(hostAddress, portNumber),
                             CouchbaseCAPITransportImpl.this.username,
-                            CouchbaseCAPITransportImpl.this.password);
+                            CouchbaseCAPITransportImpl.this.password,
+                            numVbuckets);
 
 
                     if (publishAddressHost != null) {
