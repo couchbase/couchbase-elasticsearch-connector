@@ -201,6 +201,13 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             String rev = (String)meta.get("rev");
             revisions.put(id, rev);
 
+            long ttl = 0;
+            Integer expiration = (Integer)meta.get("expiration");
+            if(expiration != null) {
+                ttl = (expiration.longValue() * 1000) - System.currentTimeMillis();
+            }
+
+
             String type = defaultDocumentType;
             if(id.startsWith("_local/")) {
                 type = checkpointDocumentType;
@@ -213,6 +220,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             } else {
                 IndexRequestBuilder indexBuilder = client.prepareIndex(index, type, id);
                 indexBuilder.setSource(toBeIndexed);
+                if(ttl > 0) {
+                    indexBuilder.setTTL(ttl);
+                }
                 IndexRequest indexRequest = indexBuilder.request();
                 bulkBuilder.add(indexRequest);
             }
