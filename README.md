@@ -8,13 +8,15 @@ Installation
 
 In order to install the plugin, download the zip file from the Downloads page, then run `bin/plugin -install couchbaselabs/elasticsearch-transport-couchbase/1.0.0-dp`
 
-    +---------------------------------------------------+
-    |  Plugin        |  Couchbase    | ElasticSearch    |
-    +---------------------------------------------------+
-    | master         |  2.0 (beta)   | 0.19.9           |
-    +---------------------------------------------------+
-    | 1.0.0-dp       |  2.0 (beta)   | 0.19.9           |
-    +---------------------------------------------------+
+    +------------------------------------------------------------------+
+    |  Plugin                       |  Couchbase    | ElasticSearch    |
+    +------------------------------------------------------------------+
+    | master                        |  2.0 (beta)   | 0.19.9           |
+    +------------------------------------------------------------------+
+    | 1.0.0-dp                      |  2.0 (beta)   | 0.19.9           |
+    +------------------------------------------------------------------+
+    | 1.0.0-beta (NOT YET RELEASED) |  2.0.0        | 0.20.2           |
+    +------------------------------------------------------------------+
     
 Configuration
 =============
@@ -24,6 +26,17 @@ Configuration
 - couchbase.password - the password for HTTP basic auth, no default
 - couchbase.defaultDocumentType - the document type to store documents as, defaults to "couchbaseDocument"
 - couchbase.checkpointDocumentType - the document type to store replication checkpoint documents as defaults to "couchbaseCheckpoint"
+- couchbase.num_vbuckets - the number of vbuckets that ElasticSearch should pretent to have (default on Mac is 64, 1024 on all other platforms)  This value MUST match the number of vbuckets on the source Couchbase cluster.
+
+Couchbase Document Expiration
+=============================
+
+If you use the document expiration feature of Couchbase Server to expire documents after a specified TTL, you must enable the corresponding feature in your ElasticSearch mapping.  There is some cost associated with enabling this feature, so it is left disabled by default.
+
+See this page in the ElasticSearch guide for more information about enabling this feature:
+
+http://www.elasticsearch.org/guide/reference/mapping/ttl-field.html
+
 
 Usage
 =====
