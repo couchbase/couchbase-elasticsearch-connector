@@ -113,7 +113,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             rev.put("missing", revs);
             responseMap.put(id, rev);
         }
-        logger.trace("_revs_diff response is: {}", responseMap);
+        logger.warn("_revs_diff response is: {}", responseMap);
 
         // if resolve conflicts mode is enabled
         // perform a multi-get query to find information
