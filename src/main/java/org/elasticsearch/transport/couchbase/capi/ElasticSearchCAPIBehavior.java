@@ -102,7 +102,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     public Map<String, Object> revsDiff(String database,
             Map<String, Object> revsMap) {
 
-        logger.trace("_revs_diff request for: {}", revsMap);
+        logger.warn("_revs_diff request for: {}", revsMap);
 
         // start with all entries in the response map
         Map<String, Object> responseMap = new HashMap<String, Object>();
@@ -182,10 +182,19 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 // no plain json, let's try parsing the base64 data
                 try {
                     byte[] decodedData = Base64.decode(base64);
+                    try {
                     // now try to parse the decoded data as json
                     json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
+                    }
+                    catch(IOException e) {
+                        logger.error("Unable to parse decoded base64 data as JSON, indexing stub for id: {}", meta.get("id"));
+                        logger.error("Body was: {} Parse error was: {}", new String(decodedData), e);
+                        json = new HashMap<String, Object>();
+
+                    }
                 } catch (IOException e) {
-                    logger.warn("Unable to parse decoded base64 data as JSON, indexing stub for id: {}", meta.get("id"));
+                    logger.error("Unable to decoded base64, indexing stub for id: {}", meta.get("id"));
+                    logger.error("Base64 was was: {} Parse error was: {}", base64, e);
                     json = new HashMap<String, Object>();
                 }
             }
