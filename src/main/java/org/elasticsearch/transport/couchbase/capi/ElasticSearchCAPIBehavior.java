@@ -102,7 +102,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     public Map<String, Object> revsDiff(String database,
             Map<String, Object> revsMap) {
 
-        logger.warn("_revs_diff request for: {}", revsMap);
+        logger.warn("_revs_diff request for {} : {}", database, revsMap);
 
         // start with all entries in the response map
         Map<String, Object> responseMap = new HashMap<String, Object>();
@@ -113,7 +113,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             rev.put("missing", revs);
             responseMap.put(id, rev);
         }
-        logger.warn("_revs_diff response is: {}", responseMap);
+        logger.warn("_revs_diff response for {} is: {}", database, responseMap);
 
         // if resolve conflicts mode is enabled
         // perform a multi-get query to find information
