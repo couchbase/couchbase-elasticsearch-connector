@@ -175,7 +175,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 // if there is no meta-data section, there is nothing we can do
                 logger.warn("Document without meta in bulk_docs, ignoring....");
                 continue;
-            } else if("non-JSON mode".equals(meta.get("attr_reason"))) {
+            } else if("non-JSON mode".equals(meta.get("att_reason"))) {
                 // optimization, this tells us the body isn't json
                 json = new HashMap<String, Object>();
             } else if(json == null && base64 != null) {
@@ -183,8 +183,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 try {
                     byte[] decodedData = Base64.decode(base64);
                     try {
-                    // now try to parse the decoded data as json
-                    json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
+                        // now try to parse the decoded data as json
+                        json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
                     }
                     catch(IOException e) {
                         logger.error("Unable to parse decoded base64 data as JSON, indexing stub for id: {}", meta.get("id"));
