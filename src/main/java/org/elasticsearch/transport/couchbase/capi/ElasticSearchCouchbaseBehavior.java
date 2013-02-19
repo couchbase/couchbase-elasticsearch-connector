@@ -149,4 +149,10 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         return null;
     }
 
+    @Override
+    public Map<String, Object> getStats() {
+        Map<String, Object> result = new HashMap<String, Object>();
+        return result;
+    }
+
 }

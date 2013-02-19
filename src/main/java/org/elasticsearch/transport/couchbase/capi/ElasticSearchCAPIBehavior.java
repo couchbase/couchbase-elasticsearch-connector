@@ -39,6 +39,8 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Base64;
 import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.metrics.CounterMetric;
+import org.elasticsearch.common.metrics.MeanMetric;
 
 import com.couchbase.capi.CAPIBehavior;
 
@@ -53,6 +55,11 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected String dynamicTypePath;
     protected boolean resolveConflicts;
 
+    protected CounterMetric activeRevsDiffRequests;
+    protected MeanMetric meanRevsDiffRequests;
+    protected CounterMetric activeBulkDocsRequests;
+    protected MeanMetric meanBulkDocsRequests;
+
     public ElasticSearchCAPIBehavior(Client client, ESLogger logger, String defaultDocumentType, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts) {
         this.client = client;
         this.logger = logger;
@@ -60,6 +67,12 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         this.checkpointDocumentType = checkpointDocumentType;
         this.dynamicTypePath = dynamicTypePath;
         this.resolveConflicts = resolveConflicts;
+
+        this.activeRevsDiffRequests = new CounterMetric();
+        this.meanRevsDiffRequests = new MeanMetric();
+        this.activeBulkDocsRequests = new CounterMetric();
+        this.meanBulkDocsRequests = new MeanMetric();
+
     }
 
     @Override
@@ -102,6 +115,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     public Map<String, Object> revsDiff(String database,
             Map<String, Object> revsMap) {
 
+        long start = System.currentTimeMillis();
+        activeRevsDiffRequests.inc();
         logger.trace("_revs_diff request for {} : {}", database, revsMap);
 
         // start with all entries in the response map
@@ -149,11 +164,16 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             logger.trace("_revs_diff response AFTER conflict resolution {}", responseMap);
         }
 
+        long end = System.currentTimeMillis();
+        meanRevsDiffRequests.inc(end - start);
+        activeRevsDiffRequests.dec();
         return responseMap;
     }
 
     @Override
     public List<Object> bulkDocs(String database, List<Map<String, Object>> docs) {
+        long start = System.currentTimeMillis();
+        activeBulkDocsRequests.inc();
         String index = getElasticSearchIndexNameFromDatabase(database);
 
 
@@ -239,6 +259,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
         List<Object> result = new ArrayList<Object>();
 
+
         BulkResponse response = bulkBuilder.execute().actionGet();
         if(response != null) {
             for (BulkItemResponse bulkItemResponse : response.items()) {
@@ -255,6 +276,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             }
         }
 
+        long end = System.currentTimeMillis();
+        meanBulkDocsRequests.inc(end - start);
+        activeBulkDocsRequests.dec();
         return result;
     }
 
@@ -349,5 +373,26 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             return database.substring(0, semicolonIndex);
         }
         return database;
+    }
+
+    public Map<String, Object> getStats() {
+        Map<String, Object> stats = new HashMap<String, Object>();
+
+        Map<String, Object> bulkDocsStats = new HashMap<String, Object>();
+        bulkDocsStats.put("activeCount", activeBulkDocsRequests.count());
+        bulkDocsStats.put("totalCount", meanBulkDocsRequests.count());
+        bulkDocsStats.put("totalTime", meanBulkDocsRequests.sum());
+        bulkDocsStats.put("avgTime", meanBulkDocsRequests.mean());
+
+        Map<String, Object> revsDiffStats = new HashMap<String, Object>();
+        revsDiffStats.put("activeCount", activeRevsDiffRequests.count());
+        revsDiffStats.put("totalCount", meanRevsDiffRequests.count());
+        revsDiffStats.put("totalTime", meanRevsDiffRequests.sum());
+        revsDiffStats.put("avgTime", meanRevsDiffRequests.mean());
+
+        stats.put("_bulk_docs", bulkDocsStats);
+        stats.put("_revs_diff", revsDiffStats);
+
+        return stats;
     }
 }
