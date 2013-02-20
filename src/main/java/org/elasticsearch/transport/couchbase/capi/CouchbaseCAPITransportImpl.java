@@ -67,6 +67,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     private final int numVbuckets;
 
+    private final long maxConcurrentBulkDocs;
+
     @Inject
     public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
         super(settings);
@@ -83,6 +85,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.checkpointDocumentType = settings.get("couchbase.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
         this.dynamicTypePath = settings.get("couchbase.dynamicTypePath");
         this.resolveConflicts = settings.getAsBoolean("couchbase.resolveConflicts", true);
+        this.maxConcurrentBulkDocs = settings.getAsLong("couchbase.maxConcurrentBulkDocs", 64L);
 
         int defaultNumVbuckets = 1024;
         if(System.getProperty("os.name").toLowerCase().contains("mac")) {
@@ -115,7 +118,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         final InetAddress publishAddressHost = publishAddressHostX;
 
 
-        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, defaultDocumentType, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue());
+        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, defaultDocumentType, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentBulkDocs);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client);
 
         PortsRange portsRange = new PortsRange(port);

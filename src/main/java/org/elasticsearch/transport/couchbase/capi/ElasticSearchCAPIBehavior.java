@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
 
+import javax.servlet.UnavailableException;
+
 import org.codehaus.jackson.map.ObjectMapper;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequestBuilder;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
@@ -59,8 +61,11 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected MeanMetric meanRevsDiffRequests;
     protected CounterMetric activeBulkDocsRequests;
     protected MeanMetric meanBulkDocsRequests;
+    protected CounterMetric totalTooManyConcurrentBulkDocsErrors;
 
-    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, String defaultDocumentType, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts) {
+    protected long maxConcurrentBulkDocs;
+
+    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, String defaultDocumentType, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, long maxConcurrentBulkDocs) {
         this.client = client;
         this.logger = logger;
         this.defaultDocumentType = defaultDocumentType;
@@ -72,7 +77,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         this.meanRevsDiffRequests = new MeanMetric();
         this.activeBulkDocsRequests = new CounterMetric();
         this.meanBulkDocsRequests = new MeanMetric();
+        this.totalTooManyConcurrentBulkDocsErrors = new CounterMetric();
 
+        this.maxConcurrentBulkDocs = maxConcurrentBulkDocs;
     }
 
     @Override
@@ -171,7 +178,13 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     }
 
     @Override
-    public List<Object> bulkDocs(String database, List<Map<String, Object>> docs) {
+    public List<Object> bulkDocs(String database, List<Map<String, Object>> docs) throws UnavailableException {
+        // check to see if too many bulk docs requests are already active
+        if(activeBulkDocsRequests.count() > maxConcurrentBulkDocs) {
+            totalTooManyConcurrentBulkDocsErrors.inc();
+            throw new UnavailableException("Too many concurrent _bulk_docs requests");
+        }
+
         long start = System.currentTimeMillis();
         activeBulkDocsRequests.inc();
         String index = getElasticSearchIndexNameFromDatabase(database);
@@ -383,6 +396,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         bulkDocsStats.put("totalCount", meanBulkDocsRequests.count());
         bulkDocsStats.put("totalTime", meanBulkDocsRequests.sum());
         bulkDocsStats.put("avgTime", meanBulkDocsRequests.mean());
+        bulkDocsStats.put("tooManyConcurrentBulkDocsErrors", totalTooManyConcurrentBulkDocsErrors.count());
 
         Map<String, Object> revsDiffStats = new HashMap<String, Object>();
         revsDiffStats.put("activeCount", activeRevsDiffRequests.count());
