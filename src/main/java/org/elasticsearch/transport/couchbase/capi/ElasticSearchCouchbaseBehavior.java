@@ -37,6 +37,12 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     protected Client client;
 
+    protected boolean available = true;
+
+    public void setAvailable(boolean available) {
+        this.available = available;
+    }
+
     public ElasticSearchCouchbaseBehavior(Client client) {
         this.client = client;
     }
