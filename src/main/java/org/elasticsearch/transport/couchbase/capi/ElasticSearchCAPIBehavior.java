@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
 
+import javax.servlet.UnavailableException;
+
 import org.codehaus.jackson.map.ObjectMapper;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequestBuilder;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
@@ -59,15 +61,11 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected MeanMetric meanRevsDiffRequests;
     protected CounterMetric activeBulkDocsRequests;
     protected MeanMetric meanBulkDocsRequests;
-    protected CounterMetric totalServiceUnavailableErrors;
+    protected CounterMetric totalTooManyConcurrentBulkDocsErrors;
 
-    protected boolean available = true;
+    protected long maxConcurrentBulkDocs;
 
-    public void setAvailable(boolean available) {
-        this.available = available;
-    }
-
-    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, String defaultDocumentType, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts) {
+    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, String defaultDocumentType, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, long maxConcurrentBulkDocs) {
         this.client = client;
         this.logger = logger;
         this.defaultDocumentType = defaultDocumentType;
@@ -79,7 +77,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         this.meanRevsDiffRequests = new MeanMetric();
         this.activeBulkDocsRequests = new CounterMetric();
         this.meanBulkDocsRequests = new MeanMetric();
-        this.totalServiceUnavailableErrors = new CounterMetric();
+        this.totalTooManyConcurrentBulkDocsErrors = new CounterMetric();
+
+        this.maxConcurrentBulkDocs = maxConcurrentBulkDocs;
     }
 
     @Override
@@ -121,12 +121,6 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     @Override
     public Map<String, Object> revsDiff(String database,
             Map<String, Object> revsMap) {
-
-        // check to see if we're too busy
-        if(!available) {
-            totalServiceUnavailableErrors.inc();
-            throw new IllegalStateException("Service Temporarily Unavailable");
-        }
 
         long start = System.currentTimeMillis();
         activeRevsDiffRequests.inc();
@@ -184,11 +178,11 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     }
 
     @Override
-    public List<Object> bulkDocs(String database, List<Map<String, Object>> docs) {
-        // check to see if we're too busy
-        if(!available) {
-            totalServiceUnavailableErrors.inc();
-            throw new IllegalStateException("Service Temporarily Unavailable");
+    public List<Object> bulkDocs(String database, List<Map<String, Object>> docs) throws UnavailableException {
+        // check to see if too many bulk docs requests are already active
+        if(activeBulkDocsRequests.count() > maxConcurrentBulkDocs) {
+            totalTooManyConcurrentBulkDocsErrors.inc();
+            throw new UnavailableException("Too many concurrent _bulk_docs requests");
         }
 
         long start = System.currentTimeMillis();
@@ -402,6 +396,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         bulkDocsStats.put("totalCount", meanBulkDocsRequests.count());
         bulkDocsStats.put("totalTime", meanBulkDocsRequests.sum());
         bulkDocsStats.put("avgTime", meanBulkDocsRequests.mean());
+        bulkDocsStats.put("tooManyConcurrentBulkDocsErrors", totalTooManyConcurrentBulkDocsErrors.count());
 
         Map<String, Object> revsDiffStats = new HashMap<String, Object>();
         revsDiffStats.put("activeCount", activeRevsDiffRequests.count());
@@ -411,7 +406,6 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
         stats.put("_bulk_docs", bulkDocsStats);
         stats.put("_revs_diff", revsDiffStats);
-        stats.put("totalServiceUnavailableErrors", totalServiceUnavailableErrors.count());
 
         return stats;
     }

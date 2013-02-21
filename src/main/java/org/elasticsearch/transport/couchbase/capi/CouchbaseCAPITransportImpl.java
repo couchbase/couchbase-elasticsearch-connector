@@ -33,15 +33,17 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPITransport;
 
+import com.couchbase.capi.CAPIBehavior;
 import com.couchbase.capi.CAPIServer;
+import com.couchbase.capi.CouchbaseBehavior;
 
 public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<CouchbaseCAPITransport> implements CouchbaseCAPITransport {
 
     public static final String DEFAULT_DOCUMENT_TYPE_DOCUMENT = "couchbaseDocument";
     public static final String DEFAULT_DOCUMENT_TYPE_CHECKPOINT = "couchbaseCheckpoint";
 
-    private ElasticSearchCAPIBehavior capiBehavior;
-    private ElasticSearchCouchbaseBehavior couchbaseBehavior;
+    private CAPIBehavior capiBehavior;
+    private CouchbaseBehavior couchbaseBehavior;
     private CAPIServer server;
     private Client client;
     private final NetworkService networkService;
@@ -65,10 +67,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     private final int numVbuckets;
 
-    private final long healthCheckInterval;
-    private final long healthCheckThreshold;
-
-    private HealthChecker healthChecker;
+    private final long maxConcurrentBulkDocs;
 
     @Inject
     public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
@@ -86,9 +85,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.checkpointDocumentType = settings.get("couchbase.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
         this.dynamicTypePath = settings.get("couchbase.dynamicTypePath");
         this.resolveConflicts = settings.getAsBoolean("couchbase.resolveConflicts", true);
-
-        this.healthCheckInterval = settings.getAsLong("couchbase.healthCheckInterval", 30000L);
-        this.healthCheckThreshold = settings.getAsLong("couchbase.healthCheckThreshold", 10000L);
+        this.maxConcurrentBulkDocs = settings.getAsLong("couchbase.maxConcurrentBulkDocs", 64L);
 
         int defaultNumVbuckets = 1024;
         if(System.getProperty("os.name").toLowerCase().contains("mac")) {
@@ -121,11 +118,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         final InetAddress publishAddressHost = publishAddressHostX;
 
 
-        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, defaultDocumentType, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue());
+        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, defaultDocumentType, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentBulkDocs);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client);
-        this.healthChecker = new HealthChecker(healthCheckInterval, healthCheckThreshold, logger, couchbaseBehavior, capiBehavior);
-        Thread healthCheckerThread = new Thread(healthChecker);
-        healthCheckerThread.start();
 
         PortsRange portsRange = new PortsRange(port);
         final AtomicReference<Exception> lastException = new AtomicReference<Exception>();
@@ -165,7 +159,6 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     @Override
     protected void doStop() throws ElasticSearchException {
-        this.healthChecker.stop();
         if(server != null) {
             try {
                 server.stop();
