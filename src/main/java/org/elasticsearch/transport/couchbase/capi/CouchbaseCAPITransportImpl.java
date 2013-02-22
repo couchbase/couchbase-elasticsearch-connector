@@ -85,7 +85,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.checkpointDocumentType = settings.get("couchbase.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
         this.dynamicTypePath = settings.get("couchbase.dynamicTypePath");
         this.resolveConflicts = settings.getAsBoolean("couchbase.resolveConflicts", true);
-        this.maxConcurrentRequests = settings.getAsLong("couchbase.maxConcurrentRequests", 128L);
+        this.maxConcurrentRequests = settings.getAsLong("couchbase.maxConcurrentRequests", 1024L);
 
         int defaultNumVbuckets = 1024;
         if(System.getProperty("os.name").toLowerCase().contains("mac")) {
