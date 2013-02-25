@@ -22,6 +22,8 @@ Version Compatibility:
     +------------------------------------------------------------------+
     | 1.0.0-beta                    |  2.0.0        | 0.20.2           |
     +------------------------------------------------------------------+
+    | 1.0.0                         |  2.0.0        | 0.20.2           |
+    +------------------------------------------------------------------+
     
 Configuration
 =============
@@ -32,6 +34,7 @@ Configuration
 - couchbase.defaultDocumentType - the document type to store documents as, defaults to "couchbaseDocument"
 - couchbase.checkpointDocumentType - the document type to store replication checkpoint documents as defaults to "couchbaseCheckpoint"
 - couchbase.num_vbuckets - the number of vbuckets that ElasticSearch should pretent to have (default on Mac is 64, 1024 on all other platforms)  This value MUST match the number of vbuckets on the source Couchbase cluster.
+- couchbase.maxConcurrentRequests - the number of concurrent requests that the plug-in will allow, default 1024 (lower this if the load on the machine gets too high)
 
 Couchbase Document Expiration
 =============================
