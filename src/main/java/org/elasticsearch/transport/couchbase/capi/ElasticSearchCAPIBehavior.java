@@ -26,6 +26,7 @@ import java.util.UUID;
 import javax.servlet.UnavailableException;
 
 import org.codehaus.jackson.map.ObjectMapper;
+import org.elasticsearch.action.ListenableActionFuture;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequestBuilder;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -34,6 +35,7 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
+import org.elasticsearch.action.get.MultiGetRequestBuilder;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexRequestBuilder;
@@ -147,7 +149,34 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         // about revisions we already have
         if (resolveConflicts) {
             String index = getElasticSearchIndexNameFromDatabase(database);
-            MultiGetResponse response = client.prepareMultiGet().add(index, defaultDocumentType, responseMap.keySet()).execute().actionGet();
+            // the following debug code is verbose in the hopes of better understanding CBES-13
+            MultiGetResponse response = null;
+            if(client != null) {
+                MultiGetRequestBuilder builder = client.prepareMultiGet();
+                if(builder != null) {
+                    if(index == null) {
+                        logger.debug("index is null");
+                    }
+                    if(defaultDocumentType == null) {
+                        logger.debug("default document type is null");
+                    }
+                    builder = builder.add(index, defaultDocumentType, responseMap.keySet());
+                    if(builder != null) {
+                        ListenableActionFuture<MultiGetResponse> laf = builder.execute();
+                        if(laf != null) {
+                            response = laf.actionGet();
+                        } else {
+                            logger.debug("laf was null");
+                        }
+                    } else {
+                        logger.debug("builder was null 2");
+                    }
+                } else {
+                    logger.debug("builder was null");
+                }
+            } else {
+                logger.debug("client was null");
+            }
             if(response != null) {
                 Iterator<MultiGetItemResponse> iterator = response.iterator();
                 while(iterator.hasNext()) {
@@ -172,6 +201,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                         }
                     }
                 }
+            } else {
+                logger.debug("response was null");
             }
             logger.trace("_revs_diff response AFTER conflict resolution {}", responseMap);
         }
