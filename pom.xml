@@ -2,12 +2,12 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.couchbase</groupId>
   <artifactId>elasticsearch-transport-couchbase</artifactId>
-  <version>1.0.1-SNAPSHOT</version>
-  
+  <version>1.0.2-SNAPSHOT</version>
+
     <properties>
-        <elasticsearch.version>0.20.2</elasticsearch.version>
+        <elasticsearch.version>0.90.0</elasticsearch.version>
     </properties>
-    
+
     <repositories>
 
         <repository>
@@ -17,7 +17,7 @@
         </repository>
 
     </repositories>
-    
+
     <dependencies>
         <dependency>
             <groupId>org.elasticsearch</groupId>
@@ -37,7 +37,7 @@
             <version>1.0.1-SNAPSHOT</version>
         </dependency>
     </dependencies>
-    
+
     <build>
         <plugins>
             <plugin>
@@ -82,5 +82,5 @@
             </plugin>
         </plugins>
     </build>
-  
+
 </project>
