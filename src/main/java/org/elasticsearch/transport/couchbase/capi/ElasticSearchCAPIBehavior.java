@@ -89,7 +89,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         String index = getElasticSearchIndexNameFromDatabase(database);
         IndicesExistsRequestBuilder existsBuilder = client.admin().indices().prepareExists(index);
         IndicesExistsResponse response = existsBuilder.execute().actionGet();
-        if(response.exists()) {
+        if(response.isExists()) {
             return true;
         }
         return false;
@@ -181,9 +181,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 Iterator<MultiGetItemResponse> iterator = response.iterator();
                 while(iterator.hasNext()) {
                     MultiGetItemResponse item = iterator.next();
-                    if(item.response().exists()) {
-                        String itemId = item.id();
-                        Map<String, Object> source = item.response().sourceAsMap();
+                    if(item.getResponse().isExists()) {
+                        String itemId = item.getId();
+                        Map<String, Object> source = item.getResponse().getSourceAsMap();
                         if(source != null) {
                             Map<String, Object> meta = (Map<String, Object>)source.get("meta");
                             if(meta != null) {
@@ -311,13 +311,13 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
         BulkResponse response = bulkBuilder.execute().actionGet();
         if(response != null) {
-            for (BulkItemResponse bulkItemResponse : response.items()) {
+            for (BulkItemResponse bulkItemResponse : response.getItems()) {
                 Map<String, Object> itemResponse = new HashMap<String, Object>();
                 String itemId = bulkItemResponse.getId();
                 itemResponse.put("id", itemId);
-                if(bulkItemResponse.failed()) {
+                if(bulkItemResponse.isFailed()) {
                     itemResponse.put("error", "failed");
-                    itemResponse.put("reason", bulkItemResponse.failureMessage());
+                    itemResponse.put("reason", bulkItemResponse.getFailureMessage());
                 } else {
                     itemResponse.put("rev", revisions.get(itemId));
                 }
@@ -343,8 +343,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
     protected Map<String, Object> getDocumentElasticSearch(String index, String docId, String docType) {
         GetResponse response = client.prepareGet(index, docType, docId).execute().actionGet();
-        if(response != null && response.exists()) {
-            Map<String,Object> esDocument = response.sourceAsMap();
+        if(response != null && response.isExists()) {
+            Map<String,Object> esDocument = response.getSourceAsMap();
             return (Map<String, Object>)esDocument.get("doc");
         }
         return null;

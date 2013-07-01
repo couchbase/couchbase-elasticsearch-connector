@@ -94,7 +94,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     public String getBucketUUID(String pool, String bucket) {
         IndicesExistsRequestBuilder existsBuilder = client.admin().indices().prepareExists(bucket);
         IndicesExistsResponse response = existsBuilder.execute().actionGet();
-        if(response.exists()) {
+        if(response.isExists()) {
             return "00000000000000000000000000000000";
         }
         return null;
@@ -114,9 +114,9 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
                 // FIXME there has to be a better way than
                 // parsing this string
                 // but so far I have not found it
-                if (nodeInfo.serviceAttributes() != null) {
+                if (nodeInfo.getServiceAttributes() != null) {
                     for (Map.Entry<String, String> nodeAttribute : nodeInfo
-                            .serviceAttributes().entrySet()) {
+                            .getServiceAttributes().entrySet()) {
                         if (nodeAttribute.getKey().equals(
                                 "couchbase_address")) {
                             int start = nodeAttribute
