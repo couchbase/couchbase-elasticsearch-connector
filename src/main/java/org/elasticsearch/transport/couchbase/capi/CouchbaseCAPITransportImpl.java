@@ -16,6 +16,8 @@ package org.elasticsearch.transport.couchbase.capi;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.elasticsearch.ElasticSearchException;
@@ -69,6 +71,9 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     private final long maxConcurrentRequests;
 
+    private final JsonCustomizer jsonCustomizer;
+    private final TypeSelector typeSelector;
+
     @Inject
     public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
         super(settings);
@@ -86,6 +91,29 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.dynamicTypePath = settings.get("couchbase.dynamicTypePath");
         this.resolveConflicts = settings.getAsBoolean("couchbase.resolveConflicts", true);
         this.maxConcurrentRequests = settings.getAsLong("couchbase.maxConcurrentRequests", 1024L);
+
+        Class<? extends JsonCustomizer> jsonCustomizerClass = settings.<JsonCustomizer>getAsClass("couchbase.jsonCustomizer", null);
+        if (jsonCustomizerClass != null) {
+            try {
+                this.jsonCustomizer = jsonCustomizerClass.newInstance();
+            } catch (Exception e) {
+                throw new ElasticSearchException("couchbase.jsonCustomizer", e);
+            }
+            this.jsonCustomizer.init(settings);
+        } else {
+            this.jsonCustomizer = null;
+        }
+        Class<? extends TypeSelector> typeSelectorClass = settings.<TypeSelector>getAsClass("couchbase.typeSelector", null);
+        if (typeSelectorClass != null) {
+            try {
+                this.typeSelector = typeSelectorClass.newInstance();
+            } catch (Exception e) {
+                throw new ElasticSearchException("couchbase.typeSelector", e);
+            }
+            this.typeSelector.init(settings);
+        } else {
+            this.typeSelector = null;
+        }
 
         int defaultNumVbuckets = 1024;
         if(System.getProperty("os.name").toLowerCase().contains("mac")) {
@@ -118,7 +146,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         final InetAddress publishAddressHost = publishAddressHostX;
 
 
-        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, defaultDocumentType, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentRequests);
+        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, defaultDocumentType, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentRequests, jsonCustomizer, typeSelector);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client);
 
         PortsRange portsRange = new PortsRange(port);
