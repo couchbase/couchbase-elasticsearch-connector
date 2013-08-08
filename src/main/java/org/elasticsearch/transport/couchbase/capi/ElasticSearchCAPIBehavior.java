@@ -169,7 +169,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                         if(type == null) {
                             logger.debug("default document type is null");
                         }
-                        builder = builder.add(index, type, responseMap.keySet());
+                        builder = builder.add(index, type, id);
                     }
                     if(builder != null) {
                         ListenableActionFuture<MultiGetResponse> laf = builder.execute();
@@ -278,17 +278,6 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 }
             }
 
-            String id = (String)meta.get("id");
-            String rev = (String)meta.get("rev");
-            revisions.put(id, rev);
-
-            if (jsonCustomizer != null) {
-                Object msg = jsonCustomizer.customize(database, id, rev, json);
-                if (msg != null) {
-                    meta.put("customized", msg);
-                }
-            }
-
             // at this point we know we have the document meta-data
             // and the document contents to be indexed are in json
 
@@ -302,10 +291,19 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 ttl = (expiration.longValue() * 1000) - System.currentTimeMillis();
             }
 
+            String id = (String)meta.get("id");
+            String rev = (String)meta.get("rev");
+            revisions.put(id, rev);
 
-            String type = getElasticSearchTypeNameFromDocId(database, id);
+            String type;
             if(id.startsWith("_local/")) {
                 type = checkpointDocumentType;
+            } else {
+                type = getElasticSearchTypeNameFromDocId(database, id);
+                Object msg = customizeJsonDocumentAndReturnMetaMessage(database, id, rev, json);
+                if (msg != null) {
+                    meta.put("customized", msg);
+                }
             }
             boolean deleted = meta.containsKey("deleted") ? (Boolean)meta.get("deleted") : false;
 
@@ -438,6 +436,15 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             return typeSelector.getDocumentType(database, docId, defaultDocumentType);
         } 
         return defaultDocumentType;
+    }
+
+    protected Object customizeJsonDocumentAndReturnMetaMessage(String database,
+            String id, String rev, Map<String, Object> json) {
+        if (jsonCustomizer != null) {
+            return jsonCustomizer.customize(database, id, rev, json);
+        } else {
+            return null;
+        }
     }
 
     protected String getDatabaseNameWithoutUUID(String database) {
