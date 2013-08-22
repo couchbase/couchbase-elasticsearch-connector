@@ -38,7 +38,7 @@ public class RegexTypeSelector implements TypeSelector {
         }
     }
 
-    public String getDocumentType(String database, String docId,
+    public String getDocumentType(String index, String docId,
             String defaultType) {
         for (Entry<String, Pattern> typePattern : documentTypePatterns
                 .entrySet()) {

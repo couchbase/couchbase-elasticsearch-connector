@@ -165,7 +165,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                         logger.debug("index is null");
                     }
                     for (String id : responseMap.keySet()) {
-                        String type = getElasticSearchTypeNameFromDocId(database, id);
+                        String type = getElasticSearchTypeNameFromDocId(index, id);
                         if(type == null) {
                             logger.debug("default document type is null");
                         }
@@ -299,8 +299,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             if(id.startsWith("_local/")) {
                 type = checkpointDocumentType;
             } else {
-                type = getElasticSearchTypeNameFromDocId(database, id);
-                Object msg = customizeJsonDocumentAndReturnMetaMessage(database, id, rev, json);
+                type = getElasticSearchTypeNameFromDocId(index, id);
+                Object msg = customizeJsonDocumentAndReturnMetaMessage(index, id, rev, json);
                 if (msg != null) {
                     meta.put("customized", msg);
                 }
@@ -348,7 +348,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
     @Override
     public Map<String, Object> getDocument(String database, String docId) {
-        return getDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, getElasticSearchTypeNameFromDocId(database, docId));
+        String index = getElasticSearchIndexNameFromDatabase(database);
+        return getDocumentElasticSearch(index, docId, getElasticSearchTypeNameFromDocId(index, docId));
     }
 
     @Override
@@ -367,7 +368,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
     @Override
     public String storeDocument(String database, String docId, Map<String, Object> document) {
-        return storeDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, document, getElasticSearchTypeNameFromDocId(database, docId));
+        String index = getElasticSearchIndexNameFromDatabase(database);
+        return storeDocumentElasticSearch(index, docId, document, getElasticSearchTypeNameFromDocId(index, docId));
     }
 
     @Override
@@ -431,17 +433,17 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         }
     }
 
-    protected String getElasticSearchTypeNameFromDocId(String database, String docId) {
+    protected String getElasticSearchTypeNameFromDocId(String index, String docId) {
         if (typeSelector != null) {
-            return typeSelector.getDocumentType(database, docId, defaultDocumentType);
+            return typeSelector.getDocumentType(index, docId, defaultDocumentType);
         } 
         return defaultDocumentType;
     }
 
-    protected Object customizeJsonDocumentAndReturnMetaMessage(String database,
+    protected Object customizeJsonDocumentAndReturnMetaMessage(String index,
             String id, String rev, Map<String, Object> json) {
         if (jsonCustomizer != null) {
-            return jsonCustomizer.customize(database, id, rev, json);
+            return jsonCustomizer.customize(index, id, rev, json);
         } else {
             return null;
         }

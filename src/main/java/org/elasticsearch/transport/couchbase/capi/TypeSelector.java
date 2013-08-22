@@ -19,5 +19,5 @@ public interface TypeSelector {
 
     void init(Settings settings);
 
-    String getDocumentType(String database, String docId, String defaultType);
+    String getDocumentType(String index, String docId, String defaultType);
 }

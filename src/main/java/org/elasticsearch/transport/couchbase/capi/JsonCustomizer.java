@@ -19,5 +19,5 @@ import org.elasticsearch.common.settings.Settings;
 
 public interface JsonCustomizer {
 	void init(Settings settings);
-    Object customize(String database, String docId, String rev, Map<String, Object> json);
+    Object customize(String index, String docId, String rev, Map<String, Object> json);
 }

@@ -120,12 +120,19 @@ public class PrefixTypeParIndexSelector implements TypeSelector {
      * @see TypeSelector#getDocumentType(String, String, String)
      */
     @Override
-    public String getDocumentType(String database, String docId,
+    public String getDocumentType(String index, String docId,
             String defaultType) {
 
-        String type = get(docId, indexTypesMapList.get(database));
+        String type = get(docId, indexTypesMapList.get(index));
         if (type == null) {
-            get(docId, indexTypesMapList.get("_default"));
+            type = get(docId, indexTypesMapList.get("_default"));
+        }
+        if (type == null) {
+            logger.warn(
+                    "[{}] docId {} can not found type in index '{}':{}.",
+                    getClass().getSimpleName(), docId, index,
+                    indexTypesMapList.get(index));
+
         }
         return type == null ? defaultType : type;
     }

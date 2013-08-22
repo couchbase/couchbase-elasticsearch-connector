@@ -97,7 +97,7 @@ public class PrefixTypeSelector implements TypeSelector {
      * @see TypeSelector#getDocumentType(String, String, String)
      */
     @Override
-    public String getDocumentType(String database, String docId,
+    public String getDocumentType(String index, String docId,
             String defaultType) {
 
         Set<Entry<Integer, Map<String, String>>> entrySet = typeMapList
