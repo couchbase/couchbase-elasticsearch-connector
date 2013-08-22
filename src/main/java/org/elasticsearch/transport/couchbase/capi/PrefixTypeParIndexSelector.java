@@ -127,13 +127,6 @@ public class PrefixTypeParIndexSelector implements TypeSelector {
         if (type == null) {
             type = get(docId, indexTypesMapList.get("_default"));
         }
-        if (type == null) {
-            logger.warn(
-                    "[{}] docId {} can not found type in index '{}':{}.",
-                    getClass().getSimpleName(), docId, index,
-                    indexTypesMapList.get(index));
-
-        }
         return type == null ? defaultType : type;
     }
 
