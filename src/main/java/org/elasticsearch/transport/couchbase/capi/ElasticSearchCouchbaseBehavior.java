@@ -29,7 +29,6 @@ import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRespon
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
-import org.elasticsearch.common.collect.ImmutableMap;
 
 import com.couchbase.capi.CouchbaseBehavior;
 
@@ -80,7 +79,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
             ClusterStateRequestBuilder stateBuilder = client.admin().cluster().prepareState();
             ClusterStateResponse response = stateBuilder.execute().actionGet();
-            ImmutableMap<String, IndexMetaData> indices = response.getState().getMetaData().getIndices();
+            Map<String, IndexMetaData> indices = response.getState().getMetaData().getIndices();
             for (String index : indices.keySet()) {
                 bucketNameList.add(index);
             }
