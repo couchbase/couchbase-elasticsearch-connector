@@ -18,7 +18,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.elasticsearch.ElasticSearchException;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.MetaDataMappingService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
@@ -97,7 +97,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     }
 
     @Override
-    protected void doStart() throws ElasticSearchException {
+    protected void doStart() throws ElasticsearchException {
 
         // Bind and start to accept incoming connections.
         InetAddress hostAddressX;
@@ -158,18 +158,18 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     }
 
     @Override
-    protected void doStop() throws ElasticSearchException {
+    protected void doStop() throws ElasticsearchException {
         if(server != null) {
             try {
                 server.stop();
             } catch (Exception e) {
-                throw new ElasticSearchException("Error stopping jetty", e);
+                throw new ElasticsearchException("Error stopping jetty", e);
             }
         }
     }
 
     @Override
-    protected void doClose() throws ElasticSearchException {
+    protected void doClose() throws ElasticsearchException {
 
     }
 

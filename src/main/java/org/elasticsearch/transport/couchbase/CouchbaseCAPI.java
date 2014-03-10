@@ -13,7 +13,7 @@
  */
 package org.elasticsearch.transport.couchbase;
 
-import org.elasticsearch.ElasticSearchException;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
@@ -38,7 +38,7 @@ public class CouchbaseCAPI extends AbstractLifecycleComponent<CouchbaseCAPI> {
     }
 
     @Override
-    protected void doStart() throws ElasticSearchException {
+    protected void doStart() throws ElasticsearchException {
         transport.start();
         if (logger.isInfoEnabled()) {
             logger.info("{}", transport.boundAddress());
@@ -47,13 +47,13 @@ public class CouchbaseCAPI extends AbstractLifecycleComponent<CouchbaseCAPI> {
     }
 
     @Override
-    protected void doStop() throws ElasticSearchException {
+    protected void doStop() throws ElasticsearchException {
         nodeService.removeNodeAttribute("couchbase_address");
         transport.stop();
     }
 
     @Override
-    protected void doClose() throws ElasticSearchException {
+    protected void doClose() throws ElasticsearchException {
         transport.close();
     }
 
