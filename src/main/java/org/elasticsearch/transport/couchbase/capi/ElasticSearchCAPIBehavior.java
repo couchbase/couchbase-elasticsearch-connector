@@ -318,6 +318,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                     itemResponse.put("error", "failed");
                     itemResponse.put("reason", bulkItemResponse.getFailureMessage());
                     logger.error("indexing error for id: {} reason: {}", itemId, bulkItemResponse.getFailureMessage());
+                    throw new RuntimeException("indexing error " + bulkItemResponse.getFailureMessage());
                 } else {
                     itemResponse.put("rev", revisions.get(itemId));
                 }
