@@ -28,11 +28,12 @@ import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsReques
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterName;
+import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
-
-import com.couchbase.capi.CouchbaseBehavior;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.hppc.cursors.ObjectCursor;
+
+import com.couchbase.capi.CouchbaseBehavior;
 
 public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
@@ -84,6 +85,11 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             ImmutableOpenMap<String, IndexMetaData> indices = response.getState().getMetaData().getIndices();
             for (ObjectCursor<String> index : indices.keys()) {
                 bucketNameList.add(index.value);
+                IndexMetaData indexMetaData = indices.get(index.value);
+                ImmutableOpenMap<String, AliasMetaData> aliases = indexMetaData.aliases();
+                for(ObjectCursor<String> alias : aliases.keys()) {
+                    bucketNameList.add(alias.value);
+                }
             }
 
             return bucketNameList;
