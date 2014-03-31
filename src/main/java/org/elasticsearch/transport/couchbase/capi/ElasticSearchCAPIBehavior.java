@@ -231,9 +231,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         // keep a map of the id - rev for building the response
         Map<String,String> revisions = new HashMap<String, String>();
 
+        logger.debug("Bulk doc entry is {}", docs);
         for (Map<String, Object> doc : docs) {
-
-            logger.debug("Bulk doc entry is {}", docs);
 
             // these are the top-level elements that could be in the document sent by Couchbase
             Map<String, Object> meta = (Map<String, Object>)doc.get("meta");
@@ -318,6 +317,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 if(bulkItemResponse.isFailed()) {
                     itemResponse.put("error", "failed");
                     itemResponse.put("reason", bulkItemResponse.getFailureMessage());
+                    logger.error("indexing error for id: {} reason: {}", itemId, bulkItemResponse.getFailureMessage());
                 } else {
                     itemResponse.put("rev", revisions.get(itemId));
                 }
