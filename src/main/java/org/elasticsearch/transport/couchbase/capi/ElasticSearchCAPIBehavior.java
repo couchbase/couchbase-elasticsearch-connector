@@ -85,6 +85,13 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     }
 
     @Override
+    public Map<String, Object> welcome() {
+        Map<String, Object> responseMap = new HashMap<String, Object>();
+        responseMap.put("welcome", "elasticsearch-transport-couchbase");
+        return responseMap;
+    }
+
+    @Override
     public boolean databaseExists(String database) {
         String index = getElasticSearchIndexNameFromDatabase(database);
         IndicesExistsRequestBuilder existsBuilder = client.admin().indices().prepareExists(index);
