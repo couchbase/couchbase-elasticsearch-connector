@@ -113,13 +113,13 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         try {
             publishAddressHostX = networkService.resolvePublishHostAddress(publishHost);
         } catch (IOException e) {
-            throw new BindHttpException("FAiled to resolve publish address host [" + publishHost + "]", e);
+            throw new BindHttpException("Failed to resolve publish address host [" + publishHost + "]", e);
         }
         final InetAddress publishAddressHost = publishAddressHostX;
 
 
         capiBehavior = new ElasticSearchCAPIBehavior(client, logger, defaultDocumentType, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentRequests);
-        couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client);
+        couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, checkpointDocumentType);
 
         PortsRange portsRange = new PortsRange(port);
         final AtomicReference<Exception> lastException = new AtomicReference<Exception>();

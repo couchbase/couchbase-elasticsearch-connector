@@ -33,11 +33,13 @@ import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.get.GetRequestBuilder;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetRequestBuilder;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexRequest.OpType;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
@@ -453,4 +455,79 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
         return stats;
     }
+
+    protected String getUUIDFromCheckpointDocSource(Map<String, Object> source) {
+        Map<String,Object> docMap = (Map<String,Object>)source.get("doc");
+        String uuid = (String)docMap.get("uuid");
+        return uuid;
+    }
+
+    protected String lookupUUID(String bucket, String id) {
+        GetRequestBuilder builder = client.prepareGet();
+        builder.setIndex(bucket);
+        builder.setId(id);
+        builder.setType(this.checkpointDocumentType);
+        builder.setFetchSource(true);
+
+        String bucketUUID = null;
+        GetResponse response;
+        ListenableActionFuture<GetResponse> laf = builder.execute();
+        if(laf != null) {
+            response = laf.actionGet();
+            if(response.isExists()) {
+            Map<String,Object> responseMap = response.getSourceAsMap();
+            bucketUUID = this.getUUIDFromCheckpointDocSource(responseMap);
+            }
+        }
+
+        return bucketUUID;
+    }
+
+    protected void storeUUID(String bucket, String id, String uuid) {
+        Map<String,Object> doc = new HashMap<String, Object>();
+        doc.put("uuid", uuid);
+        Map<String, Object> toBeIndexed = new HashMap<String, Object>();
+        toBeIndexed.put("doc", doc);
+
+        IndexRequestBuilder builder = client.prepareIndex();
+        builder.setIndex(bucket);
+        builder.setId(id);
+        builder.setType(this.checkpointDocumentType);
+        builder.setSource(toBeIndexed);
+        builder.setOpType(OpType.CREATE);
+
+        IndexResponse response;
+        ListenableActionFuture<IndexResponse> laf = builder.execute();
+        if(laf != null) {
+            response = laf.actionGet();
+            if(!response.isCreated()) {
+                logger.error("did not succeed creating uuid");
+            }
+        }
+    }
+
+    public String getVBucketUUID(String pool, String bucket, int vbucket) {
+        IndicesExistsRequestBuilder existsBuilder = client.admin().indices().prepareExists(bucket);
+        IndicesExistsResponse response = existsBuilder.execute().actionGet();
+        if(response.isExists()) {
+            int tries = 0;
+            String key = String.format("vbucket%dUUID",vbucket);
+            String bucketUUID = this.lookupUUID(bucket, key);
+            while(bucketUUID == null && tries < 100) {
+                logger.debug("vbucket {} UUID doesn't exist yet,  creaating", vbucket);
+                String newUUID = UUID.randomUUID().toString().replace("-", "");
+                storeUUID(bucket, key, newUUID);
+                bucketUUID = this.lookupUUID(bucket, key);
+                tries++;
+            }
+
+            if(bucketUUID == null) {
+                throw new RuntimeException("failed to find/create bucket uuid after 100 tries");
+            }
+
+            return bucketUUID;
+        }
+        return null;
+    }
+
 }

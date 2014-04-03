@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.elasticsearch.action.ListenableActionFuture;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequestBuilder;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
@@ -26,21 +27,31 @@ import org.elasticsearch.action.admin.cluster.state.ClusterStateRequestBuilder;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequestBuilder;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.get.GetRequestBuilder;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest.OpType;
+import org.elasticsearch.action.index.IndexRequestBuilder;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.hppc.cursors.ObjectCursor;
+import org.elasticsearch.common.logging.ESLogger;
 
 import com.couchbase.capi.CouchbaseBehavior;
 
 public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     protected Client client;
+    protected ESLogger logger;
+    protected String checkpointDocumentType;
 
-    public ElasticSearchCouchbaseBehavior(Client client) {
+    public ElasticSearchCouchbaseBehavior(Client client, ESLogger logger, String checkpointDocumentType) {
         this.client = client;
+        this.logger = logger;
+        this.checkpointDocumentType = checkpointDocumentType;
     }
 
     @Override
@@ -97,12 +108,76 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         return null;
     }
 
+    protected String getUUIDFromCheckpointDocSource(Map<String, Object> source) {
+        Map<String,Object> docMap = (Map<String,Object>)source.get("doc");
+        String uuid = (String)docMap.get("uuid");
+        return uuid;
+    }
+
+    protected String lookupUUID(String bucket, String id) {
+        GetRequestBuilder builder = client.prepareGet();
+        builder.setIndex(bucket);
+        builder.setId(id);
+        builder.setType(this.checkpointDocumentType);
+        builder.setFetchSource(true);
+
+        String bucketUUID = null;
+        GetResponse response;
+        ListenableActionFuture<GetResponse> laf = builder.execute();
+        if(laf != null) {
+            response = laf.actionGet();
+            if(response.isExists()) {
+            Map<String,Object> responseMap = response.getSourceAsMap();
+            bucketUUID = this.getUUIDFromCheckpointDocSource(responseMap);
+            }
+        }
+
+        return bucketUUID;
+    }
+
+    protected void storeUUID(String bucket, String id, String uuid) {
+        Map<String,Object> doc = new HashMap<String, Object>();
+        doc.put("uuid", uuid);
+        Map<String, Object> toBeIndexed = new HashMap<String, Object>();
+        toBeIndexed.put("doc", doc);
+
+        IndexRequestBuilder builder = client.prepareIndex();
+        builder.setIndex(bucket);
+        builder.setId(id);
+        builder.setType(this.checkpointDocumentType);
+        builder.setSource(toBeIndexed);
+        builder.setOpType(OpType.CREATE);
+
+        IndexResponse response;
+        ListenableActionFuture<IndexResponse> laf = builder.execute();
+        if(laf != null) {
+            response = laf.actionGet();
+            if(!response.isCreated()) {
+                logger.error("did not succeed creating uuid");
+            }
+        }
+    }
+
     @Override
     public String getBucketUUID(String pool, String bucket) {
         IndicesExistsRequestBuilder existsBuilder = client.admin().indices().prepareExists(bucket);
         IndicesExistsResponse response = existsBuilder.execute().actionGet();
         if(response.isExists()) {
-            return "00000000000000000000000000000000";
+            int tries = 0;
+            String bucketUUID = this.lookupUUID(bucket, "bucketUUID");
+            while(bucketUUID == null && tries < 100) {
+                logger.debug("bucket UUID doesn't exist yet,  creaating");
+                String newUUID = UUID.randomUUID().toString().replace("-", "");
+                storeUUID(bucket, "bucketUUID", newUUID);
+                bucketUUID = this.lookupUUID(bucket, "bucketUUID");
+                tries++;
+            }
+
+            if(bucketUUID == null) {
+                throw new RuntimeException("failed to find/create bucket uuid after 100 tries");
+            }
+
+            return bucketUUID;
         }
         return null;
     }
