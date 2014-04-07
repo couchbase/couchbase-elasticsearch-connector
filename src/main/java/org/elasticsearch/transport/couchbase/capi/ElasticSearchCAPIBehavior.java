@@ -30,6 +30,7 @@ import org.elasticsearch.action.ListenableActionFuture;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequestBuilder;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
+import org.elasticsearch.action.bulk.BulkItemResponse.Failure;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -68,8 +69,10 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected CounterMetric totalTooManyConcurrentRequestsErrors;
 
     protected long maxConcurrentRequests;
+    protected long bulkIndexRetries;
+    protected long bulkIndexRetryWaitMs;
 
-    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, String defaultDocumentType, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, long maxConcurrentRequests) {
+    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, String defaultDocumentType, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs) {
         this.client = client;
         this.logger = logger;
         this.defaultDocumentType = defaultDocumentType;
@@ -84,6 +87,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         this.totalTooManyConcurrentRequestsErrors = new CounterMetric();
 
         this.maxConcurrentRequests = maxConcurrentRequests;
+        this.bulkIndexRetries = bulkIndexRetries;
+        this.bulkIndexRetryWaitMs = bulkIndexRetryWaitMs;
     }
 
     @Override
@@ -314,31 +319,66 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             }
         }
 
-        List<Object> result = new ArrayList<Object>();
+        List<Object> result = null;
 
+        long retriesLeft = this.bulkIndexRetries;
+        int attempt = 0;
 
-        BulkResponse response = bulkBuilder.execute().actionGet();
-        if(response != null) {
-            for (BulkItemResponse bulkItemResponse : response.getItems()) {
-                Map<String, Object> itemResponse = new HashMap<String, Object>();
-                String itemId = bulkItemResponse.getId();
-                itemResponse.put("id", itemId);
-                if(bulkItemResponse.isFailed()) {
-                    itemResponse.put("error", "failed");
-                    itemResponse.put("reason", bulkItemResponse.getFailureMessage());
-                    logger.error("indexing error for id: {} reason: {}", itemId, bulkItemResponse.getFailureMessage());
-                    throw new RuntimeException("indexing error " + bulkItemResponse.getFailureMessage());
-                } else {
-                    itemResponse.put("rev", revisions.get(itemId));
+        BulkResponse response = null;
+        do {
+            attempt++;
+            result = new ArrayList<Object>();
+            if(response != null) {
+                // at least second time through
+                try {
+                    Thread.sleep(this.bulkIndexRetryWaitMs);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
-                result.add(itemResponse);
             }
+            response = bulkBuilder.execute().actionGet();
+            if(response != null) {
+                for (BulkItemResponse bulkItemResponse : response.getItems()) {
+                    if(!bulkItemResponse.isFailed()) {
+                        String itemId = bulkItemResponse.getId();
+                        String itemRev = revisions.get(itemId);
+                        Map<String, Object> itemResponse = new HashMap<String, Object>();
+                        itemResponse.put("id", itemId);
+                        itemResponse.put("rev", itemRev);
+                        result.add(itemResponse);
+                    } else {
+                        Failure failure = bulkItemResponse.getFailure();
+                        // if the error is fatal don't retry
+                        if(failureMessageAppearsFatal(failure.getMessage())) {
+                            throw new RuntimeException("indexing error " + failure.getMessage());
+                        }
+                    }
+                }
+            }
+            retriesLeft--;
+        } while((response != null) && (response.hasFailures()) && (retriesLeft > 0));
+
+        if(response == null) {
+            throw new RuntimeException("indexing error, bulk response was null");
         }
+
+        if(retriesLeft == 0) {
+            throw new RuntimeException("indexing error, bulk failed after all retries");
+        }
+
+        logger.debug("bulk index succeeded after {} tries", attempt);
 
         long end = System.currentTimeMillis();
         meanBulkDocsRequests.inc(end - start);
         activeBulkDocsRequests.dec();
         return result;
+    }
+
+    public boolean failureMessageAppearsFatal(String failureMessage) {
+        if(failureMessage.contains("EsRejectedExecutionException")) {
+            return false;
+        }
+        return true;
     }
 
     @Override

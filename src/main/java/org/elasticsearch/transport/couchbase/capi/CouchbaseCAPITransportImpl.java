@@ -69,6 +69,9 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     private final long maxConcurrentRequests;
 
+    private long bulkIndexRetries;
+    private long bulkIndexRetryWaitMs;
+
     @Inject
     public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
         super(settings);
@@ -86,6 +89,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.dynamicTypePath = settings.get("couchbase.dynamicTypePath");
         this.resolveConflicts = settings.getAsBoolean("couchbase.resolveConflicts", true);
         this.maxConcurrentRequests = settings.getAsLong("couchbase.maxConcurrentRequests", 1024L);
+        this.bulkIndexRetries = settings.getAsLong("couchbase.bulkIndexRetries", 1024L);
+        this.bulkIndexRetryWaitMs = settings.getAsLong("couchbase.bulkIndexRetryWaitMs", 1000L);
 
         int defaultNumVbuckets = 1024;
         if(System.getProperty("os.name").toLowerCase().contains("mac")) {
@@ -118,7 +123,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         final InetAddress publishAddressHost = publishAddressHostX;
 
 
-        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, defaultDocumentType, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentRequests);
+        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, defaultDocumentType, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentRequests, bulkIndexRetries, bulkIndexRetryWaitMs);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, checkpointDocumentType);
 
         PortsRange portsRange = new PortsRange(port);
