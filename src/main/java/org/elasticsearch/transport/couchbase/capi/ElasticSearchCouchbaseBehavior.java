@@ -36,6 +36,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.common.cache.Cache;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.hppc.cursors.ObjectCursor;
 import org.elasticsearch.common.logging.ESLogger;
@@ -47,11 +48,13 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     protected Client client;
     protected ESLogger logger;
     protected String checkpointDocumentType;
+    protected Cache<String, String> bucketUUIDCache;
 
-    public ElasticSearchCouchbaseBehavior(Client client, ESLogger logger, String checkpointDocumentType) {
+    public ElasticSearchCouchbaseBehavior(Client client, ESLogger logger, String checkpointDocumentType, Cache<String, String> bucketUUIDCache) {
         this.client = client;
         this.logger = logger;
         this.checkpointDocumentType = checkpointDocumentType;
+        this.bucketUUIDCache = bucketUUIDCache;
     }
 
     @Override
@@ -160,26 +163,34 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     @Override
     public String getBucketUUID(String pool, String bucket) {
+        // first look for bucket UUID in cache
+        String bucketUUID = this.bucketUUIDCache.getIfPresent(bucket);
+        if (bucketUUID != null) {
+            logger.debug("found bucket UUID in cache");
+            return bucketUUID;
+        }
+
+        logger.debug("bucket UUID not in cache, looking up");
         IndicesExistsRequestBuilder existsBuilder = client.admin().indices().prepareExists(bucket);
         IndicesExistsResponse response = existsBuilder.execute().actionGet();
         if(response.isExists()) {
             int tries = 0;
-            String bucketUUID = this.lookupUUID(bucket, "bucketUUID");
+            bucketUUID = this.lookupUUID(bucket, "bucketUUID");
             while(bucketUUID == null && tries < 100) {
-                logger.debug("bucket UUID doesn't exist yet,  creaating");
+                logger.debug("bucket UUID doesn't exist yet, creaating, attempt: {}", tries+1);
                 String newUUID = UUID.randomUUID().toString().replace("-", "");
                 storeUUID(bucket, "bucketUUID", newUUID);
                 bucketUUID = this.lookupUUID(bucket, "bucketUUID");
                 tries++;
             }
 
-            if(bucketUUID == null) {
-                throw new RuntimeException("failed to find/create bucket uuid after 100 tries");
+            if(bucketUUID != null) {
+                // store it in the cache
+                bucketUUIDCache.put(bucket, bucketUUID);
+                return bucketUUID;
             }
-
-            return bucketUUID;
         }
-        return null;
+        throw new RuntimeException("failed to find/create bucket uuid");
     }
 
     @Override

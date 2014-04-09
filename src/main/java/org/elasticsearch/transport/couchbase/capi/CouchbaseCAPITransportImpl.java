@@ -16,11 +16,14 @@ package org.elasticsearch.transport.couchbase.capi;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.MetaDataMappingService;
+import org.elasticsearch.common.cache.Cache;
+import org.elasticsearch.common.cache.CacheBuilder;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.network.NetworkService;
@@ -71,6 +74,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     private long bulkIndexRetries;
     private long bulkIndexRetryWaitMs;
+    private long bucketUUIDCacheEvictMs;
+    private Cache<String, String> bucketUUIDCache;
 
     @Inject
     public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
@@ -91,6 +96,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.maxConcurrentRequests = settings.getAsLong("couchbase.maxConcurrentRequests", 1024L);
         this.bulkIndexRetries = settings.getAsLong("couchbase.bulkIndexRetries", 1024L);
         this.bulkIndexRetryWaitMs = settings.getAsLong("couchbase.bulkIndexRetryWaitMs", 1000L);
+        this.bucketUUIDCacheEvictMs = settings.getAsLong("couchbase.bucketUUIDCacheEvictMs", 300000L);
+
 
         int defaultNumVbuckets = 1024;
         if(System.getProperty("os.name").toLowerCase().contains("mac")) {
@@ -99,10 +106,15 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         }
 
         this.numVbuckets = settings.getAsInt("couchbase.num_vbuckets", defaultNumVbuckets);
+
+
+        this.bucketUUIDCache = CacheBuilder.newBuilder().expireAfterWrite(this.bucketUUIDCacheEvictMs, TimeUnit.MILLISECONDS).build();
     }
 
     @Override
     protected void doStart() throws ElasticsearchException {
+
+
 
         // Bind and start to accept incoming connections.
         InetAddress hostAddressX;
@@ -123,8 +135,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         final InetAddress publishAddressHost = publishAddressHostX;
 
 
-        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, defaultDocumentType, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentRequests, bulkIndexRetries, bulkIndexRetryWaitMs);
-        couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, checkpointDocumentType);
+        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, defaultDocumentType, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentRequests, bulkIndexRetries, bulkIndexRetryWaitMs, bucketUUIDCache);
+        couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, checkpointDocumentType, bucketUUIDCache);
 
         PortsRange portsRange = new PortsRange(port);
         final AtomicReference<Exception> lastException = new AtomicReference<Exception>();

@@ -45,6 +45,7 @@ import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Base64;
+import org.elasticsearch.common.cache.Cache;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.metrics.CounterMetric;
 import org.elasticsearch.common.metrics.MeanMetric;
@@ -72,7 +73,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected long bulkIndexRetries;
     protected long bulkIndexRetryWaitMs;
 
-    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, String defaultDocumentType, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs) {
+    protected Cache<String, String> bucketUUIDCache;
+
+    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, String defaultDocumentType, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache) {
         this.client = client;
         this.logger = logger;
         this.defaultDocumentType = defaultDocumentType;
@@ -89,6 +92,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         this.maxConcurrentRequests = maxConcurrentRequests;
         this.bulkIndexRetries = bulkIndexRetries;
         this.bulkIndexRetryWaitMs = bulkIndexRetryWaitMs;
+        this.bucketUUIDCache = bucketUUIDCache;
     }
 
     @Override
@@ -99,19 +103,30 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     }
 
     @Override
-    public boolean databaseExists(String database) {
+    public String databaseExists(String database) {
         String index = getElasticSearchIndexNameFromDatabase(database);
         IndicesExistsRequestBuilder existsBuilder = client.admin().indices().prepareExists(index);
         IndicesExistsResponse response = existsBuilder.execute().actionGet();
         if(response.isExists()) {
-            return true;
+            String uuid = getBucketUUIDFromDatabase(database);
+            if(uuid != null) {
+                logger.debug("included uuid, validating");
+                String actualUUID = getBucketUUID("default", index);
+                if(!uuid.equals(actualUUID)) {
+                    return "uuids_dont_match";
+                }
+            } else {
+                logger.debug("no uuid in database name");
+            }
+            return null;
         }
-        return false;
+        return "missing";
     }
 
     @Override
     public Map<String, Object> getDatabaseDetails(String database) {
-        if(databaseExists(database)) {
+        String doesNotExistReason = databaseExists(database);
+        if(doesNotExistReason == null) {
             Map<String, Object> responseMap = new HashMap<String, Object>();
             responseMap.put("db_name", getDatabaseNameWithoutUUID(database));
             return responseMap;
@@ -466,6 +481,15 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         }
     }
 
+    protected String getBucketUUIDFromDatabase(String database) {
+        String[] pieces = database.split(";", 2);
+        if(pieces.length < 2) {
+            return null;
+        } else {
+            return pieces[1];
+        }
+    }
+
     protected String getDatabaseNameWithoutUUID(String database) {
         int semicolonIndex = database.indexOf(';');
         if(semicolonIndex >= 0) {
@@ -570,4 +594,35 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         return null;
     }
 
+    @Override
+    public String getBucketUUID(String pool, String bucket) {
+        // first look for bucket UUID in cache
+        String bucketUUID = this.bucketUUIDCache.getIfPresent(bucket);
+        if (bucketUUID != null) {
+            logger.debug("found bucket UUID in cache");
+            return bucketUUID;
+        }
+
+        logger.debug("bucket UUID not in cache, looking up");
+        IndicesExistsRequestBuilder existsBuilder = client.admin().indices().prepareExists(bucket);
+        IndicesExistsResponse response = existsBuilder.execute().actionGet();
+        if(response.isExists()) {
+            int tries = 0;
+            bucketUUID = this.lookupUUID(bucket, "bucketUUID");
+            while(bucketUUID == null && tries < 100) {
+                logger.debug("bucket UUID doesn't exist yet, creaating, attempt: {}", tries+1);
+                String newUUID = UUID.randomUUID().toString().replace("-", "");
+                storeUUID(bucket, "bucketUUID", newUUID);
+                bucketUUID = this.lookupUUID(bucket, "bucketUUID");
+                tries++;
+            }
+
+            if(bucketUUID != null) {
+                // store it in the cache
+                bucketUUIDCache.put(bucket, bucketUUID);
+                return bucketUUID;
+            }
+        }
+        throw new RuntimeException("failed to find/create bucket uuid");
+    }
 }
