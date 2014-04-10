@@ -16,6 +16,7 @@ package org.elasticsearch.transport.couchbase.capi;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -42,7 +43,6 @@ import com.couchbase.capi.CouchbaseBehavior;
 
 public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<CouchbaseCAPITransport> implements CouchbaseCAPITransport {
 
-    public static final String DEFAULT_DOCUMENT_TYPE_DOCUMENT = "couchbaseDocument";
     public static final String DEFAULT_DOCUMENT_TYPE_CHECKPOINT = "couchbaseCheckpoint";
 
     private CAPIBehavior capiBehavior;
@@ -64,7 +64,6 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     private BoundTransportAddress boundAddress;
 
-    private String defaultDocumentType;
     private String checkpointDocumentType;
     private String dynamicTypePath;
 
@@ -76,6 +75,11 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private long bulkIndexRetryWaitMs;
     private long bucketUUIDCacheEvictMs;
     private Cache<String, String> bucketUUIDCache;
+
+    private TypeSelector typeSelector;
+
+    private Map<String, String> documentTypeParentFields;
+    private Map<String, String> documentTypeRoutingFields;
 
     @Inject
     public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
@@ -89,7 +93,6 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.publishHost = componentSettings.get("publish_host");
         this.username = settings.get("couchbase.username", "Administrator");
         this.password = settings.get("couchbase.password", "");
-        this.defaultDocumentType = settings.get("couchbase.defaultDocumentType", DEFAULT_DOCUMENT_TYPE_DOCUMENT);
         this.checkpointDocumentType = settings.get("couchbase.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
         this.dynamicTypePath = settings.get("couchbase.dynamicTypePath");
         this.resolveConflicts = settings.getAsBoolean("couchbase.resolveConflicts", true);
@@ -97,6 +100,14 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.bulkIndexRetries = settings.getAsLong("couchbase.bulkIndexRetries", 1024L);
         this.bulkIndexRetryWaitMs = settings.getAsLong("couchbase.bulkIndexRetryWaitMs", 1000L);
         this.bucketUUIDCacheEvictMs = settings.getAsLong("couchbase.bucketUUIDCacheEvictMs", 300000L);
+
+        Class<? extends TypeSelector> typeSelectorClass = settings.<TypeSelector>getAsClass("couchbase.typeSelector", DefaultTypeSelector.class);
+        try {
+            this.typeSelector = typeSelectorClass.newInstance();
+        } catch (Exception e) {
+            throw new ElasticsearchException("couchbase.typeSelector", e);
+        }
+        this.typeSelector.configure(settings);
 
 
         int defaultNumVbuckets = 1024;
@@ -107,8 +118,19 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
         this.numVbuckets = settings.getAsInt("couchbase.num_vbuckets", defaultNumVbuckets);
 
-
         this.bucketUUIDCache = CacheBuilder.newBuilder().expireAfterWrite(this.bucketUUIDCacheEvictMs, TimeUnit.MILLISECONDS).build();
+
+        this.documentTypeParentFields = settings.getByPrefix("couchbase.documentTypeParentFields.").getAsMap();
+        for (String key: documentTypeParentFields.keySet()) {
+            String parentField = documentTypeParentFields.get(key);
+            logger.info("Using field {} as parent for type {}", parentField, key);
+        }
+
+        this.documentTypeRoutingFields = settings.getByPrefix("couchbase.documentTypeRoutingFields.").getAsMap();
+        for (String key: documentTypeRoutingFields.keySet()) {
+            String routingField = documentTypeRoutingFields.get(key);
+            logger.info("Using field {} as routing for type {}", routingField, key);
+        }
     }
 
     @Override
@@ -135,7 +157,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         final InetAddress publishAddressHost = publishAddressHostX;
 
 
-        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, defaultDocumentType, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentRequests, bulkIndexRetries, bulkIndexRetryWaitMs, bucketUUIDCache);
+        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, typeSelector, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentRequests, bulkIndexRetries, bulkIndexRetryWaitMs, bucketUUIDCache, documentTypeParentFields, documentTypeRoutingFields);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, checkpointDocumentType, bucketUUIDCache);
 
         PortsRange portsRange = new PortsRange(port);
