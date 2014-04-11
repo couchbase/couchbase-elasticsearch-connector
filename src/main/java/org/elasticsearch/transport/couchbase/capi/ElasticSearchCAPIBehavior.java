@@ -195,6 +195,11 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                     }
                     for (String id : responseMap.keySet()) {
                         String type = typeSelector.getType(index, id);
+                        if(documentTypeRoutingFields != null && documentTypeRoutingFields.containsKey(type)) {
+                            // if this type requires special routing, we can't find it without the doc body
+                            // so we skip this id in the lookup to avoid errors
+                            continue;
+                        }
                         builder = builder.add(index, type, id);
                     }
                     if(builder != null) {
