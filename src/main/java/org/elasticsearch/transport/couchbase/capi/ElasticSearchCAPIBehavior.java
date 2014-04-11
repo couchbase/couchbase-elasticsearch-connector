@@ -193,6 +193,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                     if(index == null) {
                         logger.debug("index is null");
                     }
+                    int added = 0;
                     for (String id : responseMap.keySet()) {
                         String type = typeSelector.getType(index, id);
                         if(documentTypeRoutingFields != null && documentTypeRoutingFields.containsKey(type)) {
@@ -201,13 +202,18 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                             continue;
                         }
                         builder = builder.add(index, type, id);
+                        added++;
                     }
                     if(builder != null) {
-                        ListenableActionFuture<MultiGetResponse> laf = builder.execute();
-                        if(laf != null) {
-                            response = laf.actionGet();
+                        if(added > 0) {
+                            ListenableActionFuture<MultiGetResponse> laf = builder.execute();
+                            if(laf != null) {
+                                response = laf.actionGet();
+                            } else {
+                                logger.debug("laf was null");
+                            }
                         } else {
-                            logger.debug("laf was null");
+                            logger.debug("skipping multiget, no documents to look for");
                         }
                     } else {
                         logger.debug("builder was null 2");
