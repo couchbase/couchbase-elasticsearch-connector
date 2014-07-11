@@ -78,6 +78,7 @@ Starting Data Transfer
 2. Select the bucket from source cluster you wish to send to ElasticSearch
 3. Next select the cluster you defined in step 4.
 4. Type in the name of the ElasticSearch index you wish to store the data in.  This index must already exist.
+5. If you are using Couchbase Server 2.2 or later, click Advanced settings and change the XDCR Protocol setting to Version 1
 
 Building
 ========
