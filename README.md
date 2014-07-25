@@ -11,7 +11,7 @@ Installation
 In order to install the plugin, download the zip file from the Downloads page, then run: 
 
     bin/plugin -install transport-couchbase \
-    -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/1.2.0/elasticsearch-transport-couchbase-1.2.0.zip
+    -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/1.3.0/elasticsearch-transport-couchbase-1.3.0.zip
     
 Version Compatibility:
 
