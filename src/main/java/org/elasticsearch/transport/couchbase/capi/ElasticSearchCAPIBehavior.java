@@ -58,7 +58,6 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected Client client;
     protected ESLogger logger;
 
-    protected String defaultDocumentType;
     protected String checkpointDocumentType;
     protected String dynamicTypePath;
     protected boolean resolveConflicts;
@@ -73,12 +72,17 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected long bulkIndexRetries;
     protected long bulkIndexRetryWaitMs;
 
+    private TypeSelector typeSelector;
+
     protected Cache<String, String> bucketUUIDCache;
 
-    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, String defaultDocumentType, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache) {
+    protected Map<String, String> documentTypeParentFields;
+    protected Map<String, String> documentTypeRoutingFields;
+
+    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, TypeSelector typeSelector, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache, Map<String, String> documentTypeParentFields, Map<String, String> documentTypeRoutingFields) {
         this.client = client;
         this.logger = logger;
-        this.defaultDocumentType = defaultDocumentType;
+        this.typeSelector = typeSelector;
         this.checkpointDocumentType = checkpointDocumentType;
         this.dynamicTypePath = dynamicTypePath;
         this.resolveConflicts = resolveConflicts;
@@ -93,6 +97,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         this.bulkIndexRetries = bulkIndexRetries;
         this.bulkIndexRetryWaitMs = bulkIndexRetryWaitMs;
         this.bucketUUIDCache = bucketUUIDCache;
+
+        this.documentTypeParentFields = documentTypeParentFields;
+        this.documentTypeRoutingFields = documentTypeRoutingFields;
     }
 
     @Override
@@ -186,16 +193,27 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                     if(index == null) {
                         logger.debug("index is null");
                     }
-                    if(defaultDocumentType == null) {
-                        logger.debug("default document type is null");
+                    int added = 0;
+                    for (String id : responseMap.keySet()) {
+                        String type = typeSelector.getType(index, id);
+                        if(documentTypeRoutingFields != null && documentTypeRoutingFields.containsKey(type)) {
+                            // if this type requires special routing, we can't find it without the doc body
+                            // so we skip this id in the lookup to avoid errors
+                            continue;
+                        }
+                        builder = builder.add(index, type, id);
+                        added++;
                     }
-                    builder = builder.add(index, defaultDocumentType, responseMap.keySet());
                     if(builder != null) {
-                        ListenableActionFuture<MultiGetResponse> laf = builder.execute();
-                        if(laf != null) {
-                            response = laf.actionGet();
+                        if(added > 0) {
+                            ListenableActionFuture<MultiGetResponse> laf = builder.execute();
+                            if(laf != null) {
+                                response = laf.actionGet();
+                            } else {
+                                logger.debug("laf was null");
+                            }
                         } else {
-                            logger.debug("laf was null");
+                            logger.debug("skipping multiget, no documents to look for");
                         }
                     } else {
                         logger.debug("builder was null 2");
@@ -210,21 +228,25 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 Iterator<MultiGetItemResponse> iterator = response.iterator();
                 while(iterator.hasNext()) {
                     MultiGetItemResponse item = iterator.next();
-                    if(item.getResponse().isExists()) {
-                        String itemId = item.getId();
-                        Map<String, Object> source = item.getResponse().getSourceAsMap();
-                        if(source != null) {
-                            Map<String, Object> meta = (Map<String, Object>)source.get("meta");
-                            if(meta != null) {
-                                String rev = (String)meta.get("rev");
-                                //retrieve the revision passed in from Couchbase
-                                Map<String, String> sourceRevMap = (Map<String, String>)responseMap.get(itemId);
-                                String sourceRev = sourceRevMap.get("missing");
-                                if(rev.equals(sourceRev)) {
-                                    // if our revision is the same as the source rev
-                                    // remove it from the response map
-                                    responseMap.remove(itemId);
-                                    logger.trace("_revs_diff already have id: {} rev: {}", itemId, rev);
+                    if(item.isFailed()) {
+                        logger.warn("_revs_diff get failure on index: {} id: {} message: {}", item.getIndex(), item.getId(), item.getFailure().getMessage());
+                    } else {
+                        if(item.getResponse().isExists()) {
+                            String itemId = item.getId();
+                            Map<String, Object> source = item.getResponse().getSourceAsMap();
+                            if(source != null) {
+                                Map<String, Object> meta = (Map<String, Object>)source.get("meta");
+                                if(meta != null) {
+                                    String rev = (String)meta.get("rev");
+                                    //retrieve the revision passed in from Couchbase
+                                    Map<String, String> sourceRevMap = (Map<String, String>)responseMap.get(itemId);
+                                    String sourceRev = sourceRevMap.get("missing");
+                                    if(rev.equals(sourceRev)) {
+                                        // if our revision is the same as the source rev
+                                        // remove it from the response map
+                                        responseMap.remove(itemId);
+                                        logger.trace("_revs_diff already have id: {} rev: {}", itemId, rev);
+                                    }
                                 }
                             }
                         }
@@ -314,9 +336,14 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             }
 
 
-            String type = defaultDocumentType;
-            if(id.startsWith("_local/")) {
-                type = checkpointDocumentType;
+            String parentField = null;
+            String routingField = null;
+            String type = typeSelector.getType(index, id);
+            if(documentTypeParentFields != null && documentTypeParentFields.containsKey(type)) {
+                parentField = documentTypeParentFields.get(type);
+            }
+            if(documentTypeRoutingFields != null && documentTypeRoutingFields.containsKey(type)) {
+                routingField = documentTypeRoutingFields.get(type);
             }
             boolean deleted = meta.containsKey("deleted") ? (Boolean)meta.get("deleted") : false;
 
@@ -328,6 +355,22 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 indexBuilder.setSource(toBeIndexed);
                 if(ttl > 0) {
                     indexBuilder.setTTL(ttl);
+                }
+                if(parentField != null) {
+                    Object parent = JSONMapPath(toBeIndexed, parentField);
+                    if (parent != null && parent instanceof String ) {
+                        indexBuilder.setParent((String)parent);
+                    } else {
+                        logger.warn("Unabled to determine parent value from parent field {} for doc id {}", parentField, id);
+                    }
+                }
+                if(routingField != null) {
+                    Object routing = JSONMapPath(toBeIndexed, routingField);
+                    if (routing != null && routing instanceof String) {
+                        indexBuilder.setRouting((String)routing);
+                    } else {
+                        logger.warn("Unable to determine routing value from routing field {} for doc id {}", routingField, id);
+                    }
                 }
                 IndexRequest indexRequest = indexBuilder.request();
                 bulkBuilder.add(indexRequest);
@@ -398,7 +441,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
     @Override
     public Map<String, Object> getDocument(String database, String docId) {
-        return getDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, defaultDocumentType);
+        String index = getElasticSearchIndexNameFromDatabase(database);
+        String type = typeSelector.getType(index, docId);
+        return getDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, type);
     }
 
     @Override
@@ -417,7 +462,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
     @Override
     public String storeDocument(String database, String docId, Map<String, Object> document) {
-        return storeDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, document, defaultDocumentType);
+        String index = getElasticSearchIndexNameFromDatabase(database);
+        String type = typeSelector.getType(index, docId);
+        return storeDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, document, type);
     }
 
     @Override
@@ -624,5 +671,25 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             }
         }
         throw new RuntimeException("failed to find/create bucket uuid");
+    }
+
+    public Object JSONMapPath(Map<String, Object> json, String path) {
+        int dotIndex = path.indexOf('.');
+        if (dotIndex >= 0) {
+            String pathThisLevel = path.substring(0,dotIndex);
+            Object current = json.get(pathThisLevel);
+            String pathRest = path.substring(dotIndex+1);
+            if (pathRest.length() == 0) {
+                return current;
+            }
+            else if(current instanceof Map && pathRest.length() > 0) {
+                return JSONMapPath((Map<String, Object>)current, pathRest);
+            }
+        } else {
+            // no dot
+            Object current = json.get(path);
+            return current;
+        }
+        return null;
     }
 }
