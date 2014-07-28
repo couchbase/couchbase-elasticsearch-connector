@@ -11,7 +11,7 @@ Installation
 In order to install the plugin, download the zip file from the Downloads page, then run: 
 
     bin/plugin -install transport-couchbase \
-    -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/1.2.0/elasticsearch-transport-couchbase-1.2.0.zip
+    -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/1.3.0/elasticsearch-transport-couchbase-1.3.0.zip
     
 Version Compatibility:
 
@@ -78,6 +78,7 @@ Starting Data Transfer
 2. Select the bucket from source cluster you wish to send to ElasticSearch
 3. Next select the cluster you defined in step 4.
 4. Type in the name of the ElasticSearch index you wish to store the data in.  This index must already exist.
+5. If you are using Couchbase Server 2.2 or later, click Advanced settings and change the XDCR Protocol setting to Version 1
 
 Building
 ========
