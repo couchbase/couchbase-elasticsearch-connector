@@ -296,7 +296,10 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 // if there is no meta-data section, there is nothing we can do
                 logger.warn("Document without meta in bulk_docs, ignoring....");
                 continue;
-            } else if("non-JSON mode".equals(meta.get("att_reason"))) {
+            } else if(meta.containsKey("deleted")) {
+                // if this is only a delete anyway, don't bother looking at the body
+                json = new HashMap<String, Object>();
+            } else if("non-JSON mode".equals(meta.get("att_reason")) || "invalid_json".equals(meta.get("att_reason"))) {
                 // optimization, this tells us the body isn't json
                 json = new HashMap<String, Object>();
             } else if(json == null && base64 != null) {
