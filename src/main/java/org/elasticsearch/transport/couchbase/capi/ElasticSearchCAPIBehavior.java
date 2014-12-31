@@ -61,6 +61,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected String checkpointDocumentType;
     protected String dynamicTypePath;
     protected boolean resolveConflicts;
+    protected boolean wrapCounters;
 
     protected CounterMetric activeRevsDiffRequests;
     protected MeanMetric meanRevsDiffRequests;
@@ -73,19 +74,22 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected long bulkIndexRetryWaitMs;
 
     private TypeSelector typeSelector;
+    private KeyFilter keyFilter;
 
     protected Cache<String, String> bucketUUIDCache;
 
     protected Map<String, String> documentTypeParentFields;
     protected Map<String, String> documentTypeRoutingFields;
 
-    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, TypeSelector typeSelector, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache, Map<String, String> documentTypeParentFields, Map<String, String> documentTypeRoutingFields) {
+    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, KeyFilter keyFilter, TypeSelector typeSelector, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, boolean wrapCounters, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache, Map<String, String> documentTypeParentFields, Map<String, String> documentTypeRoutingFields) {
         this.client = client;
         this.logger = logger;
+        this.keyFilter = keyFilter;
         this.typeSelector = typeSelector;
         this.checkpointDocumentType = checkpointDocumentType;
         this.dynamicTypePath = dynamicTypePath;
         this.resolveConflicts = resolveConflicts;
+        this.wrapCounters = wrapCounters;
 
         this.activeRevsDiffRequests = new CounterMetric();
         this.meanRevsDiffRequests = new MeanMetric();
@@ -296,7 +300,26 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 // if there is no meta-data section, there is nothing we can do
                 logger.warn("Document without meta in bulk_docs, ignoring....");
                 continue;
-            } else if(meta.containsKey("deleted")) {
+            }
+
+            String id = (String)meta.get("id");
+
+            if(id == null) {
+                // if there is no id in the metadata, something is seriously wrong
+                logger.warn("Document metadata does not have an id, ignoring...");
+                continue;
+            }
+
+            // Filter documents by ID.
+            // Delete operations are always allowed through to ES, to make sure newly configured
+            // filters don't cause documents to stay in ES forever.
+            if(!keyFilter.shouldAllow(index, id) && !meta.containsKey("deleted")) {
+                // Document ID matches one of the filters, not passing it to on to ES
+                logger.trace("Document doesn't pass configured key filters, not storing: {}", id);
+                continue;
+            }
+
+            if(meta.containsKey("deleted")) {
                 // if this is only a delete anyway, don't bother looking at the body
                 json = new HashMap<String, Object>();
             } else if("non-JSON mode".equals(meta.get("att_reason")) || "invalid_json".equals(meta.get("att_reason"))) {
@@ -311,10 +334,23 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                         json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
                     }
                     catch(IOException e) {
-                        logger.error("Unable to parse decoded base64 data as JSON, indexing stub for id: {}", meta.get("id"));
-                        logger.error("Body was: {} Parse error was: {}", new String(decodedData), e);
                         json = new HashMap<String, Object>();
-
+                        if(wrapCounters) {
+                            logger.trace("Trying to parse decoded base64 data as a long and wrap it as a counter document, id: {}", meta.get("id"));
+                            try {
+                                long value = Long.parseLong(new String(decodedData));
+                                logger.trace("Parsed data as long: {}", value);
+                                json.put("value", value);
+                            }
+                            catch(Exception e2) {
+                                logger.error("Unable to parse decoded base64 data as either JSON or long, indexing stub for id: {}", meta.get("id"));
+                                logger.error("Body was: {} Parse error was: {} Long parse error was: {}", new String(decodedData), e, e2);
+                            }
+                        }
+                        else {
+                            logger.error("Unable to parse decoded base64 data as JSON, indexing stub for id: {}", meta.get("id"));
+                            logger.error("Body was: {} Parse error was: {}", new String(decodedData), e);
+                        }
                     }
                 } catch (IOException e) {
                     logger.error("Unable to decoded base64, indexing stub for id: {}", meta.get("id"));
@@ -330,7 +366,6 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             toBeIndexed.put("meta", meta);
             toBeIndexed.put("doc", json);
 
-            String id = (String)meta.get("id");
             String rev = (String)meta.get("rev");
             revisions.put(id, rev);
 
@@ -400,6 +435,10 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
             attempt++;
             result = new ArrayList<Object>();
+
+            if(bulkBuilder.numberOfActions() == 0)
+                return result;
+
             if(response != null) {
                 // at least second time through
                 try {
@@ -644,7 +683,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             String key = String.format("vbucket%dUUID",vbucket);
             String bucketUUID = this.lookupUUID(bucket, key);
             while(bucketUUID == null && tries < 100) {
-                logger.debug("vbucket {} UUID doesn't exist yet,  creaating", vbucket);
+                logger.debug("vbucket {} UUID doesn't exist yet,  creating", vbucket);
                 String newUUID = UUID.randomUUID().toString().replace("-", "");
                 storeUUID(bucket, key, newUUID);
                 bucketUUID = this.lookupUUID(bucket, key);

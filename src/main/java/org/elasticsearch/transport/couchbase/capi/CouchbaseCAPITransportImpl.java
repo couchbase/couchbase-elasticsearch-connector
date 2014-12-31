@@ -61,6 +61,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private final String password;
 
     private final Boolean resolveConflicts;
+    private final Boolean wrapCounters;
 
     private BoundTransportAddress boundAddress;
 
@@ -77,6 +78,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private Cache<String, String> bucketUUIDCache;
 
     private TypeSelector typeSelector;
+    private KeyFilter keyFilter;
 
     private Map<String, String> documentTypeParentFields;
     private Map<String, String> documentTypeRoutingFields;
@@ -96,6 +98,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.checkpointDocumentType = settings.get("couchbase.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
         this.dynamicTypePath = settings.get("couchbase.dynamicTypePath");
         this.resolveConflicts = settings.getAsBoolean("couchbase.resolveConflicts", true);
+        this.wrapCounters = settings.getAsBoolean("couchbase.wrapCounters", false);
         this.maxConcurrentRequests = settings.getAsLong("couchbase.maxConcurrentRequests", 1024L);
         this.bulkIndexRetries = settings.getAsLong("couchbase.bulkIndexRetries", 1024L);
         this.bulkIndexRetryWaitMs = settings.getAsLong("couchbase.bulkIndexRetryWaitMs", 1000L);
@@ -109,6 +112,13 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         }
         this.typeSelector.configure(settings);
 
+        Class<? extends KeyFilter> keyFilterClass = settings.<KeyFilter>getAsClass("couchbase.keyFilter", DefaultKeyFilter.class);
+        try {
+            this.keyFilter = keyFilterClass.newInstance();
+        } catch (Exception e) {
+            throw new ElasticsearchException("couchbase.keyFilter", e);
+        }
+        this.keyFilter.configure(settings);
 
         int defaultNumVbuckets = 1024;
         if(System.getProperty("os.name").toLowerCase().contains("mac")) {
@@ -135,9 +145,6 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     @Override
     protected void doStart() throws ElasticsearchException {
-
-
-
         // Bind and start to accept incoming connections.
         InetAddress hostAddressX;
         try {
@@ -157,7 +164,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         final InetAddress publishAddressHost = publishAddressHostX;
 
 
-        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, typeSelector, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentRequests, bulkIndexRetries, bulkIndexRetryWaitMs, bucketUUIDCache, documentTypeParentFields, documentTypeRoutingFields);
+        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, keyFilter, typeSelector, checkpointDocumentType, dynamicTypePath, resolveConflicts, wrapCounters, maxConcurrentRequests, bulkIndexRetries, bulkIndexRetryWaitMs, bucketUUIDCache, documentTypeParentFields, documentTypeRoutingFields);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, checkpointDocumentType, bucketUUIDCache);
 
         PortsRange portsRange = new PortsRange(port);
