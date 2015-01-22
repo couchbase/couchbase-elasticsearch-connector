@@ -16,6 +16,9 @@ package org.elasticsearch.transport.couchbase.capi;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -80,6 +83,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     private Map<String, String> documentTypeParentFields;
     private Map<String, String> documentTypeRoutingFields;
+    
+    private List<String> ignoreDeletes;
 
     @Inject
     public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
@@ -131,6 +136,9 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
             String routingField = documentTypeRoutingFields.get(key);
             logger.info("Using field {} as routing for type {}", routingField, key);
         }
+        
+        this.ignoreDeletes = new ArrayList<String>(Arrays.asList(settings.get("couchbase.ignore.delete","").split(":")));
+        logger.info("Couchbase transport will ignore delete operations for this buckets: {}", ignoreDeletes);        
     }
 
     @Override
@@ -157,7 +165,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         final InetAddress publishAddressHost = publishAddressHostX;
 
 
-        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, typeSelector, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentRequests, bulkIndexRetries, bulkIndexRetryWaitMs, bucketUUIDCache, documentTypeParentFields, documentTypeRoutingFields);
+        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, typeSelector, checkpointDocumentType, dynamicTypePath, resolveConflicts.booleanValue(), maxConcurrentRequests, bulkIndexRetries, bulkIndexRetryWaitMs, bucketUUIDCache, documentTypeParentFields, documentTypeRoutingFields, ignoreDeletes);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, checkpointDocumentType, bucketUUIDCache);
 
         PortsRange portsRange = new PortsRange(port);

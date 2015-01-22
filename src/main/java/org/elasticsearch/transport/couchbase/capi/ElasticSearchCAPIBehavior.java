@@ -78,8 +78,10 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
     protected Map<String, String> documentTypeParentFields;
     protected Map<String, String> documentTypeRoutingFields;
+    
+	protected List<String> ignoreDeletes;
 
-    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, TypeSelector typeSelector, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache, Map<String, String> documentTypeParentFields, Map<String, String> documentTypeRoutingFields) {
+    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, TypeSelector typeSelector, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache, Map<String, String> documentTypeParentFields, Map<String, String> documentTypeRoutingFields, List<String> ignoreDeletes) {
         this.client = client;
         this.logger = logger;
         this.typeSelector = typeSelector;
@@ -100,6 +102,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
         this.documentTypeParentFields = documentTypeParentFields;
         this.documentTypeRoutingFields = documentTypeRoutingFields;
+        
+		this.ignoreDeletes = ignoreDeletes;
+		logger.trace("ignoreDeletes = {}", ignoreDeletes);
     }
 
     @Override
@@ -276,14 +281,23 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         activeBulkDocsRequests.inc();
         String index = getElasticSearchIndexNameFromDatabase(database);
 
-
+		//if set to true - all delete operations will be ignored
+		//ignoreDeletes contains a list of indexes to be ignored when delete events occur
+		//index list can be set in the elasticsearch.yml file using
+		//the key: couchbase.ignore.delete  the value is colon separated:  index1:index2:index3 
+		boolean ignoreDelete = ignoreDeletes!=null ? ignoreDeletes.contains(index) : false;
+        logger.trace("ignoreDelete = {}", ignoreDelete);
+        
         // keep a map of the id - rev for building the response
         Map<String,String> revisions = new HashMap<String, String>();
 
         // put requests into this map, not directly into the bulk request
         Map<String,IndexRequest> bulkIndexRequests = new HashMap<String,IndexRequest>();
         Map<String,DeleteRequest> bulkDeleteRequests = new HashMap<String,DeleteRequest>();
-
+        
+        //used for "mock" results in case of ignore deletes
+        List<Object> mockDeleteResults = new ArrayList<Object>();
+        
         logger.debug("Bulk doc entry is {}", docs);
         for (Map<String, Object> doc : docs) {
 
@@ -351,14 +365,24 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 routingField = documentTypeRoutingFields.get(type);
             }
             boolean deleted = meta.containsKey("deleted") ? (Boolean)meta.get("deleted") : false;
-
+            
             if(deleted) {
-                DeleteRequest deleteRequest = client.prepareDelete(index, type, id).request();
-                bulkDeleteRequests.put(id, deleteRequest);
+            	if (!ignoreDelete) {
+                	DeleteRequest deleteRequest = client.prepareDelete(index, type, id).request();
+                	bulkDeleteRequests.put(id, deleteRequest);            		
+            	}else{
+                	//for ignore deletes we want to bypass from adding the delete request            		
+            		//as a hack - we add a "mock" response for each delete request as if ES returned
+            		//delete confirmation
+	                Map<String, Object> deleteMockResponse = new HashMap<String, Object>();
+	                deleteMockResponse.put("id", id);
+	                deleteMockResponse.put("rev", revisions.get(id));
+	                mockDeleteResults.add(deleteMockResponse);
+            	}
             } else {
                 IndexRequestBuilder indexBuilder = client.prepareIndex(index, type, id);
                 indexBuilder.setSource(toBeIndexed);
-                if(ttl > 0) {
+                if(!ignoreDelete && ttl > 0) {
                     indexBuilder.setTTL(ttl);
                 }
                 if(parentField != null) {
@@ -388,6 +412,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         int attempt = 0;
 
         BulkResponse response = null;
+        boolean isEmptyBulk = false;
         do {
             // build the bulk request for this iteration
             BulkRequestBuilder bulkBuilder = client.prepareBulk();
@@ -408,7 +433,13 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                     throw new RuntimeException(e);
                 }
             }
-            response = bulkBuilder.execute().actionGet();
+            
+            if(bulkBuilder.numberOfActions()>0){
+	            response = bulkBuilder.execute().actionGet();
+            }else{
+            	isEmptyBulk = true;
+            }
+            
             if(response != null) {
                 for (BulkItemResponse bulkItemResponse : response.getItems()) {
                     if(!bulkItemResponse.isFailed()) {
@@ -433,9 +464,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 }
             }
             retriesLeft--;
-        } while((response != null) && (response.hasFailures()) && (retriesLeft > 0));
+        } while(!isEmptyBulk && (response != null) && (response.hasFailures()) && (retriesLeft > 0));
 
-        if(response == null) {
+        if(!isEmptyBulk && response == null) {
             throw new RuntimeException("indexing error, bulk response was null");
         }
 
@@ -448,6 +479,13 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         long end = System.currentTimeMillis();
         meanBulkDocsRequests.inc(end - start);
         activeBulkDocsRequests.dec();
+        
+        //before we return, in case of ignore delete
+        //we want to add the "mock" confirmations for the delete operations
+        //in order to satisfy the XDCR mechanism
+        if(ignoreDelete){
+        	result.addAll(mockDeleteResults);
+        }
         return result;
     }
 
