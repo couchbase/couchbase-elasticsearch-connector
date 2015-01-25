@@ -75,6 +75,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected long bulkIndexRetryWaitMs;
 
     private TypeSelector typeSelector;
+    private final IParentSelector parentSelector;
     private KeyFilter keyFilter;
 
     protected Cache<String, String> bucketUUIDCache;
@@ -84,11 +85,12 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     
 	protected List<String> ignoreDeletes;
 
-    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, KeyFilter keyFilter, TypeSelector typeSelector, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, boolean wrapCounters, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache, Map<String, String> documentTypeParentFields, Map<String, String> documentTypeRoutingFields, List<String> ignoreDeletes, Boolean ignoreFailures) {
+    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, KeyFilter keyFilter, TypeSelector typeSelector, IParentSelector parentSelector, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, boolean wrapCounters, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache, Map<String, String> documentTypeRoutingFields, List<String> ignoreDeletes, Boolean ignoreFailures) {
         this.client = client;
         this.logger = logger;
         this.keyFilter = keyFilter;
         this.typeSelector = typeSelector;
+        this.parentSelector = parentSelector;
         this.checkpointDocumentType = checkpointDocumentType;
         this.dynamicTypePath = dynamicTypePath;
         this.resolveConflicts = resolveConflicts;
@@ -398,12 +400,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 ttl = (expiration.longValue() * 1000) - System.currentTimeMillis();
             }
 
-            String parentField = null;
             String routingField = null;
             String type = typeSelector.getType(index, id);
-            if(documentTypeParentFields != null && documentTypeParentFields.containsKey(type)) {
-                parentField = documentTypeParentFields.get(type);
-            }
+
             if(documentTypeRoutingFields != null && documentTypeRoutingFields.containsKey(type)) {
                 routingField = documentTypeRoutingFields.get(type);
             }
@@ -428,12 +427,13 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 if(!ignoreDelete && ttl > 0) {
                     indexBuilder.setTTL(ttl);
                 }
-                if(parentField != null) {
-                    Object parent = JSONMapPath(toBeIndexed, parentField);
-                    if (parent != null && parent instanceof String ) {
-                        indexBuilder.setParent((String)parent);
+                Object parent = parentSelector.getParent(toBeIndexed,id, type);
+                if (parent != null) {
+                    if (parent instanceof String) {
+                        logger.debug("Setting parent of document {} to {}", id, parent);
+                        indexBuilder.setParent((String) parent);
                     } else {
-                        logger.warn("Unable to determine parent value from parent field {} for doc id {}", parentField, id);
+                        logger.warn("Unable to determine parent value from parent field {} for doc id {}", parent, id);
                     }
                 }
                 if(routingField != null) {
@@ -792,7 +792,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         throw new RuntimeException("failed to find/create bucket uuid");
     }
 
-    public Object JSONMapPath(Map<String, Object> json, String path) {
+    public static Object JSONMapPath(Map<String, Object> json, String path) {
         int dotIndex = path.indexOf('.');
         if (dotIndex >= 0) {
             String pathThisLevel = path.substring(0,dotIndex);

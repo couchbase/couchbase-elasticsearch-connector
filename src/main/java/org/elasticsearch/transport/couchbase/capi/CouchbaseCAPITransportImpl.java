@@ -82,9 +82,9 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private Cache<String, String> bucketUUIDCache;
 
     private TypeSelector typeSelector;
+    private IParentSelector parentSelector;
     private KeyFilter keyFilter;
 
-    private Map<String, String> documentTypeParentFields;
     private Map<String, String> documentTypeRoutingFields;
     
     private List<String> ignoreDeletes;
@@ -118,6 +118,15 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         }
         this.typeSelector.configure(settings);
 
+
+        Class<? extends IParentSelector> parentSelectorClass = settings.<IParentSelector>getAsClass("couchbase.parentSelector", DefaultParentSelector.class);
+        try {
+            this.parentSelector = parentSelectorClass.newInstance();
+        } catch (Exception e) {
+            throw new ElasticsearchException("couchbase.parentSelector", e);
+        }
+        this.parentSelector.configure(settings);
+
         Class<? extends KeyFilter> keyFilterClass = settings.<KeyFilter>getAsClass("couchbase.keyFilter", DefaultKeyFilter.class);
         try {
             this.keyFilter = keyFilterClass.newInstance();
@@ -135,12 +144,6 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.numVbuckets = settings.getAsInt("couchbase.num_vbuckets", defaultNumVbuckets);
 
         this.bucketUUIDCache = CacheBuilder.newBuilder().expireAfterWrite(this.bucketUUIDCacheEvictMs, TimeUnit.MILLISECONDS).build();
-
-        this.documentTypeParentFields = settings.getByPrefix("couchbase.documentTypeParentFields.").getAsMap();
-        for (String key: documentTypeParentFields.keySet()) {
-            String parentField = documentTypeParentFields.get(key);
-            logger.info("Using field {} as parent for type {}", parentField, key);
-        }
 
         this.documentTypeRoutingFields = settings.getByPrefix("couchbase.documentTypeRoutingFields.").getAsMap();
         for (String key: documentTypeRoutingFields.keySet()) {
@@ -176,7 +179,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         final InetAddress publishAddressHost = publishAddressHostX;
 
 
-        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, keyFilter, typeSelector, checkpointDocumentType, dynamicTypePath, resolveConflicts, wrapCounters, maxConcurrentRequests, bulkIndexRetries, bulkIndexRetryWaitMs, bucketUUIDCache, documentTypeParentFields, documentTypeRoutingFields, ignoreDeletes, ignoreFailures);
+        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, keyFilter, typeSelector, parentSelector, checkpointDocumentType, dynamicTypePath, resolveConflicts, wrapCounters, maxConcurrentRequests, bulkIndexRetries, bulkIndexRetryWaitMs, bucketUUIDCache, documentTypeRoutingFields, ignoreDeletes, ignoreFailures);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, checkpointDocumentType, bucketUUIDCache);
 
         PortsRange portsRange = new PortsRange(port);
