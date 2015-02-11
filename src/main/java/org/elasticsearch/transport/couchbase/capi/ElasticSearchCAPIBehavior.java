@@ -61,6 +61,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected String checkpointDocumentType;
     protected String dynamicTypePath;
     protected boolean resolveConflicts;
+    protected boolean wrapCounters;
+    protected boolean ignoreFailures;
 
     protected CounterMetric activeRevsDiffRequests;
     protected MeanMetric meanRevsDiffRequests;
@@ -73,6 +75,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected long bulkIndexRetryWaitMs;
 
     private TypeSelector typeSelector;
+    private final IParentSelector parentSelector;
+    private KeyFilter keyFilter;
 
     protected Cache<String, String> bucketUUIDCache;
 
@@ -81,13 +85,17 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     
 	protected List<String> ignoreDeletes;
 
-    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, TypeSelector typeSelector, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache, Map<String, String> documentTypeParentFields, Map<String, String> documentTypeRoutingFields, List<String> ignoreDeletes) {
+    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, KeyFilter keyFilter, TypeSelector typeSelector, IParentSelector parentSelector, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, boolean wrapCounters, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache, Map<String, String> documentTypeRoutingFields, List<String> ignoreDeletes, Boolean ignoreFailures) {
         this.client = client;
         this.logger = logger;
+        this.keyFilter = keyFilter;
         this.typeSelector = typeSelector;
+        this.parentSelector = parentSelector;
         this.checkpointDocumentType = checkpointDocumentType;
         this.dynamicTypePath = dynamicTypePath;
         this.resolveConflicts = resolveConflicts;
+        this.wrapCounters = wrapCounters;
+        this.ignoreFailures = ignoreFailures;
 
         this.activeRevsDiffRequests = new CounterMetric();
         this.meanRevsDiffRequests = new MeanMetric();
@@ -285,7 +293,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 		//ignoreDeletes contains a list of indexes to be ignored when delete events occur
 		//index list can be set in the elasticsearch.yml file using
 		//the key: couchbase.ignore.delete  the value is colon separated:  index1:index2:index3 
-		boolean ignoreDelete = ignoreDeletes!=null ? ignoreDeletes.contains(index) : false;
+		boolean ignoreDelete = ignoreDeletes != null ? ignoreDeletes.contains(index) : false;
         logger.trace("ignoreDelete = {}", ignoreDelete);
         
         // keep a map of the id - rev for building the response
@@ -295,9 +303,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         Map<String,IndexRequest> bulkIndexRequests = new HashMap<String,IndexRequest>();
         Map<String,DeleteRequest> bulkDeleteRequests = new HashMap<String,DeleteRequest>();
         
-        //used for "mock" results in case of ignore deletes
-        List<Object> mockDeleteResults = new ArrayList<Object>();
-        
+        //used for "mock" results in case of ignore deletes or filtered out keys
+        List<Object> mockResults = new ArrayList<Object>();
+
         logger.debug("Bulk doc entry is {}", docs);
         for (Map<String, Object> doc : docs) {
 
@@ -310,7 +318,34 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 // if there is no meta-data section, there is nothing we can do
                 logger.warn("Document without meta in bulk_docs, ignoring....");
                 continue;
-            } else if(meta.containsKey("deleted")) {
+            }
+
+            String id = (String)meta.get("id");
+            String rev = (String)meta.get("rev");
+
+            if(id == null) {
+                // if there is no id in the metadata, something is seriously wrong
+                logger.warn("Document metadata does not have an id, ignoring...");
+                continue;
+            }
+
+            // Filter documents by ID.
+            // Delete operations are always allowed through to ES, to make sure newly configured
+            // filters don't cause documents to stay in ES forever.
+            if(!keyFilter.shouldAllow(index, id) && !meta.containsKey("deleted")) {
+                // Document ID matches one of the filters, not passing it to on to ES.
+                // Store a mock response, which will be added to the responses sent back
+                // to Couchbase, to satisfy the XDCR mechanism
+                Map<String, Object> mockResponse = new HashMap<String, Object>();
+                mockResponse.put("id", id);
+                mockResponse.put("rev", rev);
+                mockResults.add(mockResponse);
+
+                logger.trace("Document doesn't pass configured key filters, not storing: {}", id);
+                continue;
+            }
+
+            if(meta.containsKey("deleted")) {
                 // if this is only a delete anyway, don't bother looking at the body
                 json = new HashMap<String, Object>();
             } else if("non-JSON mode".equals(meta.get("att_reason")) || "invalid_json".equals(meta.get("att_reason"))) {
@@ -325,10 +360,23 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                         json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
                     }
                     catch(IOException e) {
-                        logger.error("Unable to parse decoded base64 data as JSON, indexing stub for id: {}", meta.get("id"));
-                        logger.error("Body was: {} Parse error was: {}", new String(decodedData), e);
                         json = new HashMap<String, Object>();
-
+                        if(wrapCounters) {
+                            logger.trace("Trying to parse decoded base64 data as a long and wrap it as a counter document, id: {}", meta.get("id"));
+                            try {
+                                long value = Long.parseLong(new String(decodedData));
+                                logger.trace("Parsed data as long: {}", value);
+                                json.put("value", value);
+                            }
+                            catch(Exception e2) {
+                                logger.error("Unable to parse decoded base64 data as either JSON or long, indexing stub for id: {}", meta.get("id"));
+                                logger.error("Body was: {} Parse error was: {} Long parse error was: {}", new String(decodedData), e, e2);
+                            }
+                        }
+                        else {
+                            logger.error("Unable to parse decoded base64 data as JSON, indexing stub for id: {}", meta.get("id"));
+                            logger.error("Body was: {} Parse error was: {}", new String(decodedData), e);
+                        }
                     }
                 } catch (IOException e) {
                     logger.error("Unable to decoded base64, indexing stub for id: {}", meta.get("id"));
@@ -344,8 +392,6 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             toBeIndexed.put("meta", meta);
             toBeIndexed.put("doc", json);
 
-            String id = (String)meta.get("id");
-            String rev = (String)meta.get("rev");
             revisions.put(id, rev);
 
             long ttl = 0;
@@ -354,13 +400,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 ttl = (expiration.longValue() * 1000) - System.currentTimeMillis();
             }
 
-
-            String parentField = null;
             String routingField = null;
             String type = typeSelector.getType(index, id);
-            if(documentTypeParentFields != null && documentTypeParentFields.containsKey(type)) {
-                parentField = documentTypeParentFields.get(type);
-            }
+
             if(documentTypeRoutingFields != null && documentTypeRoutingFields.containsKey(type)) {
                 routingField = documentTypeRoutingFields.get(type);
             }
@@ -369,15 +411,15 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             if(deleted) {
             	if (!ignoreDelete) {
                 	DeleteRequest deleteRequest = client.prepareDelete(index, type, id).request();
-                	bulkDeleteRequests.put(id, deleteRequest);            		
+                	bulkDeleteRequests.put(id, deleteRequest);
             	}else{
-                	//for ignore deletes we want to bypass from adding the delete request            		
-            		//as a hack - we add a "mock" response for each delete request as if ES returned
-            		//delete confirmation
-	                Map<String, Object> deleteMockResponse = new HashMap<String, Object>();
-	                deleteMockResponse.put("id", id);
-	                deleteMockResponse.put("rev", revisions.get(id));
-	                mockDeleteResults.add(deleteMockResponse);
+                	// For ignored deletes, we want to bypass from adding the delete request
+            		// as a hack - we add a "mock" response for each delete request as if ES returned
+            		// delete confirmation
+	                Map<String, Object> mockResponse = new HashMap<String, Object>();
+	                mockResponse.put("id", id);
+	                mockResponse.put("rev", rev);
+	                mockResults.add(mockResponse);
             	}
             } else {
                 IndexRequestBuilder indexBuilder = client.prepareIndex(index, type, id);
@@ -385,12 +427,13 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 if(!ignoreDelete && ttl > 0) {
                     indexBuilder.setTTL(ttl);
                 }
-                if(parentField != null) {
-                    Object parent = JSONMapPath(toBeIndexed, parentField);
-                    if (parent != null && parent instanceof String ) {
-                        indexBuilder.setParent((String)parent);
+                Object parent = parentSelector.getParent(toBeIndexed,id, type);
+                if (parent != null) {
+                    if (parent instanceof String) {
+                        logger.debug("Setting parent of document {} to {}", id, parent);
+                        indexBuilder.setParent((String) parent);
                     } else {
-                        logger.warn("Unabled to determine parent value from parent field {} for doc id {}", parentField, id);
+                        logger.warn("Unable to determine parent value from parent field {} for doc id {}", parent, id);
                     }
                 }
                 if(routingField != null) {
@@ -425,6 +468,10 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
             attempt++;
             result = new ArrayList<Object>();
+
+            if(bulkBuilder.numberOfActions() == 0)
+                return result;
+
             if(response != null) {
                 // at least second time through
                 try {
@@ -434,31 +481,46 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 }
             }
             
-            if(bulkBuilder.numberOfActions()>0){
+            if(bulkBuilder.numberOfActions() > 0) {
 	            response = bulkBuilder.execute().actionGet();
-            }else{
+            } else {
             	isEmptyBulk = true;
             }
             
             if(response != null) {
                 for (BulkItemResponse bulkItemResponse : response.getItems()) {
+                    String itemId = bulkItemResponse.getId();
+                    String itemRev = revisions.get(itemId);
+
                     if(!bulkItemResponse.isFailed()) {
-                        String itemId = bulkItemResponse.getId();
-                        String itemRev = revisions.get(itemId);
                         Map<String, Object> itemResponse = new HashMap<String, Object>();
                         itemResponse.put("id", itemId);
                         itemResponse.put("rev", itemRev);
                         result.add(itemResponse);
 
-                        // remove the item from the bulk requests list
-                        // so we don't try to index it again
+                        // remove the item from the bulk requests list so we don't try to index it again
                         bulkIndexRequests.remove(itemId);
                         bulkDeleteRequests.remove(itemId);
                     } else {
                         Failure failure = bulkItemResponse.getFailure();
-                        // if the error is fatal don't retry
+
+                        // If the error is fatal, don't retry the request.
                         if(failureMessageAppearsFatal(failure.getMessage())) {
-                            throw new RuntimeException("indexing error " + failure.getMessage());
+                            logger.error("error indexing document id: " + itemId + " exception: " + failure.getMessage());
+
+                            // If ignore failures mode is on, store a mock result object for the failed
+                            // operation, which will be returned to Couchbase.
+                            if(ignoreFailures) {
+                                Map<String, Object> mockResult = new HashMap<String, Object>();
+                                mockResult.put("id", itemId);
+                                mockResult.put("rev", itemRev);
+                                mockResults.add(mockResult);
+
+                                bulkIndexRequests.remove(itemId);
+                                bulkDeleteRequests.remove(itemId);
+                            }
+                            else
+                                throw new RuntimeException("indexing error " + failure.getMessage());
                         }
                     }
                 }
@@ -470,7 +532,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             throw new RuntimeException("indexing error, bulk response was null");
         }
 
-        if(retriesLeft == 0) {
+        if(retriesLeft == 0 && !ignoreFailures) {
             throw new RuntimeException("indexing error, bulk failed after all retries");
         }
 
@@ -480,11 +542,11 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         meanBulkDocsRequests.inc(end - start);
         activeBulkDocsRequests.dec();
         
-        //before we return, in case of ignore delete
-        //we want to add the "mock" confirmations for the delete operations
-        //in order to satisfy the XDCR mechanism
-        if(ignoreDelete){
-        	result.addAll(mockDeleteResults);
+        // Before we return, in case of ignore delete or filtered keys
+        // we want to add the "mock" confirmations for the ignored operations
+        // in order to satisfy the XDCR mechanism
+        if(mockResults != null && mockResults.size() > 0){
+        	result.addAll(mockResults);
         }
         return result;
     }
@@ -565,7 +627,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     }
 
     @Override
-    public InputStream getLocalAttachment(String databsae, String docId,
+    public InputStream getLocalAttachment(String database, String docId,
             String attachmentName) {
         throw new UnsupportedOperationException("Attachments are not supported");
     }
@@ -682,7 +744,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             String key = String.format("vbucket%dUUID",vbucket);
             String bucketUUID = this.lookupUUID(bucket, key);
             while(bucketUUID == null && tries < 100) {
-                logger.debug("vbucket {} UUID doesn't exist yet,  creaating", vbucket);
+                logger.debug("vbucket {} UUID doesn't exist yet,  creating", vbucket);
                 String newUUID = UUID.randomUUID().toString().replace("-", "");
                 storeUUID(bucket, key, newUUID);
                 bucketUUID = this.lookupUUID(bucket, key);
@@ -730,7 +792,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         throw new RuntimeException("failed to find/create bucket uuid");
     }
 
-    public Object JSONMapPath(Map<String, Object> json, String path) {
+    public static Object JSONMapPath(Map<String, Object> json, String path) {
         int dotIndex = path.indexOf('.');
         if (dotIndex >= 0) {
             String pathThisLevel = path.substring(0,dotIndex);
