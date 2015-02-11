@@ -21,9 +21,7 @@ public class DefaultParentSelector implements IParentSelector {
         this.logger = Loggers.getLogger(this.getClass(), settings, new String[0]);
 
         this.documentTypeParentFields = settings.getByPrefix("couchbase.documentTypeParentFields.").getAsMap();
-        if (documentTypeParentFields.isEmpty()) {
-            documentTypeParentFields = null;
-        }
+
         for (String key: documentTypeParentFields.keySet()) {
             String parentField = documentTypeParentFields.get(key);
             logger.info("Using field {} as parent for type {}", parentField, key);
@@ -37,9 +35,7 @@ public class DefaultParentSelector implements IParentSelector {
             parentField = documentTypeParentFields.get(type);
         }
         if (parentField == null) return null;
-        if(documentTypeParentFields != null && documentTypeParentFields.containsKey(type)) {
-            parentField = documentTypeParentFields.get(type);
-        }
+
         return ElasticSearchCAPIBehavior.JSONMapPath(doc, parentField);
     }
 }
