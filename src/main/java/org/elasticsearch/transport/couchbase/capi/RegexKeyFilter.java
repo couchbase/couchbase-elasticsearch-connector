@@ -17,10 +17,10 @@ public class RegexKeyFilter implements KeyFilter {
 
     @Override
     public void configure(Settings settings) {
-        this.keyFilterType = settings.get("couchbase.keyFilterType", DefaultKeyFilter.DEFAULT_KEY_FILTER_TYPE);
+        this.keyFilterType = settings.get("couchbase.keyFilter.type", DefaultKeyFilter.DEFAULT_KEY_FILTER_TYPE);
         logger.trace("Using key filter type: {}", keyFilterType);
         this.keyFilterPatterns = new HashMap<String,Pattern>();
-        this.keyFilterPatternStrings = settings.getByPrefix("couchbase.keyFilters.").getAsMap();
+        this.keyFilterPatternStrings = settings.getByPrefix("couchbase.keyFilter.keyFiltersRegex.").getAsMap();
         for (String key : keyFilterPatternStrings.keySet()) {
             String pattern = keyFilterPatternStrings.get(key);
             logger.trace("See key filter: {} with pattern: {} compiling...", key, pattern);

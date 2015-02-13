@@ -423,7 +423,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 if(!ignoreDelete && ttl > 0) {
                     indexBuilder.setTTL(ttl);
                 }
-                Object parent = parentSelector.getParent(toBeIndexed,id, type);
+                Object parent = parentSelector.getParent(toBeIndexed, id, type);
                 if (parent != null) {
                     if (parent instanceof String) {
                         logger.debug("Setting parent of document {} to {}", id, parent);

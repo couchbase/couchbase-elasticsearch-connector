@@ -33,8 +33,8 @@ public class RegexParentSelector implements ParentSelector {
 
     @Override
     public void configure(Settings settings) {
-        ImmutableMap<String, String> documentTypeParentRegexMap = settings.getByPrefix("couchbase.documentTypesParentRegex.").getAsMap();
-        ImmutableMap<String, String> documentTypeParentFormatInternalMap = settings.getByPrefix("couchbase.documentTypesParentFormat.").getAsMap();
+        ImmutableMap<String, String> documentTypeParentRegexMap = settings.getByPrefix("couchbase.parentSelector.documentTypesParentRegex.").getAsMap();
+        ImmutableMap<String, String> documentTypeParentFormatInternalMap = settings.getByPrefix("couchbase.parentSelector.documentTypesParentFormat.").getAsMap();
         this.documentTypeParentRegexMap = new HashMap<String, Pattern>();
         this.documentTypeParentFormatMap = new HashMap<String, String>();
         for (String key : documentTypeParentRegexMap.keySet()) {
@@ -44,7 +44,7 @@ public class RegexParentSelector implements ParentSelector {
             if (documentTypeParentFormatInternalMap.containsKey(key)) {
                 String parentFormat = documentTypeParentFormatInternalMap.get(key);
                 logger.info("Using parent format {} to select parent of type {}",parentFormat,key);
-                documentTypeParentFormatMap.put(key,parentFormat.replace("<parent>","%s"));
+                documentTypeParentFormatMap.put(key, parentFormat.replace("<parent>","%s"));
             }
         }
     }

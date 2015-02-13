@@ -101,7 +101,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.publishHost = componentSettings.get("publish_host");
         this.username = settings.get("couchbase.username", "Administrator");
         this.password = settings.get("couchbase.password", "");
-        this.checkpointDocumentType = settings.get("couchbase.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
+        this.checkpointDocumentType = settings.get("couchbase.typeSelector.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
         this.dynamicTypePath = settings.get("couchbase.dynamicTypePath");
         this.resolveConflicts = settings.getAsBoolean("couchbase.resolveConflicts", true);
         this.wrapCounters = settings.getAsBoolean("couchbase.wrapCounters", false);
@@ -153,8 +153,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
             logger.info("Using field {} as routing for type {}", routingField, key);
         }
         
-        this.ignoreDeletes = new ArrayList<String>(Arrays.asList(settings.get("couchbase.ignore.delete","").split(":")));
-        logger.info("Couchbase transport will ignore delete operations for this buckets: {}", ignoreDeletes);
+        this.ignoreDeletes = new ArrayList<String>(Arrays.asList(settings.get("couchbase.ignoreDeletes","").split(":")));
+        logger.info("Couchbase transport will ignore delete/expiration operations for these buckets: {}", ignoreDeletes);
 
         this.ignoreFailures = settings.getAsBoolean("couchbase.ignoreFailures", false);
         logger.info("Couchbase transport will ignore indexing failures and not throw exception to Couchbase: {}", ignoreFailures);
