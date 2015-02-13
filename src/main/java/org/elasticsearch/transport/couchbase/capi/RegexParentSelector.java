@@ -25,16 +25,14 @@ import java.util.regex.Pattern;
  *
  * @author tal.maayani on 1/22/2015.
  */
-public class RegexParentSelector implements IParentSelector {
+public class RegexParentSelector implements ParentSelector {
     public static final String PARENT = "parent";
-    protected ESLogger logger;
+    protected ESLogger logger = Loggers.getLogger(getClass());
     private Map<String, Pattern> documentTypeParentRegexMap;
     private Map<String, String> documentTypeParentFormatMap;
 
     @Override
     public void configure(Settings settings) {
-        this.logger = Loggers.getLogger(this.getClass(), settings, new String[0]);
-
         ImmutableMap<String, String> documentTypeParentRegexMap = settings.getByPrefix("couchbase.documentTypesParentRegex.").getAsMap();
         ImmutableMap<String, String> documentTypeParentFormatInternalMap = settings.getByPrefix("couchbase.documentTypesParentFormat.").getAsMap();
         this.documentTypeParentRegexMap = new HashMap<String, Pattern>();

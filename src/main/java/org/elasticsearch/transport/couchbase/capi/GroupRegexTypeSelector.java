@@ -12,23 +12,23 @@ import java.util.regex.Pattern;
  * Use couchbase.documentTypesRegex for one regular expression configuration for all types.
  * If you would like to use a specific type regex @use{RegexTypeSelector}
  * Example:
- * couchbase.documentTypesRegex: ^(?<type>\w+)::.+$
- * @author tal.maayani on 1/23/2015.
+ * couchbase.typeSelector.documentTypesRegex: ^(?<type>\w+)::.+$
+ * @author tal.maayani on 1/23/2015, David Ostrovsky
  */
-public class GroupRegexTypeSelector implements TypeSelector {
+public class GroupRegexTypeSelector extends DefaultTypeSelector {
     protected ESLogger logger = Loggers.getLogger(getClass());
 
     private static final String TYPE = "type";
-    private String defaultDocumentType;
     private Pattern documentTypesRegex;
 
     @Override
     public void configure(Settings settings) {
-        this.defaultDocumentType = settings.get("couchbase.defaultDocumentType", DefaultTypeSelector.DEFAULT_DOCUMENT_TYPE_DOCUMENT);
-        String documentTypesPattern = settings.get("couchbase.documentTypesRegex");
+        super.configure(settings);
+
+        String documentTypesPattern = settings.get("couchbase.typeSelector.documentTypesRegex");
         if (null == documentTypesPattern) {
-            logger.error("No configuration found for couchbase.documentTypesRegex, please set types regex");
-            throw new RuntimeException("No configuration found for couchbase.documentTypesRegex, please set types regex");
+            logger.error("No configuration found for couchbase.typeSelector.documentTypesRegex, please set types regex");
+            throw new RuntimeException("No configuration found for couchbase.typeSelector.documentTypesRegex, please set types regex");
         }
         documentTypesRegex = Pattern.compile(documentTypesPattern);
     }
@@ -39,7 +39,8 @@ public class GroupRegexTypeSelector implements TypeSelector {
         if (matcher.matches()) {
             return matcher.group(TYPE);
         }
-        logger.warn("Document Id {} does not match type group regex - use default document type",docId);
-        return defaultDocumentType;
+
+        logger.warn("Document Id {} does not match type group regex - use default document type", docId);
+        return super.getType(index, docId);
     }
 }

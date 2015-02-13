@@ -74,18 +74,17 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected long bulkIndexRetries;
     protected long bulkIndexRetryWaitMs;
 
-    private TypeSelector typeSelector;
-    private final IParentSelector parentSelector;
-    private KeyFilter keyFilter;
+    private final TypeSelector typeSelector;
+    private final ParentSelector parentSelector;
+    private final KeyFilter keyFilter;
 
     protected Cache<String, String> bucketUUIDCache;
 
-    protected Map<String, String> documentTypeParentFields;
     protected Map<String, String> documentTypeRoutingFields;
     
 	protected List<String> ignoreDeletes;
 
-    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, KeyFilter keyFilter, TypeSelector typeSelector, IParentSelector parentSelector, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, boolean wrapCounters, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache, Map<String, String> documentTypeRoutingFields, List<String> ignoreDeletes, Boolean ignoreFailures) {
+    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, KeyFilter keyFilter, TypeSelector typeSelector, ParentSelector parentSelector, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, boolean wrapCounters, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache, Map<String, String> documentTypeRoutingFields, List<String> ignoreDeletes, Boolean ignoreFailures) {
         this.client = client;
         this.logger = logger;
         this.keyFilter = keyFilter;
@@ -96,6 +95,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         this.resolveConflicts = resolveConflicts;
         this.wrapCounters = wrapCounters;
         this.ignoreFailures = ignoreFailures;
+        this.ignoreDeletes = ignoreDeletes;
 
         this.activeRevsDiffRequests = new CounterMetric();
         this.meanRevsDiffRequests = new MeanMetric();
@@ -108,11 +108,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         this.bulkIndexRetryWaitMs = bulkIndexRetryWaitMs;
         this.bucketUUIDCache = bucketUUIDCache;
 
-        this.documentTypeParentFields = documentTypeParentFields;
         this.documentTypeRoutingFields = documentTypeRoutingFields;
-        
-		this.ignoreDeletes = ignoreDeletes;
-		logger.trace("ignoreDeletes = {}", ignoreDeletes);
     }
 
     @Override
@@ -293,7 +289,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 		//ignoreDeletes contains a list of indexes to be ignored when delete events occur
 		//index list can be set in the elasticsearch.yml file using
 		//the key: couchbase.ignore.delete  the value is colon separated:  index1:index2:index3 
-		boolean ignoreDelete = ignoreDeletes != null ? ignoreDeletes.contains(index) : false;
+		boolean ignoreDelete = ignoreDeletes != null && ignoreDeletes.contains(index);
         logger.trace("ignoreDelete = {}", ignoreDelete);
         
         // keep a map of the id - rev for building the response
@@ -449,7 +445,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             }
         }
 
-        List<Object> result = null;
+        List<Object> result;
 
         long retriesLeft = this.bulkIndexRetries;
         int attempt = 0;
@@ -552,10 +548,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     }
 
     public boolean failureMessageAppearsFatal(String failureMessage) {
-        if(failureMessage.contains("EsRejectedExecutionException")) {
-            return false;
-        }
-        return true;
+        return !failureMessage.contains("EsRejectedExecutionException");
     }
 
     @Override

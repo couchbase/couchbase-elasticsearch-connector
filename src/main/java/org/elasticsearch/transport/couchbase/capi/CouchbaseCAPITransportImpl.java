@@ -82,7 +82,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private Cache<String, String> bucketUUIDCache;
 
     private TypeSelector typeSelector;
-    private IParentSelector parentSelector;
+    private ParentSelector parentSelector;
     private KeyFilter keyFilter;
 
     private Map<String, String> documentTypeRoutingFields;
@@ -117,15 +117,16 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
             throw new ElasticsearchException("couchbase.typeSelector", e);
         }
         this.typeSelector.configure(settings);
+        logger.info("Couchbase transport is using type selector: {}", typeSelector.getClass().getCanonicalName());
 
-
-        Class<? extends IParentSelector> parentSelectorClass = settings.<IParentSelector>getAsClass("couchbase.parentSelector", DefaultParentSelector.class);
+        Class<? extends ParentSelector> parentSelectorClass = settings.<ParentSelector>getAsClass("couchbase.parentSelector", DefaultParentSelector.class);
         try {
             this.parentSelector = parentSelectorClass.newInstance();
         } catch (Exception e) {
             throw new ElasticsearchException("couchbase.parentSelector", e);
         }
         this.parentSelector.configure(settings);
+        logger.info("Couchbase transport is using parent selector: {}", parentSelector.getClass().getCanonicalName());
 
         Class<? extends KeyFilter> keyFilterClass = settings.<KeyFilter>getAsClass("couchbase.keyFilter", DefaultKeyFilter.class);
         try {
@@ -134,6 +135,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
             throw new ElasticsearchException("couchbase.keyFilter", e);
         }
         this.keyFilter.configure(settings);
+        logger.info("Couchbase transport is using key filter: {}", keyFilter.getClass().getCanonicalName());
 
         int defaultNumVbuckets = 1024;
         if(System.getProperty("os.name").toLowerCase().contains("mac")) {
@@ -155,7 +157,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         logger.info("Couchbase transport will ignore delete operations for this buckets: {}", ignoreDeletes);
 
         this.ignoreFailures = settings.getAsBoolean("couchbase.ignoreFailures", false);
-        logger.info("Ignore indexing failures, do not throw exception to Couchbase: {}", ignoreFailures);
+        logger.info("Couchbase transport will ignore indexing failures and not throw exception to Couchbase: {}", ignoreFailures);
     }
 
     @Override

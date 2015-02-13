@@ -43,12 +43,12 @@ public class CouchbaseCAPI extends AbstractLifecycleComponent<CouchbaseCAPI> {
         if (logger.isInfoEnabled()) {
             logger.info("{}", transport.boundAddress());
         }
-        nodeService.putNodeAttribute("couchbase_address", transport.boundAddress().publishAddress().toString());
+        nodeService.putAttribute("couchbase_address", transport.boundAddress().publishAddress().toString());
     }
 
     @Override
     protected void doStop() throws ElasticsearchException {
-        nodeService.removeNodeAttribute("couchbase_address");
+        nodeService.removeAttribute("couchbase_address");
         transport.stop();
     }
 

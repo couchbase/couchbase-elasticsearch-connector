@@ -8,16 +8,16 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 
-public class RegexTypeSelector implements TypeSelector {
+public class RegexTypeSelector extends DefaultTypeSelector {
 
     protected ESLogger logger = Loggers.getLogger(getClass());
-    private String defaultDocumentType;
     private Map<String,String> documentTypePatternStrings;
     private Map<String, Pattern> documentTypePatterns;
 
     @Override
     public void configure(Settings settings) {
-        this.defaultDocumentType = settings.get("couchbase.defaultDocumentType", DefaultTypeSelector.DEFAULT_DOCUMENT_TYPE_DOCUMENT);
+        super.configure(settings);
+
         this.documentTypePatterns = new HashMap<String,Pattern>();
         this.documentTypePatternStrings = settings.getByPrefix("couchbase.documentTypes.").getAsMap();
         for (String key : documentTypePatternStrings.keySet()) {
@@ -34,7 +34,7 @@ public class RegexTypeSelector implements TypeSelector {
                 return typePattern.getKey();
             }
         }
-        return defaultDocumentType;
+        return super.getType(index, docId);
     }
 
 }

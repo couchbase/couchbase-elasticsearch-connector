@@ -11,15 +11,13 @@ import java.util.Map;
  * Get parent document Id according to field within document json
  * @author tal.maayani on 1/22/2015.
  */
-public class DefaultParentSelector implements IParentSelector {
-    protected ESLogger logger;
+public class DefaultParentSelector implements ParentSelector {
+    protected ESLogger logger = Loggers.getLogger(getClass());
 
     private ImmutableMap<String, String> documentTypeParentFields;
 
     @Override
     public void configure(Settings settings) {
-        this.logger = Loggers.getLogger(this.getClass(), settings, new String[0]);
-
         this.documentTypeParentFields = settings.getByPrefix("couchbase.documentTypeParentFields.").getAsMap();
 
         for (String key: documentTypeParentFields.keySet()) {

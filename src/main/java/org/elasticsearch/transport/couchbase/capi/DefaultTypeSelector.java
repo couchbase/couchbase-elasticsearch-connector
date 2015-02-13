@@ -7,8 +7,8 @@ public class DefaultTypeSelector implements TypeSelector {
     public static final String DEFAULT_DOCUMENT_TYPE_DOCUMENT = "couchbaseDocument";
     public static final String DEFAULT_DOCUMENT_TYPE_CHECKPOINT = "couchbaseCheckpoint";
 
-    private String defaultDocumentType;
-    private String checkpointDocumentType;
+    protected String defaultDocumentType;
+    protected String checkpointDocumentType;
 
     @Override
     public void configure(Settings settings) {
