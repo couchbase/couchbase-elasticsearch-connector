@@ -171,6 +171,10 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         // check to see if too many requests are already active
         if(activeBulkDocsRequests.count() + activeRevsDiffRequests.count() >= maxConcurrentRequests) {
             totalTooManyConcurrentRequestsErrors.inc();
+            logger.error("Too many concurrent requests. _bulk_docs requests: {}, _revs_diff requests: {}, Max configured: {}",
+                    activeBulkDocsRequests.count(),
+                    activeRevsDiffRequests.count(),
+                    maxConcurrentRequests);
             throw new UnavailableException("Too many concurrent requests");
         }
 
@@ -278,6 +282,10 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         // check to see if too many requests are already active
         if(activeBulkDocsRequests.count() + activeRevsDiffRequests.count() >= maxConcurrentRequests) {
             totalTooManyConcurrentRequestsErrors.inc();
+            logger.error("Too many concurrent requests. _bulk_docs requests: {}, _revs_diff requests: {}, Max configured: {}",
+                    activeBulkDocsRequests.count(),
+                    activeRevsDiffRequests.count(),
+                    maxConcurrentRequests);
             throw new UnavailableException("Too many concurrent requests");
         }
 
@@ -392,7 +400,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
             long ttl = 0;
             Integer expiration = (Integer)meta.get("expiration");
-            if(expiration != null) {
+            if(expiration != null && expiration > 0) {
                 ttl = (expiration.longValue() * 1000) - System.currentTimeMillis();
             }
 
@@ -445,13 +453,12 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             }
         }
 
-        List<Object> result;
-
-        long retriesLeft = this.bulkIndexRetries;
         int attempt = 0;
-
         BulkResponse response = null;
-        boolean isEmptyBulk = false;
+        List<Object> result;
+        long retriesLeft = this.bulkIndexRetries;
+        StringBuilder errors = new StringBuilder();
+
         do {
             // build the bulk request for this iteration
             BulkRequestBuilder bulkBuilder = client.prepareBulk();
@@ -465,23 +472,20 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             attempt++;
             result = new ArrayList<Object>();
 
-            if(bulkBuilder.numberOfActions() == 0)
-                return result;
-
             if(response != null) {
                 // at least second time through
                 try {
                     Thread.sleep(this.bulkIndexRetryWaitMs);
                 } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                    errors.append(e.toString());
+                    break;
                 }
             }
             
-            if(bulkBuilder.numberOfActions() > 0) {
+            if(bulkBuilder.numberOfActions() > 0)
 	            response = bulkBuilder.execute().actionGet();
-            } else {
-            	isEmptyBulk = true;
-            }
+            else
+                break;
             
             if(response != null) {
                 for (BulkItemResponse bulkItemResponse : response.getItems()) {
@@ -504,6 +508,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                         if(failureMessageAppearsFatal(failure.getMessage())) {
                             logger.error("error indexing document id: " + itemId + " exception: " + failure.getMessage());
 
+                            bulkIndexRequests.remove(itemId);
+                            bulkDeleteRequests.remove(itemId);
+
                             // If ignore failures mode is on, store a mock result object for the failed
                             // operation, which will be returned to Couchbase.
                             if(ignoreFailures) {
@@ -511,39 +518,39 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                                 mockResult.put("id", itemId);
                                 mockResult.put("rev", itemRev);
                                 mockResults.add(mockResult);
-
-                                bulkIndexRequests.remove(itemId);
-                                bulkDeleteRequests.remove(itemId);
                             }
-                            else
-                                throw new RuntimeException("indexing error " + failure.getMessage());
+                            else {
+                                errors.append(failure.getMessage());
+                                errors.append(System.lineSeparator());
+                            }
                         }
                     }
                 }
             }
             retriesLeft--;
-        } while(!isEmptyBulk && (response != null) && (response.hasFailures()) && (retriesLeft > 0));
-
-        if(!isEmptyBulk && response == null) {
-            throw new RuntimeException("indexing error, bulk response was null");
-        }
-
-        if(retriesLeft == 0 && !ignoreFailures) {
-            throw new RuntimeException("indexing error, bulk failed after all retries");
-        }
-
-        logger.debug("bulk index succeeded after {} tries", attempt);
+        } while(response != null && response.hasFailures() && retriesLeft > 0);
 
         long end = System.currentTimeMillis();
         meanBulkDocsRequests.inc(end - start);
         activeBulkDocsRequests.dec();
-        
+
+        if(errors.length() > 0 && !ignoreFailures)
+            throw new RuntimeException("indexing error: " + errors.toString());
+
+        if(response == null)
+            throw new RuntimeException("indexing error, bulk response was null");
+
+        if(retriesLeft == 0 && !ignoreFailures)
+            throw new RuntimeException("indexing error, bulk failed after all retries");
+
+        logger.debug("bulk index succeeded after {} tries", attempt);
+
         // Before we return, in case of ignore delete or filtered keys
         // we want to add the "mock" confirmations for the ignored operations
         // in order to satisfy the XDCR mechanism
-        if(mockResults != null && mockResults.size() > 0){
+        if(mockResults != null && mockResults.size() > 0)
         	result.addAll(mockResults);
-        }
+
         return result;
     }
 
