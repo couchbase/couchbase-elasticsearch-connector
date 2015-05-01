@@ -81,7 +81,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected Cache<String, String> bucketUUIDCache;
 
     protected Map<String, String> documentTypeRoutingFields;
-    
+
 	protected List<String> ignoreDeletes;
 
     public ElasticSearchCAPIBehavior(Client client, ESLogger logger, KeyFilter keyFilter, TypeSelector typeSelector, ParentSelector parentSelector, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, boolean wrapCounters, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache, Map<String, String> documentTypeRoutingFields, List<String> ignoreDeletes, Boolean ignoreFailures) {
@@ -288,17 +288,17 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 		//if set to true - all delete operations will be ignored
 		//ignoreDeletes contains a list of indexes to be ignored when delete events occur
 		//index list can be set in the elasticsearch.yml file using
-		//the key: couchbase.ignore.delete  the value is colon separated:  index1:index2:index3 
+		//the key: couchbase.ignore.delete  the value is colon separated:  index1:index2:index3
 		boolean ignoreDelete = ignoreDeletes != null && ignoreDeletes.contains(index);
         logger.trace("ignoreDelete = {}", ignoreDelete);
-        
+
         // keep a map of the id - rev for building the response
         Map<String,String> revisions = new HashMap<String, String>();
 
         // put requests into this map, not directly into the bulk request
         Map<String,IndexRequest> bulkIndexRequests = new HashMap<String,IndexRequest>();
         Map<String,DeleteRequest> bulkDeleteRequests = new HashMap<String,DeleteRequest>();
-        
+
         //used for "mock" results in case of ignore deletes or filtered out keys
         List<Object> mockResults = new ArrayList<Object>();
 
@@ -412,20 +412,20 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 routingField = documentTypeRoutingFields.get(type);
             }
             boolean deleted = meta.containsKey("deleted") ? (Boolean)meta.get("deleted") : false;
-            
-            if(deleted) {
-            	if (!ignoreDelete) {
-                	DeleteRequest deleteRequest = client.prepareDelete(index, type, id).request();
-                	bulkDeleteRequests.put(id, deleteRequest);
-            	}else{
-                	// For ignored deletes, we want to bypass from adding the delete request
-            		// as a hack - we add a "mock" response for each delete request as if ES returned
-            		// delete confirmation
-	                Map<String, Object> mockResponse = new HashMap<String, Object>();
-	                mockResponse.put("id", id);
-	                mockResponse.put("rev", rev);
-	                mockResults.add(mockResponse);
-            	}
+
+            if (deleted) {
+                if (!ignoreDelete) {
+                        DeleteRequest deleteRequest = client.prepareDelete(index, type, id).request();
+                        bulkDeleteRequests.put(id, deleteRequest);
+                } else {
+                        // For ignored deletes, we want to bypass from adding the delete request
+                        // as a hack - we add a "mock" response for each delete request as if ES returned
+                        // delete confirmation
+                        Map<String, Object> mockResponse = new HashMap<String, Object>();
+                        mockResponse.put("id", id);
+                        mockResponse.put("rev", rev);
+                        mockResults.add(mockResponse);
+                }
             } else {
                 IndexRequestBuilder indexBuilder = client.prepareIndex(index, type, id);
                 indexBuilder.setSource(toBeIndexed);
@@ -441,7 +441,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                         logger.warn("Unable to determine parent value from parent field {} for doc id {}", parent, id);
                     }
                 }
-                if(routingField != null) {
+
+                if (routingField != null) {
                     Object routing = JSONMapPath(toBeIndexed, routingField);
                     if (routing != null && routing instanceof String) {
                         indexBuilder.setRouting((String)routing);
@@ -485,19 +486,19 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                     throw new RuntimeException(e);
                 }
             }
-            
-            if(bulkBuilder.numberOfActions() > 0) {
-	            response = bulkBuilder.execute().actionGet();
+
+            if (bulkBuilder.numberOfActions() > 0) {
+                response = bulkBuilder.execute().actionGet();
             } else {
-            	isEmptyBulk = true;
+                isEmptyBulk = true;
             }
-            
-            if(response != null) {
+
+            if (response != null) {
                 for (BulkItemResponse bulkItemResponse : response.getItems()) {
                     String itemId = bulkItemResponse.getId();
                     String itemRev = revisions.get(itemId);
 
-                    if(!bulkItemResponse.isFailed()) {
+                    if (!bulkItemResponse.isFailed()) {
                         Map<String, Object> itemResponse = new HashMap<String, Object>();
                         itemResponse.put("id", itemId);
                         itemResponse.put("rev", itemRev);
@@ -510,12 +511,12 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                         Failure failure = bulkItemResponse.getFailure();
 
                         // If the error is fatal, don't retry the request.
-                        if(failureMessageAppearsFatal(failure.getMessage())) {
+                        if (failureMessageAppearsFatal(failure.getMessage())) {
                             logger.error("error indexing document id: " + itemId + " exception: " + failure.getMessage());
 
                             // If ignore failures mode is on, store a mock result object for the failed
                             // operation, which will be returned to Couchbase.
-                            if(ignoreFailures) {
+                            if (ignoreFailures) {
                                 Map<String, Object> mockResult = new HashMap<String, Object>();
                                 mockResult.put("id", itemId);
                                 mockResult.put("rev", itemRev);
@@ -523,9 +524,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
                                 bulkIndexRequests.remove(itemId);
                                 bulkDeleteRequests.remove(itemId);
-                            }
-                            else
+                            } else {
                                 throw new RuntimeException("indexing error " + failure.getMessage());
+                            }
                         }
                     }
                 }
@@ -533,11 +534,11 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             retriesLeft--;
         } while(!isEmptyBulk && (response != null) && (response.hasFailures()) && (retriesLeft > 0));
 
-        if(!isEmptyBulk && response == null) {
+        if (!isEmptyBulk && response == null) {
             throw new RuntimeException("indexing error, bulk response was null");
         }
 
-        if(retriesLeft == 0 && !ignoreFailures) {
+        if (retriesLeft == 0 && !ignoreFailures) {
             throw new RuntimeException("indexing error, bulk failed after all retries");
         }
 
@@ -546,12 +547,12 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         long end = System.currentTimeMillis();
         meanBulkDocsRequests.inc(end - start);
         activeBulkDocsRequests.dec();
-        
+
         // Before we return, in case of ignore delete or filtered keys
         // we want to add the "mock" confirmations for the ignored operations
         // in order to satisfy the XDCR mechanism
         if(mockResults != null && mockResults.size() > 0){
-        	result.addAll(mockResults);
+            result.addAll(mockResults);
         }
         return result;
     }
