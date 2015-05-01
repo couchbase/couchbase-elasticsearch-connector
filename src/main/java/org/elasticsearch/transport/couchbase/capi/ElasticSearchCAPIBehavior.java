@@ -368,10 +368,19 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                                 logger.error("Unable to parse decoded base64 data as either JSON or long, indexing stub for id: {}", meta.get("id"));
                                 logger.error("Body was: {} Parse error was: {} Long parse error was: {}", new String(decodedData), e, e2);
                             }
-                        }
-                        else {
-                            logger.error("Unable to parse decoded base64 data as JSON, indexing stub for id: {}", meta.get("id"));
-                            logger.error("Body was: {} Parse error was: {}", new String(decodedData), e);
+                        } else {
+                            logger.trace(
+                                "Trying to wrap decoded base64 data in an Object as 'content' field, id: {}",
+                                meta.get("id"));
+                            try {
+                                decodedData = "{\"content\":"+decodedData+"}";
+                                json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
+                            } catch (Exception e3) {
+                                logger.error(
+                                    "Unable to parse decoded base64 data as JSON, indexing stub for id: {}",
+                                    meta.get("id"));
+                                logger.error("Body was: {} Parse error was: {}", new String(decodedData), e);
+                            }
                         }
                     }
                 } catch (IOException e) {
