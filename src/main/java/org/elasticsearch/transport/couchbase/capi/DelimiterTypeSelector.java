@@ -12,7 +12,7 @@ public class DelimiterTypeSelector extends DefaultTypeSelector {
     public static final String DEFAULT_DOCUMENT_TYPE_DELIMITER = ":";
     private String documentTypeDelimiter;
     protected ESLogger logger = Loggers.getLogger(getClass());
-
+    private Boolean DocumentTypeId;
     public DelimiterTypeSelector () {
         this.documentTypeDelimiter = DEFAULT_DOCUMENT_TYPE_DELIMITER; // Sanity
     }
@@ -23,6 +23,8 @@ public class DelimiterTypeSelector extends DefaultTypeSelector {
 
         this.documentTypeDelimiter = settings.get("couchbase.typeSelector.documentTypeDelimiter", DelimiterTypeSelector.DEFAULT_DOCUMENT_TYPE_DELIMITER);
         logger.info("Couchbase transport is using type selector with delimiter: {}", documentTypeDelimiter);
+        this.DocumentTypeId = settings.getAsBoolean("couchbase.typeSelector.documentTypeId", false);
+        logger.info("Couchbase transport is using type index retrieve: {}", DocumentTypeId);
     }
 
     @Override
@@ -31,5 +33,16 @@ public class DelimiterTypeSelector extends DefaultTypeSelector {
         final int pos = docId.indexOf(documentTypeDelimiter);
 
         return pos > 0 ? docId.substring(0, pos) : super.getType(index, docId);
+    }
+    
+    @Override
+    public String getId(final String index, final String docId)
+    {
+    	if (DocumentTypeId) {
+    		final int pos = docId.indexOf(documentTypeDelimiter);		 
+    		return pos > 0 ? docId.substring(pos + 1, docId.length()) : super.getId(index, docId);
+    	}else{
+    		return docId;
+    	}
     }
 }

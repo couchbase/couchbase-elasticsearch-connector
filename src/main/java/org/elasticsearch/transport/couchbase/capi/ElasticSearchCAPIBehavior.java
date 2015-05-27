@@ -210,7 +210,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                             // so we skip this id in the lookup to avoid errors
                             continue;
                         }
-                        builder = builder.add(index, type, id);
+                        String lDocId = typeSelector.getId(index, id);
+                        builder = builder.add(index, type, lDocId);
                         added++;
                     }
                     if(builder != null) {
@@ -404,32 +405,33 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             }
             boolean deleted = meta.containsKey("deleted") ? (Boolean)meta.get("deleted") : false;
             
+            String lDocId = typeSelector.getId(index, id);
             if(deleted) {
             	if (!ignoreDelete) {
-                	DeleteRequest deleteRequest = client.prepareDelete(index, type, id).request();
-                	bulkDeleteRequests.put(id, deleteRequest);
+                	DeleteRequest deleteRequest = client.prepareDelete(index, type, lDocId).request();
+                	bulkDeleteRequests.put(lDocId, deleteRequest);
             	}else{
                 	// For ignored deletes, we want to bypass from adding the delete request
             		// as a hack - we add a "mock" response for each delete request as if ES returned
             		// delete confirmation
 	                Map<String, Object> mockResponse = new HashMap<String, Object>();
-	                mockResponse.put("id", id);
+	                mockResponse.put("id", lDocId);
 	                mockResponse.put("rev", rev);
 	                mockResults.add(mockResponse);
             	}
             } else {
-                IndexRequestBuilder indexBuilder = client.prepareIndex(index, type, id);
+                IndexRequestBuilder indexBuilder = client.prepareIndex(index, type, lDocId);
                 indexBuilder.setSource(toBeIndexed);
                 if(!ignoreDelete && ttl > 0) {
                     indexBuilder.setTTL(ttl);
                 }
-                Object parent = parentSelector.getParent(toBeIndexed,id, type);
+                Object parent = parentSelector.getParent(toBeIndexed, lDocId, type);
                 if (parent != null) {
                     if (parent instanceof String) {
-                        logger.debug("Setting parent of document {} to {}", id, parent);
+                        logger.debug("Setting parent of document {} to {}", lDocId, parent);
                         indexBuilder.setParent((String) parent);
                     } else {
-                        logger.warn("Unable to determine parent value from parent field {} for doc id {}", parent, id);
+                        logger.warn("Unable to determine parent value from parent field {} for doc id {}", parent, lDocId);
                     }
                 }
                 if(routingField != null) {
@@ -441,7 +443,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                     }
                 }
                 IndexRequest indexRequest = indexBuilder.request();
-                bulkIndexRequests.put(id,  indexRequest);
+                bulkIndexRequests.put(lDocId,  indexRequest);
             }
         }
 
@@ -555,7 +557,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     public Map<String, Object> getDocument(String database, String docId) {
         String index = getElasticSearchIndexNameFromDatabase(database);
         String type = typeSelector.getType(index, docId);
-        return getDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, type);
+        String lDocId = typeSelector.getId(index, docId);
+        return getDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), lDocId, type);
     }
 
     @Override
@@ -576,7 +579,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     public String storeDocument(String database, String docId, Map<String, Object> document) {
         String index = getElasticSearchIndexNameFromDatabase(database);
         String type = typeSelector.getType(index, docId);
-        return storeDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, document, type);
+        String lDocId = typeSelector.getId(index, docId);
+        return storeDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), lDocId, document, type);
     }
 
     @Override

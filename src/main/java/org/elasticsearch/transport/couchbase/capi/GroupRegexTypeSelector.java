@@ -19,7 +19,9 @@ public class GroupRegexTypeSelector extends DefaultTypeSelector {
     protected ESLogger logger = Loggers.getLogger(getClass());
 
     private static final String TYPE = "type";
+    private static final String ID = "id";
     private Pattern documentTypesRegex;
+    private Pattern documentIdsRegex;
 
     @Override
     public void configure(Settings settings) {
@@ -31,6 +33,14 @@ public class GroupRegexTypeSelector extends DefaultTypeSelector {
             throw new RuntimeException("No configuration found for couchbase.typeSelector.documentTypesRegex, please set types regex");
         }
         documentTypesRegex = Pattern.compile(documentTypesPattern);
+        
+        String documentIdsPattern = settings.get("couchbase.typeSelector.documentIdsRegex");
+        if (null == documentIdsPattern) {
+            logger.error("No configuration found for couchbase.typeSelector.documentIdsRegex, please set types regex");
+            documentIdsRegex = null;
+        }else{
+        	documentIdsRegex = Pattern.compile(documentTypesPattern);
+        }
     }
 
     @Override
@@ -42,5 +52,20 @@ public class GroupRegexTypeSelector extends DefaultTypeSelector {
 
         logger.warn("Document Id {} does not match type group regex - use default document type", docId);
         return super.getType(index, docId);
+    }
+    
+    @Override
+    public String getId(final String index, final String docId)
+    {
+    	if (null == documentIdsRegex) {
+    		return docId;
+    	}
+    	Matcher matcher = documentIdsRegex.matcher(docId);
+        if (matcher.matches()) {
+            return matcher.group(ID);
+        }
+
+        logger.warn("Document Id {} does not match type group regex - use default document type", docId);
+        return super.getId(index, docId);
     }
 }

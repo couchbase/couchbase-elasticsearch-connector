@@ -23,5 +23,10 @@ public class DefaultTypeSelector implements TypeSelector {
         }
         return this.defaultDocumentType;
     }
+    
+    @Override
+    public String getId(String index, String docId) {
+    	return docId;
+    }
 
 }
