@@ -458,10 +458,11 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         List<Object> result;
         long retriesLeft = this.bulkIndexRetries;
         StringBuilder errors = new StringBuilder();
+        BulkRequestBuilder bulkBuilder = null;
 
         do {
             // build the bulk request for this iteration
-            BulkRequestBuilder bulkBuilder = client.prepareBulk();
+            bulkBuilder = client.prepareBulk();
             for (Entry<String,IndexRequest> entry : bulkIndexRequests.entrySet()) {
                 bulkBuilder.add(entry.getValue());
             }
@@ -537,7 +538,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         if(errors.length() > 0 && !ignoreFailures)
             throw new RuntimeException("indexing error: " + errors.toString());
 
-        if(response == null)
+        if(response == null && bulkBuilder != null && bulkBuilder.numberOfActions() > 0)
             throw new RuntimeException("indexing error, bulk response was null");
 
         if(retriesLeft == 0 && !ignoreFailures)
