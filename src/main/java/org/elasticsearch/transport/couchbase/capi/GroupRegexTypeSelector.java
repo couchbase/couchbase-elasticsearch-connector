@@ -40,7 +40,7 @@ public class GroupRegexTypeSelector extends DefaultTypeSelector {
             return matcher.group(TYPE);
         }
 
-        logger.warn("Document Id {} does not match type group regex - use default document type", docId);
+        logger.info("Document Id {} does not match type group regex - use default document type", docId);
         return super.getType(index, docId);
     }
 }

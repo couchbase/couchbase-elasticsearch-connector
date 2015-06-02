@@ -18,7 +18,7 @@ public class DefaultParentSelector implements ParentSelector {
 
     @Override
     public void configure(Settings settings) {
-        this.documentTypeParentFields = settings.getByPrefix("couchbase.documentTypeParentFields.").getAsMap();
+        this.documentTypeParentFields = settings.getByPrefix("couchbase.parentSelector.documentTypeParentFields.").getAsMap();
 
         for (String key: documentTypeParentFields.keySet()) {
             String parentField = documentTypeParentFields.get(key);

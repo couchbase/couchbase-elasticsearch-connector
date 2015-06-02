@@ -12,8 +12,8 @@ public class DefaultTypeSelector implements TypeSelector {
 
     @Override
     public void configure(Settings settings) {
-        this.defaultDocumentType = settings.get("couchbase.defaultDocumentType", DEFAULT_DOCUMENT_TYPE_DOCUMENT);
-        this.checkpointDocumentType = settings.get("couchbase.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
+        this.defaultDocumentType = settings.get("couchbase.typeSelector.defaultDocumentType", DEFAULT_DOCUMENT_TYPE_DOCUMENT);
+        this.checkpointDocumentType = settings.get("couchbase.typeSelector.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
     }
 
     @Override
