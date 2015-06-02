@@ -310,7 +310,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         //used for "mock" results in case of ignore deletes or filtered out keys
         List<Object> mockResults = new ArrayList<Object>();
 
-        logger.debug("Bulk doc entry is {}", docs);
+        logger.trace("Bulk doc entry is {}", docs);
         for (Map<String, Object> doc : docs) {
 
             // these are the top-level elements that could be in the document sent by Couchbase
@@ -406,9 +406,11 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
             String routingField = null;
             String type = typeSelector.getType(index, id);
+            logger.trace("Selecting type {} for document {} in index {}", type, id, index);
 
             if(documentTypeRoutingFields != null && documentTypeRoutingFields.containsKey(type)) {
                 routingField = documentTypeRoutingFields.get(type);
+                logger.trace("Using {} as the routing field for document type {}", routingField, type);
             }
             boolean deleted = meta.containsKey("deleted") ? (Boolean)meta.get("deleted") : false;
             
@@ -535,16 +537,18 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         meanBulkDocsRequests.inc(end - start);
         activeBulkDocsRequests.dec();
 
-        if(errors.length() > 0 && !ignoreFailures)
-            throw new RuntimeException("indexing error: " + errors.toString());
-
         if(response == null && bulkBuilder != null && bulkBuilder.numberOfActions() > 0)
-            throw new RuntimeException("indexing error, bulk response was null");
+            errors.append("indexing error: bulk index response was null" + System.lineSeparator());
+        if(retriesLeft == 0)
+            errors.append("indexing error: bulk index failed after all retries" + System.lineSeparator());
 
-        if(retriesLeft == 0 && !ignoreFailures)
-            throw new RuntimeException("indexing error, bulk failed after all retries");
-
-        logger.debug("bulk index succeeded after {} tries", attempt);
+        if(errors.length() > 0)
+            if(ignoreFailures)
+                logger.error(errors.toString());
+            else
+                throw new RuntimeException(errors.toString());
+        else
+            logger.info("bulk index succeeded after {} tries", attempt);
 
         // Before we return, in case of ignore delete or filtered keys
         // we want to add the "mock" confirmations for the ignored operations
