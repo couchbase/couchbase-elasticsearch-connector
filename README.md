@@ -56,6 +56,7 @@ Configuration for the plugin is specified as part of the ElasticSearch config fi
 
 - **couchbase.ignoreFailures** - Enabling this flag will cause the plugin to return a success status to Couchbase even if it cannot index some of the documents. This will prevent the XDCR replication from being stalled due to indexing errors in ElasticSearch, for example when a schema change breaks some of the ES type mappings. Default is `false`.
 - **couchbase.ignoreDeletes** - Specifying one or more index names here will cause the plugin to ignore document deletion and expiration for those indexes. This can be used to turn ElasticSearch into a sort of searchable archive for a Couchbase bucket. Note that this also means that the index will continue to grow indefinitely.
+Usage : if you have two indexes named test1 and test2 then in settings file it will look like - `couchbase.ignoreDeletes: test1:test2`. Yes you have to separate multiple indexes with "**:**".
 - **couchbase.wrapCounters** - Enabling this flag will cause the plugin to wrap integer values from Couchbase, which are not valid JSON documents, in a simple document before indexing them in ElasticSearch. The resulting document is in the format `{ "value" : <value> }` and is stored under the ID of the original value from Couchbase.
 
 ### Mapping Couchbase documents to ElasticSearch types ###
