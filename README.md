@@ -14,16 +14,16 @@ To install the plugin, run the following command from your ElasticSearch install
     
 To install the release candidate of v2.1.1:
 
-    bin/plugin -install transport-couchbase -url https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/2.1.1-RC/elasticsearch-transport-couchbase-2.1.1-SNAPSHOT.zip
+    bin/plugin -install transport-couchbase -url https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/2.1.1/elasticsearch-transport-couchbase-2.1.1.zip
     
 Version Compatibility:
 
     +------------------------------------------------------------------+
     |  Plugin                       |  Couchbase    | ElasticSearch    |
     +------------------------------------------------------------------+
-    | master                        |  3.x, 2.5.x   | 1.3.0 - 1.5.2    |
+    | master                        |  3.x, 2.5.x   | 1.3.0 - 1.7.x    |
     +------------------------------------------------------------------+
-    | 2.1                           |  3.x, 2.5.x   | 1.3.0 - 1.5.2    |
+    | 2.1                           |  3.x, 2.5.x   | 1.3.0 - 1.7.x    |
     +------------------------------------------------------------------+
     | 2.0                           |  3.x, 2.5.x   | 1.3.0            |
     +------------------------------------------------------------------+
