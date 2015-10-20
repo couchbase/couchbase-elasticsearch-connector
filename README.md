@@ -1,20 +1,16 @@
 Couchbase Transport Plugin for ElasticSearch
 =================================================
 
-For a pre-built binary package and instruction manual, see the [Couchbase Product Page](http://www.couchbase.com/elasticsearch-plug-in)
+For a pre-built binary package and instruction manual, see the [Couchbase Downloads Page](http://www.couchbase.com/nosql-databases/downloads) and the [Couchbase Connector Guide for Elasticsearch](http://developer.couchbase.com/documentation/server/4.0/connectors/elasticsearch-2.1/elastic-intro.html)
 
-This plugin makes your ElasticSearch node appear like a Couchbase Server node.  After installation you can use the Cross-datacenter Replication (XDCR) feature of Couchbase Server 2.0 to transfer data continuously.
+This plugin makes your ElasticSearch node appear like a Couchbase Server node.  After installation you can use the Cross-datacenter Replication (XDCR) feature of Couchbase Server 2.5 / 3.x to transfer data continuously.
 
 Installation
 ============
 
 To install the plugin, run the following command from your ElasticSearch installation folder:
 
-    bin/plugin -install transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.0.0/elasticsearch-transport-couchbase-2.0.0.zip
-    
-To install the release candidate of v2.1.1:
-
-    bin/plugin -install transport-couchbase -url https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/2.1.1/elasticsearch-transport-couchbase-2.1.1.zip
+    bin/plugin -install transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.1.1/elasticsearch-transport-couchbase-2.1.1.zip
     
 Version Compatibility:
 
