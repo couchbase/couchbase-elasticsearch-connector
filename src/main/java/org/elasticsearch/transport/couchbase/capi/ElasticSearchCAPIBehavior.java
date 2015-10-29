@@ -336,7 +336,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             // Filter documents by ID.
             // Delete operations are always allowed through to ES, to make sure newly configured
             // filters don't cause documents to stay in ES forever.
-            if(!keyFilter.shouldAllow(index, id) && !meta.containsKey("deleted")) {
+            if(!keyFilter.shouldAllow(index, id)) {
                 // Document ID matches one of the filters, not passing it to on to ES.
                 // Store a mock response, which will be added to the responses sent back
                 // to Couchbase, to satisfy the XDCR mechanism
