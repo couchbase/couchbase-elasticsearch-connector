@@ -36,9 +36,9 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
-import org.elasticsearch.common.cache.Cache;
+import com.google.common.cache.Cache;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
-import org.elasticsearch.common.hppc.cursors.ObjectCursor;
+import com.carrotsearch.hppc.cursors.ObjectCursor;
 import org.elasticsearch.common.logging.ESLogger;
 
 import com.couchbase.capi.CouchbaseBehavior;
@@ -218,6 +218,11 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
                             int end = nodeAttribute
                                     .getValue()
                                     .lastIndexOf("]");
+                            
+                            if (end == -1) {
+                            	end = nodeAttribute.getValue().length();
+                            }
+                            
                             String hostPort = nodeAttribute
                                     .getValue().substring(
                                             start + 1, end);

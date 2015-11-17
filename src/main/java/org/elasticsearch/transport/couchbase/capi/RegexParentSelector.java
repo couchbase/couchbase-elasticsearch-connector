@@ -1,14 +1,13 @@
 package org.elasticsearch.transport.couchbase.capi;
 
-import org.elasticsearch.common.collect.ImmutableMap;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.settings.Settings;
 
 /**
  * Use regular expression for parent indexing - assuming define a named group parent as part of regex.
@@ -33,8 +32,8 @@ public class RegexParentSelector implements ParentSelector {
 
     @Override
     public void configure(Settings settings) {
-        ImmutableMap<String, String> documentTypeParentRegexMap = settings.getByPrefix("couchbase.parentSelector.documentTypesParentRegex.").getAsMap();
-        ImmutableMap<String, String> documentTypeParentFormatInternalMap = settings.getByPrefix("couchbase.parentSelector.documentTypesParentFormat.").getAsMap();
+        Map<String, String> documentTypeParentRegexMap = settings.getByPrefix("couchbase.parentSelector.documentTypesParentRegex.").getAsMap();
+        Map<String, String> documentTypeParentFormatInternalMap = settings.getByPrefix("couchbase.parentSelector.documentTypesParentFormat.").getAsMap();
         this.documentTypeParentRegexMap = new HashMap<String, Pattern>();
         this.documentTypeParentFormatMap = new HashMap<String, String>();
         for (String key : documentTypeParentRegexMap.keySet()) {

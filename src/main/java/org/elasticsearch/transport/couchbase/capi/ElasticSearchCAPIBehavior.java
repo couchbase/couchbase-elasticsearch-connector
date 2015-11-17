@@ -45,7 +45,7 @@ import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Base64;
-import org.elasticsearch.common.cache.Cache;
+import com.google.common.cache.Cache;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.metrics.CounterMetric;
 import org.elasticsearch.common.metrics.MeanMetric;

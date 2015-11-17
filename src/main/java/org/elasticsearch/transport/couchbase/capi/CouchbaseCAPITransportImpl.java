@@ -16,6 +16,8 @@ package org.elasticsearch.transport.couchbase.capi;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -26,8 +28,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.MetaDataMappingService;
-import org.elasticsearch.common.cache.Cache;
-import org.elasticsearch.common.cache.CacheBuilder;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.network.NetworkService;
@@ -43,6 +43,8 @@ import org.elasticsearch.transport.couchbase.CouchbaseCAPITransport;
 import com.couchbase.capi.CAPIBehavior;
 import com.couchbase.capi.CAPIServer;
 import com.couchbase.capi.CouchbaseBehavior;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<CouchbaseCAPITransport> implements CouchbaseCAPITransport {
 
@@ -92,15 +94,17 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     @Inject
     public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
         super(settings);
+        
         this.networkService = networkService;
         this.indicesService = indicesService;
         this.metaDataMappingService = metaDataMappingService;
         this.client = client;
         this.port = settings.get("couchbase.port", "9091-10091");
-        this.bindHost = componentSettings.get("bind_host");
-        this.publishHost = componentSettings.get("publish_host");
+        this.bindHost = settings.get("bind_host");
+        this.publishHost = settings.get("publish_host");
         this.username = settings.get("couchbase.username", "Administrator");
         this.password = settings.get("couchbase.password", "");
+     
         this.checkpointDocumentType = settings.get("couchbase.typeSelector.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
         this.dynamicTypePath = settings.get("couchbase.dynamicTypePath");
         this.resolveConflicts = settings.getAsBoolean("couchbase.resolveConflicts", true);
@@ -110,7 +114,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.bulkIndexRetryWaitMs = settings.getAsLong("couchbase.bulkIndexRetryWaitMs", 1000L);
         this.bucketUUIDCacheEvictMs = settings.getAsLong("couchbase.bucketUUIDCacheEvictMs", 300000L);
 
-        Class<? extends TypeSelector> typeSelectorClass = settings.<TypeSelector>getAsClass("couchbase.typeSelector", DefaultTypeSelector.class);
+        Class<? extends TypeSelector> typeSelectorClass = DefaultTypeSelector.class;
+        
         try {
             this.typeSelector = typeSelectorClass.newInstance();
         } catch (Exception e) {
@@ -119,7 +124,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.typeSelector.configure(settings);
         logger.info("Couchbase transport is using type selector: {}", typeSelector.getClass().getCanonicalName());
 
-        Class<? extends ParentSelector> parentSelectorClass = settings.<ParentSelector>getAsClass("couchbase.parentSelector", DefaultParentSelector.class);
+        Class<? extends ParentSelector> parentSelectorClass = DefaultParentSelector.class;
         try {
             this.parentSelector = parentSelectorClass.newInstance();
         } catch (Exception e) {
@@ -128,7 +133,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.parentSelector.configure(settings);
         logger.info("Couchbase transport is using parent selector: {}", parentSelector.getClass().getCanonicalName());
 
-        Class<? extends KeyFilter> keyFilterClass = settings.<KeyFilter>getAsClass("couchbase.keyFilter", DefaultKeyFilter.class);
+        Class<? extends KeyFilter> keyFilterClass = DefaultKeyFilter.class;
         try {
             this.keyFilter = keyFilterClass.newInstance();
         } catch (Exception e) {
@@ -136,7 +141,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         }
         this.keyFilter.configure(settings);
         logger.info("Couchbase transport is using key filter: {}", keyFilter.getClass().getCanonicalName());
-
+        
         int defaultNumVbuckets = 1024;
         if(System.getProperty("os.name").toLowerCase().contains("mac")) {
             logger.info("Detected platform is Mac, changing default num_vbuckets to 64");
@@ -163,15 +168,14 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     @Override
     protected void doStart() throws ElasticsearchException {
         // Bind and start to accept incoming connections.
-        InetAddress hostAddressX;
+        InetAddress[] hostAddressX;
         try {
             hostAddressX = networkService.resolveBindHostAddress(bindHost);
         } catch (IOException e) {
             throw new BindHttpException("Failed to resolve host [" + bindHost + "]", e);
         }
-        final InetAddress hostAddress = hostAddressX;
-
-
+        final InetAddress[] hostAddress = hostAddressX;
+        
         InetAddress publishAddressHostX;
         try {
             publishAddressHostX = networkService.resolvePublishHostAddress(publishHost);
@@ -179,7 +183,6 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
             throw new BindHttpException("Failed to resolve publish address host [" + publishHost + "]", e);
         }
         final InetAddress publishAddressHost = publishAddressHostX;
-
 
         capiBehavior = new ElasticSearchCAPIBehavior(client, logger, keyFilter, typeSelector, parentSelector, checkpointDocumentType, dynamicTypePath, resolveConflicts, wrapCounters, maxConcurrentRequests, bulkIndexRetries, bulkIndexRetryWaitMs, bucketUUIDCache, documentTypeRoutingFields, ignoreDeletes, ignoreFailures);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, checkpointDocumentType, bucketUUIDCache);
@@ -190,13 +193,17 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
             @Override
             public boolean onPortNumber(int portNumber) {
                 try {
+                    AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                    	public Void run() {
+		                    server = new CAPIServer(capiBehavior, couchbaseBehavior,
+		                            new InetSocketAddress(hostAddress[0], portNumber),
+		                            CouchbaseCAPITransportImpl.this.username,
+		                            CouchbaseCAPITransportImpl.this.password,
+		                            numVbuckets);
 
-                    server = new CAPIServer(capiBehavior, couchbaseBehavior,
-                            new InetSocketAddress(hostAddress, portNumber),
-                            CouchbaseCAPITransportImpl.this.username,
-                            CouchbaseCAPITransportImpl.this.password,
-                            numVbuckets);
-
+                			return null;
+                    	}
+                    });
 
                     if (publishAddressHost != null) {
                         server.setPublishAddress(publishAddressHost);
@@ -217,7 +224,11 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
         InetSocketAddress boundAddress = server.getBindAddress();
         InetSocketAddress publishAddress = new InetSocketAddress(publishAddressHost, boundAddress.getPort());
-        this.boundAddress = new BoundTransportAddress(new InetSocketTransportAddress(boundAddress), new InetSocketTransportAddress(publishAddress));
+        
+        InetSocketTransportAddress[] array = new InetSocketTransportAddress[1];
+        array[0] = new InetSocketTransportAddress(boundAddress);
+        
+        this.boundAddress = new BoundTransportAddress(array, new InetSocketTransportAddress(publishAddress));
     }
 
     @Override

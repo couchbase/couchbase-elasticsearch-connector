@@ -1,0 +1,7 @@
+grant {
+	permission javax.security.auth.AuthPermission "modifyPrincipals";
+	permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+	permission javax.security.auth.AuthPermission "setReadOnly";
+
+	permission java.lang.RuntimePermission "setContextClassLoader";
+};
