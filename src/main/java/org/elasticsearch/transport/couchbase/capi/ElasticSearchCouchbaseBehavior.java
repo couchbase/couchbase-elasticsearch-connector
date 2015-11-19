@@ -100,7 +100,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             for (ObjectCursor<String> index : indices.keys()) {
                 bucketNameList.add(index.value);
                 IndexMetaData indexMetaData = indices.get(index.value);
-                ImmutableOpenMap<String, AliasMetaData> aliases = indexMetaData.aliases();
+                ImmutableOpenMap<String, AliasMetaData> aliases = indexMetaData.getAliases();
                 for(ObjectCursor<String> alias : aliases.keys()) {
                     bucketNameList.add(alias.value);
                 }

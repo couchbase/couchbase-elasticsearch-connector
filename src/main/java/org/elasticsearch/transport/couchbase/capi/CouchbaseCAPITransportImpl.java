@@ -59,8 +59,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private final MetaDataMappingService metaDataMappingService;
 
     private final String port;
-    private final String bindHost;
-    private final String publishHost;
+    private final String[] bindHost;
+    private final String[] publishHost;
 
     private final String username;
     private final String password;
@@ -100,8 +100,10 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.metaDataMappingService = metaDataMappingService;
         this.client = client;
         this.port = settings.get("couchbase.port", "9091-10091");
-        this.bindHost = settings.get("bind_host");
-        this.publishHost = settings.get("publish_host");
+        this.bindHost = new String[1];
+        this.bindHost[0] = settings.get("bind_host");
+        this.publishHost = new String[1];
+        this.publishHost[0] = settings.get("publish_host");
         this.username = settings.get("couchbase.username", "Administrator");
         this.password = settings.get("couchbase.password", "");
      
@@ -170,7 +172,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         // Bind and start to accept incoming connections.
         InetAddress[] hostAddressX;
         try {
-            hostAddressX = networkService.resolveBindHostAddress(bindHost);
+            hostAddressX = networkService.resolveBindHostAddresses(bindHost);
         } catch (IOException e) {
             throw new BindHttpException("Failed to resolve host [" + bindHost + "]", e);
         }
@@ -178,7 +180,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         
         InetAddress publishAddressHostX;
         try {
-            publishAddressHostX = networkService.resolvePublishHostAddress(publishHost);
+            publishAddressHostX = networkService.resolvePublishHostAddresses(publishHost);
         } catch (IOException e) {
             throw new BindHttpException("Failed to resolve publish address host [" + publishHost + "]", e);
         }
