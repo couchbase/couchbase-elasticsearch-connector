@@ -100,10 +100,27 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.metaDataMappingService = metaDataMappingService;
         this.client = client;
         this.port = settings.get("couchbase.port", "9091-10091");
-        this.bindHost = new String[1];
-        this.bindHost[0] = settings.get("bind_host");
-        this.publishHost = new String[1];
-        this.publishHost[0] = settings.get("publish_host");
+       
+        String settingsBindHost = settings.get("bind_host");
+        
+        if (settingsBindHost == null) {
+        	this.bindHost = null;
+        }
+        else {
+        	this.bindHost = new String[1];
+        	this.bindHost[0] = settingsBindHost;
+        }
+        
+        String settingsPublishHost = settings.get("publish_host");
+        
+        if (settingsPublishHost == null) {
+        	this.publishHost = null;
+        }
+        else {
+        	this.publishHost = new String[1];
+            this.publishHost[0] = settingsPublishHost;
+        }
+        
         this.username = settings.get("couchbase.username", "Administrator");
         this.password = settings.get("couchbase.password", "");
      
@@ -166,6 +183,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.ignoreFailures = settings.getAsBoolean("couchbase.ignoreFailures", false);
         logger.info("Couchbase transport will ignore indexing failures and not throw exception to Couchbase: {}", ignoreFailures);
     }
+    
+    private boolean result = false;
 
     @Override
     protected void doStart() throws ElasticsearchException {
@@ -191,33 +210,35 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
         PortsRange portsRange = new PortsRange(port);
         final AtomicReference<Exception> lastException = new AtomicReference<Exception>();
+     
         boolean success = portsRange.iterate(new PortsRange.PortCallback() {
             @Override
             public boolean onPortNumber(int portNumber) {
-                try {
                     AccessController.doPrivileged(new PrivilegedAction<Void>() {
                     	public Void run() {
-		                    server = new CAPIServer(capiBehavior, couchbaseBehavior,
-		                            new InetSocketAddress(hostAddress[0], portNumber),
-		                            CouchbaseCAPITransportImpl.this.username,
-		                            CouchbaseCAPITransportImpl.this.password,
-		                            numVbuckets);
-
-                			return null;
+                            try {
+			                    server = new CAPIServer(capiBehavior, couchbaseBehavior,
+			                            new InetSocketAddress(hostAddress[2], portNumber),
+			                            CouchbaseCAPITransportImpl.this.username,
+			                            CouchbaseCAPITransportImpl.this.password,
+			                            numVbuckets);
+	                  
+			                    if (publishAddressHost != null) {
+			                    	server.setPublishAddress(publishAddressHost);
+			                    }                    	
+	
+			                    server.start();
+			                    result = true;
+                            } catch (Exception e) {
+                                lastException.set(e);
+                                result = false;
+                            }
+                            	
+                            return null;
                     	}
                     });
-
-                    if (publishAddressHost != null) {
-                        server.setPublishAddress(publishAddressHost);
-                    }
-
-                    server.start();
-                } catch (Exception e) {
-                    lastException.set(e);
-                    return false;
+                    return result;
                 }
-                return true;
-            }
         });
         if (!success) {
             throw new BindHttpException("Failed to bind to [" + port + "]",
@@ -226,6 +247,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
         InetSocketAddress boundAddress = server.getBindAddress();
         InetSocketAddress publishAddress = new InetSocketAddress(publishAddressHost, boundAddress.getPort());
+        
+        logger.info("Host: {}, Port {}", publishAddressHost.getHostAddress(), boundAddress.getPort());
         
         InetSocketTransportAddress[] array = new InetSocketTransportAddress[1];
         array[0] = new InetSocketTransportAddress(boundAddress);
