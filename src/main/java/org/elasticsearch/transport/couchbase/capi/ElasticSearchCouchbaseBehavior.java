@@ -47,14 +47,14 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     protected Client client;
     protected ESLogger logger;
-    protected String checkpointDocumentType;
     protected Cache<String, String> bucketUUIDCache;
+    private final PluginSettings pluginSettings;
 
-    public ElasticSearchCouchbaseBehavior(Client client, ESLogger logger, String checkpointDocumentType, Cache<String, String> bucketUUIDCache) {
+    public ElasticSearchCouchbaseBehavior(Client client, ESLogger logger, Cache<String, String> bucketUUIDCache, PluginSettings pluginSettings) {
         this.client = client;
         this.logger = logger;
-        this.checkpointDocumentType = checkpointDocumentType;
         this.bucketUUIDCache = bucketUUIDCache;
+        this.pluginSettings = pluginSettings;
     }
 
     @Override
@@ -98,6 +98,9 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             ClusterStateResponse response = stateBuilder.execute().actionGet();
             ImmutableOpenMap<String, IndexMetaData> indices = response.getState().getMetaData().getIndices();
             for (ObjectCursor<String> index : indices.keys()) {
+                if(shouldIgnoreBucket(index.value)) // Don't include buckets on the ignore list
+                    continue;
+
                 bucketNameList.add(index.value);
                 IndexMetaData indexMetaData = indices.get(index.value);
                 ImmutableOpenMap<String, AliasMetaData> aliases = indexMetaData.aliases();
@@ -111,6 +114,14 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         return null;
     }
 
+    protected Boolean shouldIgnoreBucket(String bucketName) {
+        return bucketName == null ||
+               (pluginSettings.getIgnoreDotIndexes() && bucketName.startsWith(".")) ||
+               (pluginSettings.getIncludeIndexes() != null &&
+                pluginSettings.getIncludeIndexes().size() > 0 &&
+                !pluginSettings.getIncludeIndexes().contains(bucketName));
+    }
+
     protected String getUUIDFromCheckpointDocSource(Map<String, Object> source) {
         Map<String,Object> docMap = (Map<String,Object>)source.get("doc");
         String uuid = (String)docMap.get("uuid");
@@ -118,10 +129,13 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     }
 
     protected String lookupUUID(String bucket, String id) {
+        if(shouldIgnoreBucket(bucket)) // No point in checking buckets on the ignore list
+            return  null;
+
         GetRequestBuilder builder = client.prepareGet();
         builder.setIndex(bucket);
         builder.setId(id);
-        builder.setType(this.checkpointDocumentType);
+        builder.setType(pluginSettings.getCheckpointDocumentType());
         builder.setFetchSource(true);
 
         String bucketUUID = null;
@@ -139,6 +153,9 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     }
 
     protected void storeUUID(String bucket, String id, String uuid) {
+        if(shouldIgnoreBucket(bucket)) // Don't touch buckets on the ignore list
+            return;
+
         Map<String,Object> doc = new HashMap<String, Object>();
         doc.put("uuid", uuid);
         Map<String, Object> toBeIndexed = new HashMap<String, Object>();
@@ -147,7 +164,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         IndexRequestBuilder builder = client.prepareIndex();
         builder.setIndex(bucket);
         builder.setId(id);
-        builder.setType(this.checkpointDocumentType);
+        builder.setType(pluginSettings.getCheckpointDocumentType());
         builder.setSource(toBeIndexed);
         builder.setOpType(OpType.CREATE);
 
@@ -163,6 +180,9 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     @Override
     public String getBucketUUID(String pool, String bucket) {
+        if(shouldIgnoreBucket(bucket)) // Don't touch buckets on the ignore list
+            return null;
+
         // first look for bucket UUID in cache
         String bucketUUID = this.bucketUUIDCache.getIfPresent(bucket);
         if (bucketUUID != null) {
