@@ -98,13 +98,16 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             ClusterStateResponse response = stateBuilder.execute().actionGet();
             ImmutableOpenMap<String, IndexMetaData> indices = response.getState().getMetaData().getIndices();
             for (ObjectCursor<String> index : indices.keys()) {
-                if(shouldIgnoreBucket(index.value)) // Don't include buckets on the ignore list
+                if(shouldIgnoreBucket(index.value)) // Don't include indexes on the ignore list
                     continue;
 
                 bucketNameList.add(index.value);
                 IndexMetaData indexMetaData = indices.get(index.value);
                 ImmutableOpenMap<String, AliasMetaData> aliases = indexMetaData.aliases();
                 for(ObjectCursor<String> alias : aliases.keys()) {
+                    if(shouldIgnoreBucket(alias.value)) // Don't include aliases on the ignore list
+                        continue;
+                    
                     bucketNameList.add(alias.value);
                 }
             }
