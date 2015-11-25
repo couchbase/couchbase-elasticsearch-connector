@@ -31,6 +31,7 @@ import org.elasticsearch.cluster.metadata.MetaDataMappingService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.network.NetworkService;
+import org.elasticsearch.common.settings.NoClassSettingsException;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.BoundTransportAddress;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
@@ -48,8 +49,6 @@ import com.google.common.cache.CacheBuilder;
 
 public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<CouchbaseCAPITransport> implements CouchbaseCAPITransport {
 
-    public static final String DEFAULT_DOCUMENT_TYPE_CHECKPOINT = "couchbaseCheckpoint";
-
     private CAPIBehavior capiBehavior;
     private CouchbaseBehavior couchbaseBehavior;
     private CAPIServer server;
@@ -62,35 +61,31 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private final String[] bindHost;
     private final String[] publishHost;
 
+    private BoundTransportAddress boundAddress;
+    private final int numVbuckets;
+
     private final String username;
     private final String password;
 
-    private final Boolean resolveConflicts;
-    private final Boolean wrapCounters;
-    private final Boolean ignoreFailures;
-
-    private BoundTransportAddress boundAddress;
-
-    private String checkpointDocumentType;
-    private String dynamicTypePath;
-
-    private final int numVbuckets;
-
-    private final long maxConcurrentRequests;
-
-    private long bulkIndexRetries;
-    private long bulkIndexRetryWaitMs;
     private long bucketUUIDCacheEvictMs;
     private Cache<String, String> bucketUUIDCache;
 
-    private TypeSelector typeSelector;
-    private ParentSelector parentSelector;
-    private KeyFilter keyFilter;
+    private PluginSettings pluginSettings;
 
-    private Map<String, String> documentTypeRoutingFields;
+    @SuppressWarnings({"unchecked"})
+    private <T> Class<? extends T> getAsClass(String className, Class<? extends T> defaultClazz) {
+      String sValue = className;
+      if (sValue == null) {
+         return defaultClazz;
+      }
+      try {
+         return (Class<? extends T>) this.getClass().getClassLoader().loadClass(sValue);
+      } catch (ClassNotFoundException e) {
+         throw new NoClassSettingsException("Failed to load class setting [" 
+            + className + "] with value [" + sValue + "]", e);
+      }
+    }
     
-    private List<String> ignoreDeletes;
-
     @Inject
     public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
         super(settings);
@@ -123,65 +118,74 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         
         this.username = settings.get("couchbase.username", "Administrator");
         this.password = settings.get("couchbase.password", "");
-     
-        this.checkpointDocumentType = settings.get("couchbase.typeSelector.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
-        this.dynamicTypePath = settings.get("couchbase.dynamicTypePath");
-        this.resolveConflicts = settings.getAsBoolean("couchbase.resolveConflicts", true);
-        this.wrapCounters = settings.getAsBoolean("couchbase.wrapCounters", false);
-        this.maxConcurrentRequests = settings.getAsLong("couchbase.maxConcurrentRequests", 1024L);
-        this.bulkIndexRetries = settings.getAsLong("couchbase.bulkIndexRetries", 1024L);
-        this.bulkIndexRetryWaitMs = settings.getAsLong("couchbase.bulkIndexRetryWaitMs", 1000L);
+        
         this.bucketUUIDCacheEvictMs = settings.getAsLong("couchbase.bucketUUIDCacheEvictMs", 300000L);
+        this.bucketUUIDCache = CacheBuilder.newBuilder().expireAfterWrite(this.bucketUUIDCacheEvictMs, TimeUnit.MILLISECONDS).build();
 
-        Class<? extends TypeSelector> typeSelectorClass = DefaultTypeSelector.class;
-        
-        try {
-            this.typeSelector = typeSelectorClass.newInstance();
-        } catch (Exception e) {
-            throw new ElasticsearchException("couchbase.typeSelector", e);
-        }
-        this.typeSelector.configure(settings);
-        logger.info("Couchbase transport is using type selector: {}", typeSelector.getClass().getCanonicalName());
-
-        Class<? extends ParentSelector> parentSelectorClass = DefaultParentSelector.class;
-        try {
-            this.parentSelector = parentSelectorClass.newInstance();
-        } catch (Exception e) {
-            throw new ElasticsearchException("couchbase.parentSelector", e);
-        }
-        this.parentSelector.configure(settings);
-        logger.info("Couchbase transport is using parent selector: {}", parentSelector.getClass().getCanonicalName());
-
-        Class<? extends KeyFilter> keyFilterClass = DefaultKeyFilter.class;
-        try {
-            this.keyFilter = keyFilterClass.newInstance();
-        } catch (Exception e) {
-            throw new ElasticsearchException("couchbase.keyFilter", e);
-        }
-        this.keyFilter.configure(settings);
-        logger.info("Couchbase transport is using key filter: {}", keyFilter.getClass().getCanonicalName());
-        
         int defaultNumVbuckets = 1024;
         if(System.getProperty("os.name").toLowerCase().contains("mac")) {
             logger.info("Detected platform is Mac, changing default num_vbuckets to 64");
             defaultNumVbuckets = 64;
         }
-
         this.numVbuckets = settings.getAsInt("couchbase.num_vbuckets", defaultNumVbuckets);
 
-        this.bucketUUIDCache = CacheBuilder.newBuilder().expireAfterWrite(this.bucketUUIDCacheEvictMs, TimeUnit.MILLISECONDS).build();
+        pluginSettings = new PluginSettings();
+        pluginSettings.setCheckpointDocumentType(settings.get("couchbase.typeSelector.checkpointDocumentType", PluginSettings.DEFAULT_DOCUMENT_TYPE_CHECKPOINT));
+        pluginSettings.setDynamicTypePath(settings.get("couchbase.dynamicTypePath"));
+        pluginSettings.setResolveConflicts(settings.getAsBoolean("couchbase.resolveConflicts", true));
+        pluginSettings.setWrapCounters(settings.getAsBoolean("couchbase.wrapCounters", false));
+        pluginSettings.setMaxConcurrentRequests(settings.getAsLong("couchbase.maxConcurrentRequests", 1024L));
+        pluginSettings.setBulkIndexRetries(settings.getAsLong("couchbase.bulkIndexRetries", 10L));
+        pluginSettings.setBulkIndexRetryWaitMs(settings.getAsLong("couchbase.bulkIndexRetryWaitMs", 1000L));
+        pluginSettings.setIgnoreDeletes(new ArrayList<String>(Arrays.asList(settings.get("couchbase.ignoreDeletes","").split("[:,;\\s]"))));
+        pluginSettings.getIgnoreDeletes().removeAll(Arrays.asList("", null));
+        pluginSettings.setIgnoreFailures(settings.getAsBoolean("couchbase.ignoreFailures", false));
+        pluginSettings.setDocumentTypeRoutingFields(settings.getByPrefix("couchbase.documentTypeRoutingFields.").getAsMap());
+        pluginSettings.setIgnoreDotIndexes(settings.getAsBoolean("couchbase.ignoreDotIndexes", true));
+        pluginSettings.setIncludeIndexes(new ArrayList<String>(Arrays.asList(settings.get("couchbase.includeIndexes", "").split("[:,;\\s]"))));
+        pluginSettings.getIncludeIndexes().removeAll(Arrays.asList("", null));
 
-        this.documentTypeRoutingFields = settings.getByPrefix("couchbase.documentTypeRoutingFields.").getAsMap();
-        for (String key: documentTypeRoutingFields.keySet()) {
-            String routingField = documentTypeRoutingFields.get(key);
+        TypeSelector typeSelector;
+        Class<? extends TypeSelector> typeSelectorClass = this.getAsClass(settings.get("couchbase.typeSelector"), DefaultTypeSelector.class);
+        try {
+            typeSelector = typeSelectorClass.newInstance();
+        } catch (Exception e) {
+            throw new ElasticsearchException("couchbase.typeSelector", e);
+        }
+        typeSelector.configure(settings);
+        pluginSettings.setTypeSelector(typeSelector);
+
+        ParentSelector parentSelector;
+        Class<? extends ParentSelector> parentSelectorClass = this.getAsClass(settings.get("couchbase.parentSelector"), DefaultParentSelector.class);
+        try {
+            parentSelector = parentSelectorClass.newInstance();
+        } catch (Exception e) {
+            throw new ElasticsearchException("couchbase.parentSelector", e);
+        }
+        parentSelector.configure(settings);
+        pluginSettings.setParentSelector(parentSelector);
+
+        KeyFilter keyFilter;
+        Class<? extends KeyFilter> keyFilterClass = this.getAsClass(settings.get("couchbase.keyFilter"), DefaultKeyFilter.class);  
+        try {
+            keyFilter = keyFilterClass.newInstance();
+        } catch (Exception e) {
+            throw new ElasticsearchException("couchbase.keyFilter", e);
+        }
+        keyFilter.configure(settings);
+        pluginSettings.setKeyFilter(keyFilter);
+
+        // Log settings info
+        logger.info("Couchbase transport will ignore delete/expiration operations for these buckets: {}", pluginSettings.getIgnoreDeletes());
+        logger.info("Couchbase transport will ignore indexing failures and not throw exception to Couchbase: {}", pluginSettings.getIgnoreFailures());
+        logger.info("Couchbase transport is using type selector: {}", typeSelector.getClass().getCanonicalName());
+        logger.info("Couchbase transport is using parent selector: {}", parentSelector.getClass().getCanonicalName());
+        logger.info("Couchbase transport is using key filter: {}", keyFilter.getClass().getCanonicalName());
+        for (String key: pluginSettings.getDocumentTypeRoutingFields().keySet()) {
+            String routingField = pluginSettings.getDocumentTypeRoutingFields().get(key);
             logger.info("Using field {} as routing for type {}", routingField, key);
         }
-        
-        this.ignoreDeletes = new ArrayList<String>(Arrays.asList(settings.get("couchbase.ignoreDeletes","").split(":")));
-        logger.info("Couchbase transport will ignore delete/expiration operations for these buckets: {}", ignoreDeletes);
-
-        this.ignoreFailures = settings.getAsBoolean("couchbase.ignoreFailures", false);
-        logger.info("Couchbase transport will ignore indexing failures and not throw exception to Couchbase: {}", ignoreFailures);
+        logger.info("Plugin Settings: {}", pluginSettings.toString());
     }
     
     private boolean result = false;
@@ -205,8 +209,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         }
         final InetAddress publishAddressHost = publishAddressHostX;
 
-        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, keyFilter, typeSelector, parentSelector, checkpointDocumentType, dynamicTypePath, resolveConflicts, wrapCounters, maxConcurrentRequests, bulkIndexRetries, bulkIndexRetryWaitMs, bucketUUIDCache, documentTypeRoutingFields, ignoreDeletes, ignoreFailures);
-        couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, checkpointDocumentType, bucketUUIDCache);
+        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, bucketUUIDCache, pluginSettings);
+        couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, bucketUUIDCache, pluginSettings);
 
         PortsRange portsRange = new PortsRange(port);
         final AtomicReference<Exception> lastException = new AtomicReference<Exception>();

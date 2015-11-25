@@ -17,11 +17,11 @@ Version Compatibility:
     +------------------------------------------------------------------+
     |  Plugin                       |  Couchbase    | ElasticSearch    |
     +------------------------------------------------------------------+
-    | 2.x                           |  4.0, ?       | 2.x              | 
+    | master                        |  2.5.x - 4.x  | 1.3.0 - 1.7.x    |
+    +------------------------------------------------------------------|
+    | 2.x                           |  4.0.x        | 2.x              | 
     +------------------------------------------------------------------+
-    | master                        |  3.x, 2.5.x   | 1.3.0 - 1.7.x    |
-    +------------------------------------------------------------------+
-    | 2.1                           |  3.x, 2.5.x   | 1.3.0 - 1.7.x    |
+    | 2.1                           |  2.5.x - 4.x  | 1.3.0 - 1.7.x    |
     +------------------------------------------------------------------+
     | 2.0                           |  3.x, 2.5.x   | 1.3.0            |
     +------------------------------------------------------------------+
@@ -53,8 +53,10 @@ Configuration for the plugin is specified as part of the ElasticSearch config fi
 ## Advanced Settings ##
 
 - **couchbase.ignoreFailures** - Enabling this flag will cause the plugin to return a success status to Couchbase even if it cannot index some of the documents. This will prevent the XDCR replication from being stalled due to indexing errors in ElasticSearch, for example when a schema change breaks some of the ES type mappings. Default is `false`.
-- **couchbase.ignoreDeletes** - Specifying one or more index names here will cause the plugin to ignore document deletion and expiration for those indexes. This can be used to turn ElasticSearch into a sort of searchable archive for a Couchbase bucket. Note that this also means that the index will continue to grow indefinitely.
+- **couchbase.ignoreDeletes** - Specifying one or more index names (as a comma or semicolon delimited string) here will cause the plugin to ignore document deletion and expiration for those indexes. This can be used to turn ElasticSearch into a sort of searchable archive for a Couchbase bucket. Note that this also means that the index will continue to grow indefinitely.
 - **couchbase.wrapCounters** - Enabling this flag will cause the plugin to wrap integer values from Couchbase, which are not valid JSON documents, in a simple document before indexing them in ElasticSearch. The resulting document is in the format `{ "value" : <value> }` and is stored under the ID of the original value from Couchbase.
+- **couchbase.ignoreDotIndexes** - Enabled by default (`true`). Causes the plugin to completely ignore indexes whose name starts with ".", such as ".kibana", ".marvel", etc.
+- **couchbase.includeIndexes** - Specifying one or more index names (as a comma or semicolon delimited string) here will cause the plugin to ignore the existence of all other indexes. For example, if you have only a few indexes replicated from Couchbase, there's no reason to store checkpoint metadata in all other indexes. 
 
 ### Mapping Couchbase documents to ElasticSearch types ###
 

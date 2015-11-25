@@ -58,44 +58,20 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected Client client;
     protected ESLogger logger;
 
-    protected String checkpointDocumentType;
-    protected String dynamicTypePath;
-    protected boolean resolveConflicts;
-    protected boolean wrapCounters;
-    protected boolean ignoreFailures;
-
     protected CounterMetric activeRevsDiffRequests;
     protected MeanMetric meanRevsDiffRequests;
     protected CounterMetric activeBulkDocsRequests;
     protected MeanMetric meanBulkDocsRequests;
     protected CounterMetric totalTooManyConcurrentRequestsErrors;
 
-    protected long maxConcurrentRequests;
-    protected long bulkIndexRetries;
-    protected long bulkIndexRetryWaitMs;
-
-    private final TypeSelector typeSelector;
-    private final ParentSelector parentSelector;
-    private final KeyFilter keyFilter;
-
     protected Cache<String, String> bucketUUIDCache;
 
-    protected Map<String, String> documentTypeRoutingFields;
-    
-	protected List<String> ignoreDeletes;
+    protected PluginSettings pluginSettings;
 
-    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, KeyFilter keyFilter, TypeSelector typeSelector, ParentSelector parentSelector, String checkpointDocumentType, String dynamicTypePath, boolean resolveConflicts, boolean wrapCounters, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, Cache<String, String> bucketUUIDCache, Map<String, String> documentTypeRoutingFields, List<String> ignoreDeletes, Boolean ignoreFailures) {
+    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, Cache<String, String> bucketUUIDCache, PluginSettings pluginSettings) {
         this.client = client;
         this.logger = logger;
-        this.keyFilter = keyFilter;
-        this.typeSelector = typeSelector;
-        this.parentSelector = parentSelector;
-        this.checkpointDocumentType = checkpointDocumentType;
-        this.dynamicTypePath = dynamicTypePath;
-        this.resolveConflicts = resolveConflicts;
-        this.wrapCounters = wrapCounters;
-        this.ignoreFailures = ignoreFailures;
-        this.ignoreDeletes = ignoreDeletes;
+        this.pluginSettings = pluginSettings;
 
         this.activeRevsDiffRequests = new CounterMetric();
         this.meanRevsDiffRequests = new MeanMetric();
@@ -103,12 +79,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         this.meanBulkDocsRequests = new MeanMetric();
         this.totalTooManyConcurrentRequestsErrors = new CounterMetric();
 
-        this.maxConcurrentRequests = maxConcurrentRequests;
-        this.bulkIndexRetries = bulkIndexRetries;
-        this.bulkIndexRetryWaitMs = bulkIndexRetryWaitMs;
         this.bucketUUIDCache = bucketUUIDCache;
-
-        this.documentTypeRoutingFields = documentTypeRoutingFields;
     }
 
     @Override
@@ -169,12 +140,12 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     public Map<String, Object> revsDiff(String database,
             Map<String, Object> revsMap)  throws UnavailableException {
         // check to see if too many requests are already active
-        if(activeBulkDocsRequests.count() + activeRevsDiffRequests.count() >= maxConcurrentRequests) {
+        if(activeBulkDocsRequests.count() + activeRevsDiffRequests.count() >= pluginSettings.getMaxConcurrentRequests()) {
             totalTooManyConcurrentRequestsErrors.inc();
             logger.error("Too many concurrent requests. _bulk_docs requests: {}, _revs_diff requests: {}, Max configured: {}",
                     activeBulkDocsRequests.count(),
                     activeRevsDiffRequests.count(),
-                    maxConcurrentRequests);
+                    pluginSettings.getMaxConcurrentRequests());
             throw new UnavailableException("Too many concurrent requests");
         }
 
@@ -196,7 +167,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         // if resolve conflicts mode is enabled
         // perform a multi-get query to find information
         // about revisions we already have
-        if (resolveConflicts) {
+        if (pluginSettings.getResolveConflicts()) {
             String index = getElasticSearchIndexNameFromDatabase(database);
             // the following debug code is verbose in the hopes of better understanding CBES-13
             MultiGetResponse response = null;
@@ -208,8 +179,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                     }
                     int added = 0;
                     for (String id : responseMap.keySet()) {
-                        String type = typeSelector.getType(index, id);
-                        if(documentTypeRoutingFields != null && documentTypeRoutingFields.containsKey(type)) {
+                        String type = pluginSettings.getTypeSelector().getType(index, id);
+                        if(pluginSettings.getDocumentTypeRoutingFields() != null && pluginSettings.getDocumentTypeRoutingFields().containsKey(type)) {
                             // if this type requires special routing, we can't find it without the doc body
                             // so we skip this id in the lookup to avoid errors
                             continue;
@@ -280,12 +251,12 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     @Override
     public List<Object> bulkDocs(String database, List<Map<String, Object>> docs) throws UnavailableException {
         // check to see if too many requests are already active
-        if(activeBulkDocsRequests.count() + activeRevsDiffRequests.count() >= maxConcurrentRequests) {
+        if(activeBulkDocsRequests.count() + activeRevsDiffRequests.count() >= pluginSettings.getMaxConcurrentRequests()) {
             totalTooManyConcurrentRequestsErrors.inc();
             logger.error("Too many concurrent requests. _bulk_docs requests: {}, _revs_diff requests: {}, Max configured: {}",
                     activeBulkDocsRequests.count(),
                     activeRevsDiffRequests.count(),
-                    maxConcurrentRequests);
+                    pluginSettings.getMaxConcurrentRequests());
             throw new UnavailableException("Too many concurrent requests");
         }
 
@@ -297,7 +268,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 		//ignoreDeletes contains a list of indexes to be ignored when delete events occur
 		//index list can be set in the elasticsearch.yml file using
 		//the key: couchbase.ignore.delete  the value is colon separated:  index1:index2:index3 
-		boolean ignoreDelete = ignoreDeletes != null && ignoreDeletes.contains(index);
+		boolean ignoreDelete = pluginSettings.getIgnoreDeletes() != null && pluginSettings.getIgnoreDeletes().contains(index);
         logger.trace("ignoreDelete = {}", ignoreDelete);
         
         // keep a map of the id - rev for building the response
@@ -336,7 +307,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             // Filter documents by ID.
             // Delete operations are always allowed through to ES, to make sure newly configured
             // filters don't cause documents to stay in ES forever.
-            if(!keyFilter.shouldAllow(index, id) && !meta.containsKey("deleted")) {
+            if(!pluginSettings.getKeyFilter().shouldAllow(index, id) && !meta.containsKey("deleted")) {
                 // Document ID matches one of the filters, not passing it to on to ES.
                 // Store a mock response, which will be added to the responses sent back
                 // to Couchbase, to satisfy the XDCR mechanism
@@ -365,7 +336,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                     }
                     catch(IOException e) {
                         json = new HashMap<String, Object>();
-                        if(wrapCounters) {
+                        if(pluginSettings.getWrapCounters()) {
                             logger.trace("Trying to parse decoded base64 data as a long and wrap it as a counter document, id: {}", meta.get("id"));
                             try {
                                 long value = Long.parseLong(new String(decodedData));
@@ -405,11 +376,11 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             }
 
             String routingField = null;
-            String type = typeSelector.getType(index, id);
+            String type = pluginSettings.getTypeSelector().getType(index, id);
             logger.trace("Selecting type {} for document {} in index {}", type, id, index);
 
-            if(documentTypeRoutingFields != null && documentTypeRoutingFields.containsKey(type)) {
-                routingField = documentTypeRoutingFields.get(type);
+            if(pluginSettings.getDocumentTypeRoutingFields() != null && pluginSettings.getDocumentTypeRoutingFields().containsKey(type)) {
+                routingField = pluginSettings.getDocumentTypeRoutingFields().get(type);
                 logger.trace("Using {} as the routing field for document type {}", routingField, type);
             }
             boolean deleted = meta.containsKey("deleted") ? (Boolean)meta.get("deleted") : false;
@@ -433,7 +404,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 if(!ignoreDelete && ttl > 0) {
                     indexBuilder.setTTL(ttl);
                 }
-                Object parent = parentSelector.getParent(toBeIndexed, id, type);
+                Object parent = pluginSettings.getParentSelector().getParent(toBeIndexed, id, type);
                 if (parent != null) {
                     if (parent instanceof String) {
                         logger.debug("Setting parent of document {} to {}", id, parent);
@@ -458,9 +429,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         int attempt = 0;
         BulkResponse response = null;
         List<Object> result;
-        long retriesLeft = this.bulkIndexRetries;
+        long retriesLeft = pluginSettings.getBulkIndexRetries();
         StringBuilder errors = new StringBuilder();
-        BulkRequestBuilder bulkBuilder = null;
+        BulkRequestBuilder bulkBuilder;
 
         do {
             // build the bulk request for this iteration
@@ -478,7 +449,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             if(response != null) {
                 // at least second time through
                 try {
-                    Thread.sleep(this.bulkIndexRetryWaitMs);
+                    Thread.sleep(pluginSettings.getBulkIndexRetryWaitMs());
                 } catch (InterruptedException e) {
                     errors.append(e.toString());
                     break;
@@ -516,7 +487,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
                             // If ignore failures mode is on, store a mock result object for the failed
                             // operation, which will be returned to Couchbase.
-                            if(ignoreFailures) {
+                            if(pluginSettings.getIgnoreFailures()) {
                                 Map<String, Object> mockResult = new HashMap<String, Object>();
                                 mockResult.put("id", itemId);
                                 mockResult.put("rev", itemRev);
@@ -543,7 +514,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             errors.append("indexing error: bulk index failed after all retries" + System.lineSeparator());
 
         if(errors.length() > 0)
-            if(ignoreFailures)
+            if(pluginSettings.getIgnoreFailures())
                 logger.error(errors.toString());
             else
                 throw new RuntimeException(errors.toString());
@@ -566,13 +537,13 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     @Override
     public Map<String, Object> getDocument(String database, String docId) {
         String index = getElasticSearchIndexNameFromDatabase(database);
-        String type = typeSelector.getType(index, docId);
+        String type = pluginSettings.getTypeSelector().getType(index, docId);
         return getDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, type);
     }
 
     @Override
     public Map<String, Object> getLocalDocument(String database, String docId) {
-        return getDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, checkpointDocumentType);
+        return getDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, pluginSettings.getCheckpointDocumentType());
     }
 
     protected Map<String, Object> getDocumentElasticSearch(String index, String docId, String docType) {
@@ -587,14 +558,14 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     @Override
     public String storeDocument(String database, String docId, Map<String, Object> document) {
         String index = getElasticSearchIndexNameFromDatabase(database);
-        String type = typeSelector.getType(index, docId);
+        String type = pluginSettings.getTypeSelector().getType(index, docId);
         return storeDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, document, type);
     }
 
     @Override
     public String storeLocalDocument(String database, String docId,
             Map<String, Object> document) {
-        return storeDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, document, checkpointDocumentType);
+        return storeDocumentElasticSearch(getElasticSearchIndexNameFromDatabase(database), docId, document, pluginSettings.getCheckpointDocumentType());
     }
 
     protected String storeDocumentElasticSearch(String index, String docId, Map<String, Object> document, String docType) {
@@ -615,8 +586,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     }
 
     protected String generateRevisionNumber() {
-        String documentRevision = "1-" + UUID.randomUUID().toString();
-        return documentRevision;
+        return "1-" + UUID.randomUUID().toString();
     }
 
     @Override
@@ -693,15 +663,14 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
     protected String getUUIDFromCheckpointDocSource(Map<String, Object> source) {
         Map<String,Object> docMap = (Map<String,Object>)source.get("doc");
-        String uuid = (String)docMap.get("uuid");
-        return uuid;
+        return (String)docMap.get("uuid");
     }
 
     protected String lookupUUID(String bucket, String id) {
         GetRequestBuilder builder = client.prepareGet();
         builder.setIndex(bucket);
         builder.setId(id);
-        builder.setType(this.checkpointDocumentType);
+        builder.setType(pluginSettings.getCheckpointDocumentType());
         builder.setFetchSource(true);
 
         String bucketUUID = null;
@@ -727,7 +696,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         IndexRequestBuilder builder = client.prepareIndex();
         builder.setIndex(bucket);
         builder.setId(id);
-        builder.setType(this.checkpointDocumentType);
+        builder.setType(pluginSettings.getCheckpointDocumentType());
         builder.setSource(toBeIndexed);
         builder.setOpType(OpType.CREATE);
 
@@ -811,8 +780,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             }
         } else {
             // no dot
-            Object current = json.get(path);
-            return current;
+            return json.get(path);
         }
         return null;
     }
