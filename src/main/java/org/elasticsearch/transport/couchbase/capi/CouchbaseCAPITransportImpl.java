@@ -58,8 +58,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private final MetaDataMappingService metaDataMappingService;
 
     private final String port;
-    private final String[] bindHost;
-    private final String[] publishHost;
+    private final String bindHost;
+    private final String publishHost;
 
     private BoundTransportAddress boundAddress;
     private final int numVbuckets;
@@ -96,25 +96,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.client = client;
         this.port = settings.get("couchbase.port", "9091-10091");
        
-        String settingsBindHost = settings.get("bind_host");
-        
-        if (settingsBindHost == null) {
-        	this.bindHost = null;
-        }
-        else {
-        	this.bindHost = new String[1];
-        	this.bindHost[0] = settingsBindHost;
-        }
-        
-        String settingsPublishHost = settings.get("publish_host");
-        
-        if (settingsPublishHost == null) {
-        	this.publishHost = null;
-        }
-        else {
-        	this.publishHost = new String[1];
-            this.publishHost[0] = settingsPublishHost;
-        }
+        this.bindHost = settings.get("bind_host");
+        this.publishHost = settings.get("publish_host");
         
         this.username = settings.get("couchbase.username", "Administrator");
         this.password = settings.get("couchbase.password", "");
@@ -195,7 +178,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         // Bind and start to accept incoming connections.
         InetAddress[] hostAddressX;
         try {
-            hostAddressX = networkService.resolveBindHostAddresses(bindHost);
+            hostAddressX = networkService.resolveBindHostAddress(bindHost);
         } catch (IOException e) {
             throw new BindHttpException("Failed to resolve host [" + bindHost + "]", e);
         }
@@ -203,7 +186,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         
         InetAddress publishAddressHostX;
         try {
-            publishAddressHostX = networkService.resolvePublishHostAddresses(publishHost);
+            publishAddressHostX = networkService.resolvePublishHostAddress(publishHost);
         } catch (IOException e) {
             throw new BindHttpException("Failed to resolve publish address host [" + publishHost + "]", e);
         }
