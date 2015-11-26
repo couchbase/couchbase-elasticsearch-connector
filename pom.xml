@@ -5,7 +5,7 @@
   <version>2.1.2-SNAPSHOT</version>
   
     <properties>
-        <elasticsearch.version>1.7.2</elasticsearch.version>
+        <elasticsearch.version>1.7.3</elasticsearch.version>
     </properties>
     
     <repositories>
