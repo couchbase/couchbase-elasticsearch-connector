@@ -98,14 +98,14 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             ClusterStateResponse response = stateBuilder.execute().actionGet();
             ImmutableOpenMap<String, IndexMetaData> indices = response.getState().getMetaData().getIndices();
             for (ObjectCursor<String> index : indices.keys()) {
-                if(shouldIgnoreBucket(index.value)) // Don't include buckets on the ignore list
-                    continue;
+                if(!shouldIgnoreBucket(index.value)) // Don't include indexes on the ignore list
+                    bucketNameList.add(index.value);
 
-                bucketNameList.add(index.value);
                 IndexMetaData indexMetaData = indices.get(index.value);
                 ImmutableOpenMap<String, AliasMetaData> aliases = indexMetaData.getAliases();
                 for(ObjectCursor<String> alias : aliases.keys()) {
-                    bucketNameList.add(alias.value);
+                    if(!shouldIgnoreBucket(alias.value)) // Don't include aliases on the ignore list
+                        bucketNameList.add(alias.value);
                 }
             }
 
@@ -115,11 +115,18 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     }
 
     protected Boolean shouldIgnoreBucket(String bucketName) {
-        return bucketName == null ||
-               (pluginSettings.getIgnoreDotIndexes() && bucketName.startsWith(".")) ||
-               (pluginSettings.getIncludeIndexes() != null &&
-                pluginSettings.getIncludeIndexes().size() > 0 &&
-                !pluginSettings.getIncludeIndexes().contains(bucketName));
+        if(bucketName == null)
+            return true;
+
+        // The includeIndexes setting takes precedence over ignoreDotIndexes
+        if(pluginSettings.getIncludeIndexes() != null &&
+           pluginSettings.getIncludeIndexes().size() > 0)
+            return !pluginSettings.getIncludeIndexes().contains(bucketName);
+
+        if(pluginSettings.getIgnoreDotIndexes() && bucketName.startsWith("."))
+            return true;
+
+        return false;
     }
 
     protected String getUUIDFromCheckpointDocSource(Map<String, Object> source) {
