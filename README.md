@@ -10,7 +10,7 @@ Installation
 
 To install the plugin, run the following command from your ElasticSearch installation folder:
 
-    bin/plugin -install transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.1.1/elasticsearch-transport-couchbase-2.1.1.zip
+    bin/plugin -install transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.3.0/elasticsearch-transport-couchbase-2.3.0.zip
     
 Version Compatibility:
 
@@ -18,6 +18,8 @@ Version Compatibility:
     |  Plugin                       |  Couchbase    | ElasticSearch    |
     +------------------------------------------------------------------+
     | master                        |  2.5.x - 4.x  | 1.3.0 - 1.7.x    |
+    +------------------------------------------------------------------+
+    | 2.3.0                         |  4.x          | 2.x              | 
     +------------------------------------------------------------------+
     | 2.1                           |  2.5.x - 4.x  | 1.3.0 - 1.7.x    |
     +------------------------------------------------------------------+

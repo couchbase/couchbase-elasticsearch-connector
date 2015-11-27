@@ -1,11 +1,10 @@
 package org.elasticsearch.transport.couchbase.capi;
 
-import org.elasticsearch.common.collect.ImmutableMap;
+import java.util.Map;
+
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
-
-import java.util.Map;
 
 /**
  * Get parent document Id according to field within document json
@@ -14,7 +13,7 @@ import java.util.Map;
 public class DefaultParentSelector implements ParentSelector {
     protected ESLogger logger = Loggers.getLogger(getClass());
 
-    private ImmutableMap<String, String> documentTypeParentFields;
+    private Map<String, String> documentTypeParentFields;
 
     @Override
     public void configure(Settings settings) {

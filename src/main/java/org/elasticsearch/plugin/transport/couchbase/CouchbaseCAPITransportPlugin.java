@@ -13,18 +13,18 @@
  */
 package org.elasticsearch.plugin.transport.couchbase;
 
-import static org.elasticsearch.common.collect.Lists.newArrayList;
+import static com.google.common.collect.Lists.newArrayList;
 
 import java.util.Collection;
 
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.plugins.AbstractPlugin;
+import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPI;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPIModule;
 
-public class CouchbaseCAPITransportPlugin extends AbstractPlugin {
+public class CouchbaseCAPITransportPlugin extends Plugin {
 
     private final Settings settings;
 
@@ -43,16 +43,16 @@ public class CouchbaseCAPITransportPlugin extends AbstractPlugin {
     }
 
     @Override
-    public Collection<Class<? extends Module>> modules() {
-        Collection<Class<? extends Module>> modules = newArrayList();
+    public Collection<Module> nodeModules() {
+        Collection<Module> modules = newArrayList();
         if (settings.getAsBoolean("couchbase.enabled", true)) {
-            modules.add(CouchbaseCAPIModule.class);
+            modules.add(new CouchbaseCAPIModule());
         }
         return modules;
     }
 
     @Override
-    public Collection<Class<? extends LifecycleComponent>> services() {
+    public Collection<Class<? extends LifecycleComponent>> nodeServices() {
         Collection<Class<? extends LifecycleComponent>> services = newArrayList();
         if (settings.getAsBoolean("couchbase.enabled", true)) {
             services.add(CouchbaseCAPI.class);

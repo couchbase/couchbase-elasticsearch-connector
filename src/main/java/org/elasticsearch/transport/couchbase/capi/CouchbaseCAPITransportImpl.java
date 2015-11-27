@@ -16,6 +16,8 @@ package org.elasticsearch.transport.couchbase.capi;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -26,11 +28,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.MetaDataMappingService;
-import org.elasticsearch.common.cache.Cache;
-import org.elasticsearch.common.cache.CacheBuilder;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.network.NetworkService;
+import org.elasticsearch.common.settings.NoClassSettingsException;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.BoundTransportAddress;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
@@ -43,6 +44,8 @@ import org.elasticsearch.transport.couchbase.CouchbaseCAPITransport;
 import com.couchbase.capi.CAPIBehavior;
 import com.couchbase.capi.CAPIServer;
 import com.couchbase.capi.CouchbaseBehavior;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<CouchbaseCAPITransport> implements CouchbaseCAPITransport {
 
@@ -55,8 +58,9 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private final MetaDataMappingService metaDataMappingService;
 
     private final String port;
-    private final String bindHost;
-    private final String publishHost;
+    private final String[] bindHost;
+    private final String[] publishHost;
+
     private BoundTransportAddress boundAddress;
     private final int numVbuckets;
 
@@ -68,19 +72,53 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     private PluginSettings pluginSettings;
 
+    @SuppressWarnings({"unchecked"})
+    private <T> Class<? extends T> getAsClass(String className, Class<? extends T> defaultClazz) {
+      String sValue = className;
+      if (sValue == null) {
+         return defaultClazz;
+      }
+      try {
+         return (Class<? extends T>) this.getClass().getClassLoader().loadClass(sValue);
+      } catch (ClassNotFoundException e) {
+         throw new NoClassSettingsException("Failed to load class setting [" 
+            + className + "] with value [" + sValue + "]", e);
+      }
+    }
+    
     @Inject
     public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
         super(settings);
+        
         this.networkService = networkService;
         this.indicesService = indicesService;
         this.metaDataMappingService = metaDataMappingService;
         this.client = client;
         this.port = settings.get("couchbase.port", "9091-10091");
-        this.bindHost = componentSettings.get("bind_host");
-        this.publishHost = componentSettings.get("publish_host");
+       
+        String settingsBindHost = settings.get("bind_host");
+        
+        if (settingsBindHost == null) {
+        	this.bindHost = null;
+        }
+        else {
+        	this.bindHost = new String[1];
+        	this.bindHost[0] = settingsBindHost;
+        }
+        
+        String settingsPublishHost = settings.get("publish_host");
+        
+        if (settingsPublishHost == null) {
+        	this.publishHost = null;
+        }
+        else {
+        	this.publishHost = new String[1];
+            this.publishHost[0] = settingsPublishHost;
+        }
+        
         this.username = settings.get("couchbase.username", "Administrator");
         this.password = settings.get("couchbase.password", "");
-
+        
         this.bucketUUIDCacheEvictMs = settings.getAsLong("couchbase.bucketUUIDCacheEvictMs", 300000L);
         this.bucketUUIDCache = CacheBuilder.newBuilder().expireAfterWrite(this.bucketUUIDCacheEvictMs, TimeUnit.MILLISECONDS).build();
 
@@ -108,7 +146,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         pluginSettings.getIncludeIndexes().removeAll(Arrays.asList("", null));
 
         TypeSelector typeSelector;
-        Class<? extends TypeSelector> typeSelectorClass = settings.<TypeSelector>getAsClass("couchbase.typeSelector", DefaultTypeSelector.class);
+        Class<? extends TypeSelector> typeSelectorClass = this.getAsClass(settings.get("couchbase.typeSelector"), DefaultTypeSelector.class);
         try {
             typeSelector = typeSelectorClass.newInstance();
         } catch (Exception e) {
@@ -118,7 +156,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         pluginSettings.setTypeSelector(typeSelector);
 
         ParentSelector parentSelector;
-        Class<? extends ParentSelector> parentSelectorClass = settings.<ParentSelector>getAsClass("couchbase.parentSelector", DefaultParentSelector.class);
+        Class<? extends ParentSelector> parentSelectorClass = this.getAsClass(settings.get("couchbase.parentSelector"), DefaultParentSelector.class);
         try {
             parentSelector = parentSelectorClass.newInstance();
         } catch (Exception e) {
@@ -128,7 +166,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         pluginSettings.setParentSelector(parentSelector);
 
         KeyFilter keyFilter;
-        Class<? extends KeyFilter> keyFilterClass = settings.<KeyFilter>getAsClass("couchbase.keyFilter", DefaultKeyFilter.class);
+        Class<? extends KeyFilter> keyFilterClass = this.getAsClass(settings.get("couchbase.keyFilter"), DefaultKeyFilter.class);  
         try {
             keyFilter = keyFilterClass.newInstance();
         } catch (Exception e) {
@@ -149,56 +187,62 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         }
         logger.info("Plugin Settings: {}", pluginSettings.toString());
     }
+    
+    private boolean result = false;
 
     @Override
     protected void doStart() throws ElasticsearchException {
         // Bind and start to accept incoming connections.
-        InetAddress hostAddressX;
+        InetAddress[] hostAddressX;
         try {
-            hostAddressX = networkService.resolveBindHostAddress(bindHost);
+            hostAddressX = networkService.resolveBindHostAddresses(bindHost);
         } catch (IOException e) {
             throw new BindHttpException("Failed to resolve host [" + bindHost + "]", e);
         }
-        final InetAddress hostAddress = hostAddressX;
-
-
+        final InetAddress[] hostAddress = hostAddressX;
+        
         InetAddress publishAddressHostX;
         try {
-            publishAddressHostX = networkService.resolvePublishHostAddress(publishHost);
+            publishAddressHostX = networkService.resolvePublishHostAddresses(publishHost);
         } catch (IOException e) {
             throw new BindHttpException("Failed to resolve publish address host [" + publishHost + "]", e);
         }
         final InetAddress publishAddressHost = publishAddressHostX;
-
 
         capiBehavior = new ElasticSearchCAPIBehavior(client, logger, bucketUUIDCache, pluginSettings);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, bucketUUIDCache, pluginSettings);
 
         PortsRange portsRange = new PortsRange(port);
         final AtomicReference<Exception> lastException = new AtomicReference<Exception>();
+     
         boolean success = portsRange.iterate(new PortsRange.PortCallback() {
             @Override
-            public boolean onPortNumber(int portNumber) {
-                try {
-
-                    server = new CAPIServer(capiBehavior, couchbaseBehavior,
-                            new InetSocketAddress(hostAddress, portNumber),
-                            CouchbaseCAPITransportImpl.this.username,
-                            CouchbaseCAPITransportImpl.this.password,
-                            numVbuckets);
-
-
-                    if (publishAddressHost != null) {
-                        server.setPublishAddress(publishAddressHost);
-                    }
-
-                    server.start();
-                } catch (Exception e) {
-                    lastException.set(e);
-                    return false;
+            public boolean onPortNumber(final int portNumber) {
+                    AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                    	public Void run() {
+                            try {
+			                    server = new CAPIServer(capiBehavior, couchbaseBehavior,
+			                            new InetSocketAddress(hostAddress[2], portNumber),
+			                            CouchbaseCAPITransportImpl.this.username,
+			                            CouchbaseCAPITransportImpl.this.password,
+			                            numVbuckets);
+	                  
+			                    if (publishAddressHost != null) {
+			                    	server.setPublishAddress(publishAddressHost);
+			                    }                    	
+	
+			                    server.start();
+			                    result = true;
+                            } catch (Exception e) {
+                                lastException.set(e);
+                                result = false;
+                            }
+                            	
+                            return null;
+                    	}
+                    });
+                    return result;
                 }
-                return true;
-            }
         });
         if (!success) {
             throw new BindHttpException("Failed to bind to [" + port + "]",
@@ -207,7 +251,13 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
         InetSocketAddress boundAddress = server.getBindAddress();
         InetSocketAddress publishAddress = new InetSocketAddress(publishAddressHost, boundAddress.getPort());
-        this.boundAddress = new BoundTransportAddress(new InetSocketTransportAddress(boundAddress), new InetSocketTransportAddress(publishAddress));
+        
+        logger.info("Host: {}, Port {}", publishAddressHost.getHostAddress(), boundAddress.getPort());
+        
+        InetSocketTransportAddress[] array = new InetSocketTransportAddress[1];
+        array[0] = new InetSocketTransportAddress(boundAddress);
+        
+        this.boundAddress = new BoundTransportAddress(array, new InetSocketTransportAddress(publishAddress));
     }
 
     @Override
