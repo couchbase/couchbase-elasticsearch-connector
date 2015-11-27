@@ -85,6 +85,7 @@ public class PluginSettings {
                 ", keyFilter=" + keyFilter.getClass().getCanonicalName() +
                 ", documentTypeRoutingFields=" + documentTypeRoutingFields +
                 ", ignoreDeletes=" + ignoreDeletes +
+                ", includeIndexes=" + includeIndexes +
                 '}';
     }
 
