@@ -10,7 +10,7 @@ Installation
 
 To install the plugin, run the following command from your ElasticSearch installation folder:
 
-    bin/plugin -install transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.1.1/elasticsearch-transport-couchbase-2.1.1.zip
+    bin/plugin -install transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.2.0/elasticsearch-transport-couchbase-2.2.0.zip
     
 Version Compatibility:
 
@@ -43,6 +43,98 @@ Version Compatibility:
 # Configuration #
 
 Configuration for the plugin is specified as part of the ElasticSearch config file (usually elasticsearch.yml) and is currently only read when ElasticSearch starts. Dynamic configuration support is planned for the future.
+
+## Java Security Policy Permissions ##
+
+In order to get the plugin to work with ES 2.1.0, it is necessary to edit the system's default java.security file. This file can be edited by going to your <code>%JAVA_HOME%/bin directory</code> and then running the <code>policytool</code> program.  Running <code>policytool</code> will create an applet window.
+
+When the applet window appears, there will be a textbox labeled "Policy File:" that contains the name of the system's current java.security file. Change this path to the path of the file that you would like to edit (for most users this can be whatever file path appears by default).
+
+After setting your java.security file's path, click on the "Add Policy Entry" button.  A new window called "Policy Entry" will appear.
+
+In the "Policy Entry" window, there is a textbox labled "CodeBase:" that must be given the URI path to the installed transport-couchbase plugin directory, which is at: <code>file://%ES_PLUGINS%/transport-couchbase/-</code> For instance, by default, on MAC OS and ES 2.1.0, this will be:  <code>file:///usr/local/var/lib/elasticsearch-2.1.0/plugins/transport-couchbase/-</code>  Note that the trailing <code>/-</code> indicates that all of the files in the current directory will be given the permissions you are about to add.
+
+Now the actual permssions must be added.  This is done by clicking on the "Add Permission" button for each permission to add and then selecting options for all of the required permissions.  Here are the permissions that are required:
+
+    1.)  permission javax.security.auth.AuthPermission "modifyPrincipals";
+    
+         From the "Permission:" dropdown select:
+         
+            AuthPermission
+         
+         From the "Target Name:" dropdown select:
+         
+            modifyPrincipals
+         
+         Click "Ok"
+
+    2.)  permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+    
+         From the "Permission:" dropdown select:
+         
+            AuthPermission
+         
+         From the "Target Name:" dropdown select:
+         
+            modifyPrivateCredentials
+         
+         Click "Ok"
+
+    3.)  permission javax.security.auth.AuthPermission "setReadOnly";
+    
+         From the "Permission:" dropdown select:
+         
+            AuthPermission
+         
+         From the "Target Name:" dropdown select:
+         
+            setReadOnly
+         
+         Click "Ok"
+
+    4.)  permission java.lang.RuntimePermission "setContextClassLoader";
+    
+         From the "Permission:" dropdown select:
+         
+            RuntimePermission
+         
+         From the "Target Name:" dropdown select:
+         
+            setContextClassLoader
+         
+         Click "Ok"
+	
+    5.)  permission java.net.SocketPermission "*", "listen,resolve";
+    
+         From the "Permission:" dropdown select:
+         
+            SocketPermission
+         
+         In the "Target Name:" textbox type:
+         
+            *
+         
+         In the "Actions:" dropdown type:
+         
+            listen,resolve
+         
+         Click "Ok"
+	
+    6.)  permission "java.lang.reflect.ReflectPermission" "suppressAccessChecks";
+    
+         From the "Permission:" dropdown select:
+         
+            ReflectPermission
+         
+         From the "Target Name:" dropdown select:
+         
+            suppressAccessChecks
+         
+         Click "Ok"
+
+After all of the permissions have been added, click the "Done" button on the "Policy Entry" window.
+
+In the File menu of the "Policy Tool" window, Save the changes.  Close the <code>policytool</code> program.
 
 ## Basic Settings ##
 
