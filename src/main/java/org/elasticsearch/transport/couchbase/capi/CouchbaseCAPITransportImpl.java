@@ -200,7 +200,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
      
         boolean success = portsRange.iterate(new PortsRange.PortCallback() {
             @Override
-            public boolean onPortNumber(int portNumber) {
+            public boolean onPortNumber(final int portNumber) {
                     AccessController.doPrivileged(new PrivilegedAction<Void>() {
                     	public Void run() {
                             try {
