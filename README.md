@@ -3,23 +3,25 @@ Couchbase Transport Plugin for ElasticSearch
 
 For a pre-built binary package and instruction manual, see the [Couchbase Downloads Page](http://www.couchbase.com/nosql-databases/downloads) and the [Couchbase Connector Guide for Elasticsearch](http://developer.couchbase.com/documentation/server/4.0/connectors/elasticsearch-2.1/elastic-intro.html)
 
-This plugin makes your ElasticSearch node appear like a Couchbase Server node.  After installation you can use the Cross-datacenter Replication (XDCR) feature of Couchbase Server 2.5 / 3.x to transfer data continuously.
+This plugin makes your ElasticSearch node appear like a Couchbase Server node.  After installation you can use the Cross-Datacenter Replication (XDCR) feature of Couchbase Server to transfer data continuously.
 
 Installation
 ============
 
 To install the plugin, run the following command from your ElasticSearch installation folder:
 
-    bin/plugin -install transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.2.0/elasticsearch-transport-couchbase-2.2.0.zip
+    bin/plugin http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.2.1/elasticsearch-transport-couchbase-2.2.1.zip
     
 Version Compatibility:
 
     +------------------------------------------------------------------+
     |  Plugin                       |  Couchbase    | ElasticSearch    |
     +------------------------------------------------------------------+
-    | master                        |  2.5.x - 4.x  | 1.3.0 - 1.7.x    |
+    | master                        |  2.5.x - 4.x  | 2.2.1            |
     +------------------------------------------------------------------+
     | 2.3.0                         |  2.5.x - 4.x  | 2.x              | 
+    +------------------------------------------------------------------+
+    | 2.2.1                         |  2.5.x - 4.x  | 2.1.1            |
     +------------------------------------------------------------------+
     | 2.2.0                         |  2.5.x - 4.x  | 2.1.0            |
     +------------------------------------------------------------------+
