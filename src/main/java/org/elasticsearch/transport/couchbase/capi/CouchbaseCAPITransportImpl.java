@@ -182,8 +182,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         } catch (IOException e) {
             throw new BindHttpException("Failed to resolve host [" + bindHost + "]", e);
         }
-        final InetAddress[] hostAddress = hostAddressX;
-        
+
         InetAddress publishAddressHostX;
         try {
             publishAddressHostX = networkService.resolvePublishHostAddress(publishHost);
@@ -191,6 +190,13 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
             throw new BindHttpException("Failed to resolve publish address host [" + publishHost + "]", e);
         }
         final InetAddress publishAddressHost = publishAddressHostX;
+
+        InetAddress hostAddress;
+        if(hostAddressX.length > 0)
+            hostAddress = hostAddressX[hostAddressX.length-1];
+        else
+            hostAddress = publishAddressHostX;
+        final InetAddress bindAddress = hostAddress;
 
         capiBehavior = new ElasticSearchCAPIBehavior(client, logger, bucketUUIDCache, pluginSettings);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, bucketUUIDCache, pluginSettings);
@@ -205,7 +211,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
                     	public Void run() {
                             try {
 			                    server = new CAPIServer(capiBehavior, couchbaseBehavior,
-			                            new InetSocketAddress(hostAddress[2], portNumber),
+			                            new InetSocketAddress(bindAddress, portNumber),
 			                            CouchbaseCAPITransportImpl.this.username,
 			                            CouchbaseCAPITransportImpl.this.password,
 			                            numVbuckets);
