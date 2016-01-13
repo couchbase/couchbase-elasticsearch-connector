@@ -3,23 +3,29 @@ Couchbase Transport Plugin for ElasticSearch
 
 For a pre-built binary package and instruction manual, see the [Couchbase Downloads Page](http://www.couchbase.com/nosql-databases/downloads) and the [Couchbase Connector Guide for Elasticsearch](http://developer.couchbase.com/documentation/server/4.0/connectors/elasticsearch-2.1/elastic-intro.html)
 
-This plugin makes your ElasticSearch node appear like a Couchbase Server node.  After installation you can use the Cross-datacenter Replication (XDCR) feature of Couchbase Server 2.5 / 3.x to transfer data continuously.
+This plugin makes your ElasticSearch node appear like a Couchbase Server node.  After installation you can use the Cross-Datacenter Replication (XDCR) feature of Couchbase Server to transfer data continuously.
 
 Installation
 ============
 
-To install the plugin, run the following command from your ElasticSearch installation folder:
+To install the ES 1.x compatible plugin, run the following command from your ElasticSearch installation folder:
 
-    bin/plugin -install transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.2.0/elasticsearch-transport-couchbase-2.2.0.zip
+    bin/plugin -i -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.1.2/elasticsearch-transport-couchbase-2.1.2.zip
     
+To install the ES 2.1.1 compatible version, run the following command from your ElasticSearch installation folder:
+
+    bin/plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/2.2.1/elasticsearch-transport-couchbase-2.2.1.zip
+
 Version Compatibility:
 
     +------------------------------------------------------------------+
     |  Plugin                       |  Couchbase    | ElasticSearch    |
     +------------------------------------------------------------------+
-    | master                        |  2.5.x - 4.x  | 1.3.0 - 1.7.x    |
+    | master                        |  2.5.x - 4.x  | 2.2.1            |
     +------------------------------------------------------------------+
     | 2.3.0                         |  2.5.x - 4.x  | 2.x              | 
+    +------------------------------------------------------------------+
+    | 2.2.1                         |  2.5.x - 4.x  | 2.1.1            |
     +------------------------------------------------------------------+
     | 2.2.0                         |  2.5.x - 4.x  | 2.1.0            |
     +------------------------------------------------------------------+
@@ -97,7 +103,7 @@ Configuration for the plugin is specified as part of the ElasticSearch config fi
 
 ## Java Security Policy Permissions ##
 
-In order to get the plugin to work with ES 2.1.x, it is necessary to edit the system's default `java.security` file, which is located in the `%JAVA_HOME%/jre/lib/security` directory. You can either edit this file directly, or use the `policytool` utility, which can be found in the `%JAVA_HOME/bin` directory. Note that editing the policy file requires root permissions.
+In order to get the plugin to work with ES 2.1.x, it is necessary to edit the system's default `java.security` file, which is located in the `%JAVA_HOME%/jre/lib/security` directory. You can either edit this file directly, or use the `policytool` utility, which can be found in the `%JAVA_HOME%/bin` directory. Note that editing the policy file requires root permissions.
 If you're editing the policy file directly, add the following to the end of the file:
 
     grant codeBase "file:/<path to transport-couchbase plugin install directory>/*" {
