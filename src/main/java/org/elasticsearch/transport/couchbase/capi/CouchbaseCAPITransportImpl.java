@@ -191,6 +191,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         }
         final InetAddress publishAddressHost = publishAddressHostX;
 
+        logger.info(("Resolved publish host:" + publishAddressHost));
+
         InetAddress hostAddress;
         if(hostAddressX.length > 0)
             hostAddress = hostAddressX[hostAddressX.length-1];
@@ -198,10 +200,15 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
             hostAddress = publishAddressHostX;
         final InetAddress bindAddress = hostAddress;
 
+        logger.info(("Resolved bind host:" + bindAddress));
+
         capiBehavior = new ElasticSearchCAPIBehavior(client, logger, bucketUUIDCache, pluginSettings);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, bucketUUIDCache, pluginSettings);
 
         PortsRange portsRange = new PortsRange(port);
+
+        logger.info("Using port(s):"+ port);
+
         final AtomicReference<Exception> lastException = new AtomicReference<Exception>();
      
         boolean success = portsRange.iterate(new PortsRange.PortCallback() {
@@ -210,7 +217,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
                     AccessController.doPrivileged(new PrivilegedAction<Void>() {
                     	public Void run() {
                             try {
-			                    server = new CAPIServer(capiBehavior, couchbaseBehavior,
+                                logger.info("Starting transport-couchbase plugin server on address:" + bindAddress + " port: " + portNumber + " publish address: " + publishAddressHost);
+                                server = new CAPIServer(capiBehavior, couchbaseBehavior,
 			                            new InetSocketAddress(bindAddress, portNumber),
 			                            CouchbaseCAPITransportImpl.this.username,
 			                            CouchbaseCAPITransportImpl.this.password,
