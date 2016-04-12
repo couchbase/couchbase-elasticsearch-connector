@@ -16,7 +16,7 @@ To install the ES 1.x compatible plugin, run the following command from your Ela
     
 To install the ES 2.1.1 compatible version, run the following command from your ElasticSearch installation folder:
 
-    bin/plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/2.2.1.2/elasticsearch-transport-couchbase-2.2.1.2.zip
+    bin/plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/v2.2.1.2/elasticsearch-transport-couchbase-2.2.1.2.zip
 
 As of ES 2.2, the plugin versions are aligned to be 2.<ES_VERSION>, so to install for ES 2.2+, use the following command and replace <ES_VERSION> with your ES version:
 
