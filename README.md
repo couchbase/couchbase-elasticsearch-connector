@@ -8,6 +8,8 @@ This plugin makes your ElasticSearch node appear like a Couchbase Server node.  
 Installation
 ============
 
+Note that as of Elasticsearch version 2.0, plugins are version specific. This means that each minor version of Elasticsearch has a corresponding version of the plugin. For example, ES 2.3.1 works with plugin version 2.2.3.1 and so on. 
+
 To install the ES 1.x compatible plugin, run the following command from your ElasticSearch installation folder:
 
     bin/plugin -i -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.1.2/elasticsearch-transport-couchbase-2.1.2.zip
@@ -16,14 +18,22 @@ To install the ES 2.1.1 compatible version, run the following command from your 
 
     bin/plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/2.2.1.2/elasticsearch-transport-couchbase-2.2.1.2.zip
 
+As of ES 2.2, the plugin versions are aligned to be 2.<ES_VERSION>, so to install for ES 2.2+, use the following command and replace <ES_VERSION> with your ES version:
+
+    bin/plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/2.<ES_VERSION>/elasticsearch-transport-couchbase-2.<ES_VERSION>.zip
+
+You will be asked to approve additional permissions required by the plugin, please do so.
+
 Version Compatibility:
 
     +------------------------------------------------------------------+
     |  Plugin                       |  Couchbase    | ElasticSearch    |
     +------------------------------------------------------------------+
-    | master                        |  2.5.x - 4.x  | 2.2.1            |
+    | master                        |  2.5.x - 4.x  | 2.3.1            |
     +------------------------------------------------------------------+
-    | 2.3.0                         |  2.5.x - 4.x  | 2.x              | 
+    | 2.2.3.x                       |  2.5.x - 4.x  | 2.3.x            | 
+    +------------------------------------------------------------------+
+    | 2.2.2.x                       |  2.5.x - 4.x  | 2.2.x            | 
     +------------------------------------------------------------------+
     | 2.2.1                         |  2.5.x - 4.x  | 2.1.1            |
     +------------------------------------------------------------------+
@@ -33,22 +43,12 @@ Version Compatibility:
     +------------------------------------------------------------------+
     | 2.0                           |  3.x, 2.5.x   | 1.3.0            |
     +------------------------------------------------------------------+
-    | 1.3.0                         |  2.5.x        | 1.1.0            |
-    +------------------------------------------------------------------+
-    | 1.2.0                         |  2.2          | 0.90.5           |
-    +------------------------------------------------------------------+
-    | 1.1.0                         |  2.0          | 0.90.2           |
-    +------------------------------------------------------------------+
-    | 1.0.0-dp                      |  2.0 (beta)   | 0.19.9           |
-    +------------------------------------------------------------------+
-    | 1.0.0-beta                    |  2.0.0        | 0.20.2           |
-    +------------------------------------------------------------------+
-    | 1.0.0                         |  2.0.0        | 0.20.2           |
-    +------------------------------------------------------------------+
     
 # Configuration #
 
-**Important note for Elasticsearch 2.1**: Due to changes in the plugin security mechanism, when installing v2.2.x of the plugin you must also edit the Java security policy to grant it appropriate permissions. See the **Java Security Policy Permissions** topic below for instructions. 
+**Important note for Elasticsearch 2.1**: Due to changes in the plugin security mechanism, when installing v2.2.0.x and v2.2.1.x of the plugin you must also edit the Java security policy to grant it appropriate permissions. See the **Java Security Policy Permissions** topic below for instructions.
+ 
+**This workaround is not required for Elasticsearch 2.2+ with plugin 2.2.2.0+.**
 
 Configuration for the plugin is specified as part of the ElasticSearch config file (usually elasticsearch.yml) and is currently only read when ElasticSearch starts. Dynamic configuration support is planned for the future.
 

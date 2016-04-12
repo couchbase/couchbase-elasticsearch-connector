@@ -25,5 +25,8 @@
 		    <source>src/main/plugin-metadata/plugin-descriptor.properties</source>
 		    <outputDirectory>/</outputDirectory>
 		</file>
-	</files>
+        <file>
+            <source>src/main/plugin-metadata/plugin-security.policy</source>
+            <outputDirectory>/</outputDirectory>
+        </file>	</files>
 </assembly>

@@ -96,8 +96,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         this.client = client;
         this.port = settings.get("couchbase.port", "9091-10091");
        
-        this.bindHost = settings.get("bind_host");
-        this.publishHost = settings.get("publish_host");
+        this.bindHost = settings.get("network.bind_host");
+        this.publishHost = settings.get("network.publish_host");
         
         this.username = settings.get("couchbase.username", "Administrator");
         this.password = settings.get("couchbase.password", "");
@@ -178,14 +178,15 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         // Bind and start to accept incoming connections.
         InetAddress[] hostAddressX;
         try {
-            hostAddressX = networkService.resolveBindHostAddress(bindHost);
+            hostAddressX = networkService.resolveBindHostAddresses(null);
+
         } catch (IOException e) {
             throw new BindHttpException("Failed to resolve host [" + bindHost + "]", e);
         }
 
         InetAddress publishAddressHostX;
         try {
-            publishAddressHostX = networkService.resolvePublishHostAddress(publishHost);
+            publishAddressHostX = networkService.resolvePublishHostAddresses(null);
         } catch (IOException e) {
             throw new BindHttpException("Failed to resolve publish address host [" + publishHost + "]", e);
         }
