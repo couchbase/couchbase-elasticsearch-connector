@@ -103,7 +103,7 @@ Configuration for the plugin is specified as part of the ElasticSearch config fi
 
 ## Java Security Policy Permissions ##
 
-In order to get the plugin to work with ES 2.1.x, it is necessary to edit the system's default `java.security` file, which is located in the `%JAVA_HOME%/jre/lib/security` directory. You can either edit this file directly, or use the `policytool` utility, which can be found in the `%JAVA_HOME%/bin` directory. Note that editing the policy file requires root permissions.
+In order to get the plugin to work with ES 2.1.x, it is necessary to edit the system's default `java.policy` file, which is located in the `%JAVA_HOME%/jre/lib/security` directory. You can either edit this file directly, or use the `policytool` utility, which can be found in the `%JAVA_HOME%/bin` directory. Note that editing the policy file requires root permissions.
 If you're editing the policy file directly, add the following to the end of the file:
 
     grant codeBase "file:/<path to transport-couchbase plugin install directory>/*" {
