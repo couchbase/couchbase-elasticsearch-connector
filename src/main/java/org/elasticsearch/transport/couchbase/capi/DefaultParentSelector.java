@@ -5,6 +5,7 @@ import java.util.Map;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.transport.couchbase.CouchbaseCAPIService;
 
 /**
  * Get parent document Id according to field within document json
@@ -17,7 +18,7 @@ public class DefaultParentSelector implements ParentSelector {
 
     @Override
     public void configure(Settings settings) {
-        this.documentTypeParentFields = settings.getByPrefix("couchbase.parentSelector.documentTypeParentFields.").getAsMap();
+        this.documentTypeParentFields = CouchbaseCAPIService.Config.DOCUMENT_TYPE_PARENT_FIELDS.get(settings).getAsMap();
 
         for (String key: documentTypeParentFields.keySet()) {
             String parentField = documentTypeParentFields.get(key);

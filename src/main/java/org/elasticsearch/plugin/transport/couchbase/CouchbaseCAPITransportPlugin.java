@@ -69,10 +69,31 @@ public class CouchbaseCAPITransportPlugin extends Plugin {
         registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.PASSWORD);
         registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.IGNORE_FAILURES);
         registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.IGNORE_DELETES);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.WRAP_COUNTERS);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.IGNORE_DOT_INDEXES);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.INCLUDE_INDEXES);
         registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.NUM_VBUCKETS);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.MAX_CONCURRENT_REQUESTS);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.BULK_INDEX_RETRIES);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.BULK_INDEX_RETRIES_WAIT_MS);
         registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.PORT);
         registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.BUCKET_UUID_CACHE_EVICT_MS);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.COUCHBASE);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.TYPE_SELECTOR);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DEFAULT_DOCUMENT_TYPE);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.CHECKPOINT_DOCUMENT_TYPE);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_DELIMITER);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_REGEX);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_REGEX_LIST);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.RESOLVE_CONFLICTS);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_ROUTING_FIELDS);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.PARENT_SELECTOR);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_PARENT_FIELDS);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_PARENT_REGEX);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_PARENT_FORMAT);        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.KEY_FILTER);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.KEY_FILTER_TYPE);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.KEY_FILTER_REGEX_LIST);
+
+        //registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.COUCHBASE);
     }
 
     private void registerSettingIfMissing(SettingsModule settingsModule, Setting<?> setting) {

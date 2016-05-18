@@ -3,6 +3,7 @@ package org.elasticsearch.transport.couchbase.capi;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.transport.couchbase.CouchbaseCAPIService;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -25,7 +26,7 @@ public class GroupRegexTypeSelector extends DefaultTypeSelector {
     public void configure(Settings settings) {
         super.configure(settings);
 
-        String documentTypesPattern = settings.get("couchbase.typeSelector.documentTypesRegex");
+        String documentTypesPattern = CouchbaseCAPIService.Config.DOCUMENT_TYPE_REGEX.get(settings);
         if (null == documentTypesPattern) {
             logger.error("No configuration found for couchbase.typeSelector.documentTypesRegex, please set types regex");
             throw new RuntimeException("No configuration found for couchbase.typeSelector.documentTypesRegex, please set types regex");

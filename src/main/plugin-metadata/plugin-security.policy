@@ -7,4 +7,5 @@ grant {
   permission java.net.SocketPermission "*", "listen,resolve";
   permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
   permission java.util.PropertyPermission "*", "read,write";
+  permission java.lang.RuntimePermission "accessDeclaredMembers";
 };
