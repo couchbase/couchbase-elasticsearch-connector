@@ -2,9 +2,9 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.couchbase</groupId>
   <artifactId>elasticsearch-transport-couchbase</artifactId>
-  <version>2.2.3.2-update1</version>
+  <version>2.5.0.0-alpha2</version>
     <properties>
-        <elasticsearch.version>2.3.2</elasticsearch.version>
+        <elasticsearch.version>5.0.0-alpha2</elasticsearch.version>
     </properties>
 
     <repositories>
@@ -44,7 +44,6 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>18.0</version>
-            <scope>provided</scope>
         </dependency>
     </dependencies>
 
@@ -55,8 +54,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>2.3.2</version>
                 <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                 </configuration>
             </plugin>
             <plugin>

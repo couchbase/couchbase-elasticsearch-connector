@@ -39,6 +39,7 @@ import org.elasticsearch.common.transport.PortsRange;
 import org.elasticsearch.http.BindHttpException;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.rest.RestController;
+import org.elasticsearch.transport.couchbase.CouchbaseCAPIService;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPITransport;
 
 import com.couchbase.capi.CAPIBehavior;
@@ -54,8 +55,6 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     private CAPIServer server;
     private Client client;
     private final NetworkService networkService;
-    private final IndicesService indicesService;
-    private final MetaDataMappingService metaDataMappingService;
 
     private final String port;
     private final String bindHost;
@@ -87,22 +86,20 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
     }
     
     @Inject
-    public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
+    public CouchbaseCAPITransportImpl(Settings settings, NetworkService networkService, Client client) {
         super(settings);
         
         this.networkService = networkService;
-        this.indicesService = indicesService;
-        this.metaDataMappingService = metaDataMappingService;
         this.client = client;
-        this.port = settings.get("couchbase.port", "9091-10091");
+        this.port = CouchbaseCAPIService.Config.PORT.get(settings);
        
         this.bindHost = settings.get("network.bind_host");
         this.publishHost = settings.get("network.publish_host");
         
-        this.username = settings.get("couchbase.username", "Administrator");
-        this.password = settings.get("couchbase.password", "");
+        this.username = CouchbaseCAPIService.Config.USERNAME.get(settings);
+        this.password = CouchbaseCAPIService.Config.PASSWORD.get(settings);
         
-        this.bucketUUIDCacheEvictMs = settings.getAsLong("couchbase.bucketUUIDCacheEvictMs", 300000L);
+        this.bucketUUIDCacheEvictMs = CouchbaseCAPIService.Config.BUCKET_UUID_CACHE_EVICT_MS.get(settings);
         this.bucketUUIDCache = CacheBuilder.newBuilder().expireAfterWrite(this.bucketUUIDCacheEvictMs, TimeUnit.MILLISECONDS).build();
 
         int defaultNumVbuckets = 1024;
@@ -110,7 +107,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
             logger.info("Detected platform is Mac, changing default num_vbuckets to 64");
             defaultNumVbuckets = 64;
         }
-        this.numVbuckets = settings.getAsInt("couchbase.num_vbuckets", defaultNumVbuckets);
+        this.numVbuckets = CouchbaseCAPIService.Config.NUM_VBUCKETS.exists(settings) ?
+                CouchbaseCAPIService.Config.NUM_VBUCKETS.get(settings) : defaultNumVbuckets;
 
         pluginSettings = new PluginSettings();
         pluginSettings.setCheckpointDocumentType(settings.get("couchbase.typeSelector.checkpointDocumentType", PluginSettings.DEFAULT_DOCUMENT_TYPE_CHECKPOINT));
@@ -120,9 +118,9 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         pluginSettings.setMaxConcurrentRequests(settings.getAsLong("couchbase.maxConcurrentRequests", 1024L));
         pluginSettings.setBulkIndexRetries(settings.getAsLong("couchbase.bulkIndexRetries", 10L));
         pluginSettings.setBulkIndexRetryWaitMs(settings.getAsLong("couchbase.bulkIndexRetryWaitMs", 1000L));
-        pluginSettings.setIgnoreDeletes(new ArrayList<String>(Arrays.asList(settings.get("couchbase.ignoreDeletes","").split("[:,;\\s]"))));
+        pluginSettings.setIgnoreDeletes(CouchbaseCAPIService.Config.IGNORE_DELETES.get(settings));
         pluginSettings.getIgnoreDeletes().removeAll(Arrays.asList("", null));
-        pluginSettings.setIgnoreFailures(settings.getAsBoolean("couchbase.ignoreFailures", false));
+        pluginSettings.setIgnoreFailures(CouchbaseCAPIService.Config.IGNORE_FAILURES.get(settings));
         pluginSettings.setDocumentTypeRoutingFields(settings.getByPrefix("couchbase.documentTypeRoutingFields.").getAsMap());
         pluginSettings.setIgnoreDotIndexes(settings.getAsBoolean("couchbase.ignoreDotIndexes", true));
         pluginSettings.setIncludeIndexes(new ArrayList<String>(Arrays.asList(settings.get("couchbase.includeIndexes", "").split("[:,;\\s]"))));

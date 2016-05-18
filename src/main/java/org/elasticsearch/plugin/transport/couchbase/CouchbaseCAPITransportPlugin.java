@@ -19,10 +19,13 @@ import java.util.Collection;
 
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.inject.Module;
+import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.settings.SettingsModule;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPI;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPIModule;
+import org.elasticsearch.transport.couchbase.CouchbaseCAPIService;
 
 public class CouchbaseCAPITransportPlugin extends Plugin {
 
@@ -45,7 +48,7 @@ public class CouchbaseCAPITransportPlugin extends Plugin {
     @Override
     public Collection<Module> nodeModules() {
         Collection<Module> modules = newArrayList();
-        if (settings.getAsBoolean("couchbase.enabled", true)) {
+        if(CouchbaseCAPIService.Config.ENABLED.get(settings)) {
             modules.add(new CouchbaseCAPIModule());
         }
         return modules;
@@ -54,10 +57,27 @@ public class CouchbaseCAPITransportPlugin extends Plugin {
     @Override
     public Collection<Class<? extends LifecycleComponent>> nodeServices() {
         Collection<Class<? extends LifecycleComponent>> services = newArrayList();
-        if (settings.getAsBoolean("couchbase.enabled", true)) {
+        if(CouchbaseCAPIService.Config.ENABLED.get(settings)) {
             services.add(CouchbaseCAPI.class);
         }
         return services;
     }
 
+    public void onModule(SettingsModule settingsModule) {
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.ENABLED);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.USERNAME);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.PASSWORD);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.IGNORE_FAILURES);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.IGNORE_DELETES);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.NUM_VBUCKETS);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.PORT);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.BUCKET_UUID_CACHE_EVICT_MS);
+        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.COUCHBASE);
+    }
+
+    private void registerSettingIfMissing(SettingsModule settingsModule, Setting<?> setting) {
+        if (settingsModule.exists(setting) == false) {
+            settingsModule.registerSetting(setting);
+        }
+    }
 }

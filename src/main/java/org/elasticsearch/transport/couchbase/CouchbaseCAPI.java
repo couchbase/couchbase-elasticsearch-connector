@@ -26,14 +26,10 @@ public class CouchbaseCAPI extends AbstractLifecycleComponent<CouchbaseCAPI> {
 
     private final NodeService nodeService;
 
-    private final RestController restController;
-
     @Inject
-    public CouchbaseCAPI(Settings settings, CouchbaseCAPITransport transport,
-            RestController restController, NodeService nodeService) {
+    public CouchbaseCAPI(Settings settings, CouchbaseCAPITransport transport, NodeService nodeService) {
         super(settings);
         this.transport = transport;
-        this.restController = restController;
         this.nodeService = nodeService;
     }
 
