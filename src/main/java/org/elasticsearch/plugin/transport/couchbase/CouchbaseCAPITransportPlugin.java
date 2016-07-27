@@ -15,13 +15,14 @@ package org.elasticsearch.plugin.transport.couchbase;
 
 import static com.google.common.collect.Lists.newArrayList;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.SettingsModule;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPI;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPIModule;
@@ -33,16 +34,6 @@ public class CouchbaseCAPITransportPlugin extends Plugin {
 
     public CouchbaseCAPITransportPlugin(Settings settings) {
         this.settings = settings;
-    }
-
-    @Override
-    public String name() {
-        return "transport-couchbase";
-    }
-
-    @Override
-    public String description() {
-        return "Couchbase Transport";
     }
 
     @Override
@@ -63,42 +54,37 @@ public class CouchbaseCAPITransportPlugin extends Plugin {
         return services;
     }
 
-    public void onModule(SettingsModule settingsModule) {
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.ENABLED);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.USERNAME);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.PASSWORD);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.IGNORE_FAILURES);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.IGNORE_DELETES);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.WRAP_COUNTERS);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.IGNORE_DOT_INDEXES);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.INCLUDE_INDEXES);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.NUM_VBUCKETS);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.MAX_CONCURRENT_REQUESTS);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.BULK_INDEX_RETRIES);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.BULK_INDEX_RETRIES_WAIT_MS);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.PORT);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.BUCKET_UUID_CACHE_EVICT_MS);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.TYPE_SELECTOR);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DEFAULT_DOCUMENT_TYPE);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.CHECKPOINT_DOCUMENT_TYPE);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_DELIMITER);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_REGEX);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_REGEX_LIST);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.RESOLVE_CONFLICTS);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_ROUTING_FIELDS);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.PARENT_SELECTOR);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_PARENT_FIELDS);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_PARENT_REGEX);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.DOCUMENT_TYPE_PARENT_FORMAT);        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.KEY_FILTER);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.KEY_FILTER_TYPE);
-        registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.KEY_FILTER_REGEX_LIST);
-
-        //registerSettingIfMissing(settingsModule, CouchbaseCAPIService.Config.COUCHBASE);
-    }
-
-    private void registerSettingIfMissing(SettingsModule settingsModule, Setting<?> setting) {
-        if (settingsModule.exists(setting) == false) {
-            settingsModule.registerSetting(setting);
-        }
+    @Override
+    public List<Setting<?>> getSettings() {
+        return Arrays.asList(
+            CouchbaseCAPIService.Config.ENABLED,
+            CouchbaseCAPIService.Config.USERNAME,
+            CouchbaseCAPIService.Config.PASSWORD,
+            CouchbaseCAPIService.Config.IGNORE_FAILURES,
+            CouchbaseCAPIService.Config.IGNORE_DELETES,
+            CouchbaseCAPIService.Config.WRAP_COUNTERS,
+            CouchbaseCAPIService.Config.IGNORE_DOT_INDEXES,
+            CouchbaseCAPIService.Config.INCLUDE_INDEXES,
+            CouchbaseCAPIService.Config.NUM_VBUCKETS,
+            CouchbaseCAPIService.Config.MAX_CONCURRENT_REQUESTS,
+            CouchbaseCAPIService.Config.BULK_INDEX_RETRIES,
+            CouchbaseCAPIService.Config.BULK_INDEX_RETRIES_WAIT_MS,
+            CouchbaseCAPIService.Config.PORT,
+            CouchbaseCAPIService.Config.BUCKET_UUID_CACHE_EVICT_MS,
+            CouchbaseCAPIService.Config.TYPE_SELECTOR,
+            CouchbaseCAPIService.Config.DEFAULT_DOCUMENT_TYPE,
+            CouchbaseCAPIService.Config.CHECKPOINT_DOCUMENT_TYPE,
+            CouchbaseCAPIService.Config.DOCUMENT_TYPE_DELIMITER,
+            CouchbaseCAPIService.Config.DOCUMENT_TYPE_REGEX,
+            CouchbaseCAPIService.Config.DOCUMENT_TYPE_REGEX_LIST,
+            CouchbaseCAPIService.Config.RESOLVE_CONFLICTS,
+            CouchbaseCAPIService.Config.DOCUMENT_TYPE_ROUTING_FIELDS,
+            CouchbaseCAPIService.Config.PARENT_SELECTOR,
+            CouchbaseCAPIService.Config.DOCUMENT_TYPE_PARENT_FIELDS,
+            CouchbaseCAPIService.Config.DOCUMENT_TYPE_PARENT_REGEX,
+            CouchbaseCAPIService.Config.DOCUMENT_TYPE_PARENT_FORMAT,
+            CouchbaseCAPIService.Config.KEY_FILTER,
+            CouchbaseCAPIService.Config.KEY_FILTER_TYPE,
+            CouchbaseCAPIService.Config.KEY_FILTER_REGEX_LIST);
     }
 }

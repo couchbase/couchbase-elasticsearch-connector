@@ -10,26 +10,26 @@ Installation
 
 Note that as of Elasticsearch version 2.0, plugins are version specific. This means that each minor version of Elasticsearch has a corresponding version of the plugin. For example, ES 2.3.1 works with plugin version 2.2.3.1 and so on. 
 
-To install the ES 1.x compatible plugin, run the following command from your Elasticsearch installation folder:
-
-    bin/plugin -i transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.1.2/elasticsearch-transport-couchbase-2.1.2.zip
-    
-To install the ES 2.1.1 compatible version, run the following command from your Elasticsearch installation folder:
-
-    bin/plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/v2.2.1.2/elasticsearch-transport-couchbase-2.2.1.2.zip
-
 As of ES 2.2, the plugin versions are aligned to be 2.`<ES_VERSION>`, so to install for ES 2.2+, use the following command and replace `<ES_VERSION>` with your ES version:
 
     bin/plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/2.<ES_VERSION>/elasticsearch-transport-couchbase-2.<ES_VERSION>.zip
 
 You will be asked to approve additional permissions required by the plugin, please do so.
 
+To install the ES 2.1.1 compatible version, run the following command from your Elasticsearch installation folder:
+
+    bin/plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/v2.2.1.2/elasticsearch-transport-couchbase-2.2.1.2.zip
+
+To install the ES 1.x compatible plugin, run the following command from your Elasticsearch installation folder:
+
+    bin/plugin -i transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.1.2/elasticsearch-transport-couchbase-2.1.2.zip
+    
 Version Compatibility:
 
     +------------------------------------------------------------------+
     |  Plugin                       |  Couchbase    | Elasticsearch    |
     +------------------------------------------------------------------+
-    | master                        |  2.5.x - 4.x  | 2.3.1            |
+    | master                        |  2.5.x - 4.x  | 2.3.4            |
     +------------------------------------------------------------------+
     | 2.2.3.x                       |  2.5.x - 4.x  | 2.3.x            | 
     +------------------------------------------------------------------+

@@ -2,9 +2,9 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.couchbase</groupId>
   <artifactId>elasticsearch-transport-couchbase</artifactId>
-  <version>2.5.0.0-alpha2</version>
+  <version>2.5.0.0-alpha4</version>
     <properties>
-        <elasticsearch.version>5.0.0-alpha2</elasticsearch.version>
+        <elasticsearch.version>5.0.0-alpha4</elasticsearch.version>
     </properties>
 
     <repositories>
@@ -38,7 +38,7 @@
         <dependency>
         	<groupId>com.couchbase</groupId>
         	<artifactId>couchbase-capi-server</artifactId>
-            <version>1.4.0</version>
+            <version>1.4.1</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
