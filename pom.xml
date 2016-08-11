@@ -5,7 +5,7 @@
     <artifactId>elasticsearch-transport-couchbase</artifactId>
     <version>2.${elasticsearch.version}</version>
     <properties>
-        <elasticsearch.version>2.3.4</elasticsearch.version>
+        <elasticsearch.version>2.3.5</elasticsearch.version>
     </properties>
 
     <repositories>
