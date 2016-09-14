@@ -446,18 +446,17 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             attempt++;
             result = new ArrayList<Object>();
 
-            if(response != null) {
-                // at least second time through
-                try {
-                    Thread.sleep(pluginSettings.getBulkIndexRetryWaitMs());
-                } catch (InterruptedException e) {
-                    errors.append(e.toString());
-                    break;
+            if(bulkBuilder.numberOfActions() > 0) {
+                if(response != null) { // at least second time through
+                    try {
+                        Thread.sleep(pluginSettings.getBulkIndexRetryWaitMs());
+                    } catch (InterruptedException e) {
+                        errors.append(e.toString());
+                        break;
+                    }
                 }
+                response = bulkBuilder.execute().actionGet();
             }
-            
-            if(bulkBuilder.numberOfActions() > 0)
-	            response = bulkBuilder.execute().actionGet();
             else
                 break;
             
@@ -480,7 +479,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
                         // If the error is fatal, don't retry the request.
                         if(failureMessageAppearsFatal(failure.getMessage())) {
-                            logger.error("error indexing document id: " + itemId + " exception: " + failure.getMessage());
+                            logger.error("Error indexing document, will NOT retry. Document id: " + itemId + " exception: " + failure.getMessage());
 
                             bulkIndexRequests.remove(itemId);
                             bulkDeleteRequests.remove(itemId);
@@ -498,10 +497,14 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                                 errors.append(System.lineSeparator());
                             }
                         }
+                        else {
+                            logger.warn("Error indexing document, will retry. Document id: " + itemId + " exception: " + failure.getMessage());
+                        }
                     }
                 }
             }
             retriesLeft--;
+
         } while(response != null && response.hasFailures() && retriesLeft > 0);
 
         long end = System.currentTimeMillis();
@@ -509,9 +512,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         activeBulkDocsRequests.dec();
 
         if(response == null && bulkBuilder != null && bulkBuilder.numberOfActions() > 0)
-            errors.append("indexing error: bulk index response was null" + System.lineSeparator());
+            errors.append("Indexing error: bulk index response was null" + System.lineSeparator());
         if(retriesLeft == 0)
-            errors.append("indexing error: bulk index failed after all retries" + System.lineSeparator());
+            errors.append("Indexing error: bulk index failed after all retries" + System.lineSeparator());
 
         if(errors.length() > 0)
             if(pluginSettings.getIgnoreFailures())
@@ -519,7 +522,10 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             else
                 throw new RuntimeException(errors.toString());
         else
-            logger.info("bulk index succeeded after {} tries", attempt);
+            if(attempt == 1)
+                logger.debug("Bulk index succeeded after {} tries", attempt);
+            else
+                logger.warn("Bulk index succeeded after {} tries", attempt);
 
         // Before we return, in case of ignore delete or filtered keys
         // we want to add the "mock" confirmations for the ignored operations

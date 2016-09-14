@@ -41,7 +41,7 @@ public class PluginSettings {
         this.setDynamicTypePath("");
         this.setMaxConcurrentRequests(1024);
         this.bulkIndexRetries = 10L;
-        this.bulkIndexRetryWaitMs = 1000L;
+        this.bulkIndexRetryWaitMs = 100L;
         this.typeSelector = null;
         this.parentSelector = null;
         this.keyFilter = null;
