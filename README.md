@@ -51,11 +51,13 @@ Configuration for the plugin is specified as part of the Elasticsearch config fi
 
 ## Basic Settings ##
 
-- **couchbase.port** - The port the plugin will listen on, default `9091`
-- **couchbase.username** - The username for HTTP basic auth, default `Administrator`
+- **couchbase.port** - The port the plugin will listen on, default is `9091`
+- **couchbase.username** - The username for HTTP basic auth, default is `Administrator`
 - **couchbase.password** - The password for HTTP basic auth, no default
 - **couchbase.num_vbuckets** - The number of vbuckets that Elasticsearch should pretend to have (default on Mac is 64, 1024 on all other platforms)  This value MUST match the number of vbuckets on the source Couchbase cluster.
 - **couchbase.maxConcurrentRequests** - The number of concurrent requests that the plugin will allow, default 1024 (lower this if the load on the machine gets too high)
+- **couchbase.bulkIndexRetries** - Number of retries on non-fatal bulk indexing errors, default is `10`
+- **couchbase.bulkIndexRetryWaitMs** - Number of milliseconds to wait between bulk index retries, default is `1000`
 
 ## Advanced Settings ##
 
