@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
+import java.util.Base64;
 
 import javax.servlet.UnavailableException;
 
@@ -44,19 +45,19 @@ import org.elasticsearch.action.index.IndexRequest.OpType;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.Base64;
 import com.google.common.cache.Cache;
-import org.elasticsearch.common.logging.ESLogger;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.metrics.CounterMetric;
 import org.elasticsearch.common.metrics.MeanMetric;
 
 import com.couchbase.capi.CAPIBehavior;
+import org.elasticsearch.rest.RestStatus;
 
 public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
     protected ObjectMapper mapper = new ObjectMapper();
     protected Client client;
-    protected ESLogger logger;
+    protected Logger logger;
 
     protected CounterMetric activeRevsDiffRequests;
     protected MeanMetric meanRevsDiffRequests;
@@ -68,7 +69,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
     protected PluginSettings pluginSettings;
 
-    public ElasticSearchCAPIBehavior(Client client, ESLogger logger, Cache<String, String> bucketUUIDCache, PluginSettings pluginSettings) {
+    public ElasticSearchCAPIBehavior(Client client, Logger logger, Cache<String, String> bucketUUIDCache, PluginSettings pluginSettings) {
         this.client = client;
         this.logger = logger;
         this.pluginSettings = pluginSettings;
@@ -84,7 +85,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
     @Override
     public Map<String, Object> welcome() {
-        Map<String, Object> responseMap = new HashMap<String, Object>();
+        Map<String, Object> responseMap = new HashMap<>();
         responseMap.put("welcome", "elasticsearch-transport-couchbase");
         return responseMap;
     }
@@ -114,7 +115,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     public Map<String, Object> getDatabaseDetails(String database) {
         String doesNotExistReason = databaseExists(database);
         if(doesNotExistReason == null) {
-            Map<String, Object> responseMap = new HashMap<String, Object>();
+            Map<String, Object> responseMap = new HashMap<>();
             responseMap.put("db_name", getDatabaseNameWithoutUUID(database));
             return responseMap;
         }
@@ -154,11 +155,11 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         logger.trace("_revs_diff request for {} : {}", database, revsMap);
 
         // start with all entries in the response map
-        Map<String, Object> responseMap = new HashMap<String, Object>();
+        Map<String, Object> responseMap = new HashMap<>();
         for (Entry<String, Object> entry : revsMap.entrySet()) {
             String id = entry.getKey();
             String revs = (String)entry.getValue();
-            Map<String, String> rev = new HashMap<String, String>();
+            Map<String, String> rev = new HashMap<>();
             rev.put("missing", revs);
             responseMap.put(id, rev);
         }
@@ -272,14 +273,14 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         logger.trace("ignoreDelete = {}", ignoreDelete);
         
         // keep a map of the id - rev for building the response
-        Map<String,String> revisions = new HashMap<String, String>();
+        Map<String,String> revisions = new HashMap<>();
 
         // put requests into this map, not directly into the bulk request
-        Map<String,IndexRequest> bulkIndexRequests = new HashMap<String,IndexRequest>();
-        Map<String,DeleteRequest> bulkDeleteRequests = new HashMap<String,DeleteRequest>();
+        Map<String,IndexRequest> bulkIndexRequests = new HashMap<>();
+        Map<String,DeleteRequest> bulkDeleteRequests = new HashMap<>();
         
         //used for "mock" results in case of ignore deletes or filtered out keys
-        List<Object> mockResults = new ArrayList<Object>();
+        List<Object> mockResults = new ArrayList<>();
 
         logger.trace("Bulk doc entry is {}", docs);
         for (Map<String, Object> doc : docs) {
@@ -311,7 +312,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 // Document ID matches one of the filters, not passing it to on to ES.
                 // Store a mock response, which will be added to the responses sent back
                 // to Couchbase, to satisfy the XDCR mechanism
-                Map<String, Object> mockResponse = new HashMap<String, Object>();
+                Map<String, Object> mockResponse = new HashMap<>();
                 mockResponse.put("id", id);
                 mockResponse.put("rev", rev);
                 mockResults.add(mockResponse);
@@ -322,20 +323,20 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
             if(meta.containsKey("deleted")) {
                 // if this is only a delete anyway, don't bother looking at the body
-                json = new HashMap<String, Object>();
+                json = new HashMap<>();
             } else if("non-JSON mode".equals(meta.get("att_reason")) || "invalid_json".equals(meta.get("att_reason"))) {
                 // optimization, this tells us the body isn't json
-                json = new HashMap<String, Object>();
+                json = new HashMap<>();
             } else if(json == null && base64 != null) {
                 // no plain json, let's try parsing the base64 data
                 try {
-                    byte[] decodedData = Base64.decode(base64);
+                    byte[] decodedData = Base64.getDecoder().decode(base64);
                     try {
                         // now try to parse the decoded data as json
                         json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
                     }
                     catch(IOException e) {
-                        json = new HashMap<String, Object>();
+                        json = new HashMap<>();
                         if(pluginSettings.getWrapCounters()) {
                             logger.trace("Trying to parse decoded base64 data as a long and wrap it as a counter document, id: {}", meta.get("id"));
                             try {
@@ -353,17 +354,17 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                             logger.error("Body was: {} Parse error was: {}", new String(decodedData), e);
                         }
                     }
-                } catch (IOException e) {
+                } catch (IllegalArgumentException e) {
                     logger.error("Unable to decoded base64, indexing stub for id: {}", meta.get("id"));
                     logger.error("Base64 was was: {} Parse error was: {}", base64, e);
-                    json = new HashMap<String, Object>();
+                    json = new HashMap<>();
                 }
             }
 
             // at this point we know we have the document meta-data
             // and the document contents to be indexed are in json
 
-            Map<String, Object> toBeIndexed = new HashMap<String, Object>();
+            Map<String, Object> toBeIndexed = new HashMap<>();
             toBeIndexed.put("meta", meta);
             toBeIndexed.put("doc", json);
 
@@ -393,7 +394,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 	// For ignored deletes, we want to bypass from adding the delete request
             		// as a hack - we add a "mock" response for each delete request as if ES returned
             		// delete confirmation
-	                Map<String, Object> mockResponse = new HashMap<String, Object>();
+	                Map<String, Object> mockResponse = new HashMap<>();
 	                mockResponse.put("id", id);
 	                mockResponse.put("rev", rev);
 	                mockResults.add(mockResponse);
@@ -444,7 +445,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             }
 
             attempt++;
-            result = new ArrayList<Object>();
+            result = new ArrayList<>();
 
             if(bulkBuilder.numberOfActions() > 0) {
                 if(response != null) { // at least second time through
@@ -466,7 +467,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                     String itemRev = revisions.get(itemId);
 
                     if(!bulkItemResponse.isFailed()) {
-                        Map<String, Object> itemResponse = new HashMap<String, Object>();
+                        Map<String, Object> itemResponse = new HashMap<>();
                         itemResponse.put("id", itemId);
                         itemResponse.put("rev", itemRev);
                         result.add(itemResponse);
@@ -487,7 +488,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                             // If ignore failures mode is on, store a mock result object for the failed
                             // operation, which will be returned to Couchbase.
                             if(pluginSettings.getIgnoreFailures()) {
-                                Map<String, Object> mockResult = new HashMap<String, Object>();
+                                Map<String, Object> mockResult = new HashMap<>();
                                 mockResult.put("id", itemId);
                                 mockResult.put("rev", itemRev);
                                 mockResults.add(mockResult);
@@ -646,15 +647,15 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     }
 
     public Map<String, Object> getStats() {
-        Map<String, Object> stats = new HashMap<String, Object>();
+        Map<String, Object> stats = new HashMap<>();
 
-        Map<String, Object> bulkDocsStats = new HashMap<String, Object>();
+        Map<String, Object> bulkDocsStats = new HashMap<>();
         bulkDocsStats.put("activeCount", activeBulkDocsRequests.count());
         bulkDocsStats.put("totalCount", meanBulkDocsRequests.count());
         bulkDocsStats.put("totalTime", meanBulkDocsRequests.sum());
         bulkDocsStats.put("avgTime", meanBulkDocsRequests.mean());
 
-        Map<String, Object> revsDiffStats = new HashMap<String, Object>();
+        Map<String, Object> revsDiffStats = new HashMap<>();
         revsDiffStats.put("activeCount", activeRevsDiffRequests.count());
         revsDiffStats.put("totalCount", meanRevsDiffRequests.count());
         revsDiffStats.put("totalTime", meanRevsDiffRequests.sum());
@@ -694,9 +695,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     }
 
     protected void storeUUID(String bucket, String id, String uuid) {
-        Map<String,Object> doc = new HashMap<String, Object>();
+        Map<String,Object> doc = new HashMap<>();
         doc.put("uuid", uuid);
-        Map<String, Object> toBeIndexed = new HashMap<String, Object>();
+        Map<String, Object> toBeIndexed = new HashMap<>();
         toBeIndexed.put("doc", doc);
 
         IndexRequestBuilder builder = client.prepareIndex();
@@ -710,7 +711,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         ListenableActionFuture<IndexResponse> laf = builder.execute();
         if(laf != null) {
             response = laf.actionGet();
-            if(!response.isCreated()) {
+            if(response.status() != RestStatus.CREATED) {
                 logger.error("did not succeed creating uuid");
             }
         }

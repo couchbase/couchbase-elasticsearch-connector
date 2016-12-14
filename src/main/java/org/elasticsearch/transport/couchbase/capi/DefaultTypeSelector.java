@@ -1,19 +1,17 @@
 package org.elasticsearch.transport.couchbase.capi;
 
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.transport.couchbase.CouchbaseCAPIService;
 
 public class DefaultTypeSelector implements TypeSelector {
-
-    public static final String DEFAULT_DOCUMENT_TYPE_DOCUMENT = "couchbaseDocument";
-    public static final String DEFAULT_DOCUMENT_TYPE_CHECKPOINT = "couchbaseCheckpoint";
 
     protected String defaultDocumentType;
     protected String checkpointDocumentType;
 
     @Override
     public void configure(Settings settings) {
-        this.defaultDocumentType = settings.get("couchbase.typeSelector.defaultDocumentType", DEFAULT_DOCUMENT_TYPE_DOCUMENT);
-        this.checkpointDocumentType = settings.get("couchbase.typeSelector.checkpointDocumentType", DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
+        this.defaultDocumentType = CouchbaseCAPIService.Config.DEFAULT_DOCUMENT_TYPE.get(settings);
+        this.checkpointDocumentType = CouchbaseCAPIService.Config.CHECKPOINT_DOCUMENT_TYPE.get(settings);
     }
 
     @Override

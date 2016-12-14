@@ -1,5 +1,11 @@
 package org.elasticsearch.transport.couchbase.capi;
 
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.common.settings.NoClassSettingsException;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.transport.couchbase.CouchbaseCAPIService;
+
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -7,8 +13,6 @@ import java.util.Map;
  * Created by David Ostrovsky on 11/24/15.
  */
 public class PluginSettings {
-    public static final String DEFAULT_DOCUMENT_TYPE_CHECKPOINT = "couchbaseCheckpoint";
-
     private String checkpointDocumentType;
 
     private Boolean resolveConflicts;
@@ -16,12 +20,10 @@ public class PluginSettings {
     private Boolean ignoreFailures;
     private Boolean ignoreDotIndexes;
 
-    private String dynamicTypePath;
+    private int maxConcurrentRequests;
 
-    private long maxConcurrentRequests;
-
-    private long bulkIndexRetries;
-    private long bulkIndexRetryWaitMs;
+    private int bulkIndexRetries;
+    private int bulkIndexRetryWaitMs;
 
     private TypeSelector typeSelector;
     private ParentSelector parentSelector;
@@ -33,39 +35,65 @@ public class PluginSettings {
 
     private List<String> includeIndexes;
 
-    public PluginSettings() {
-        this.setCheckpointDocumentType(DEFAULT_DOCUMENT_TYPE_CHECKPOINT);
-        this.setResolveConflicts(true);
-        this.setWrapCounters(false);
-        this.setIgnoreFailures(false);
-        this.setDynamicTypePath("");
-        this.setMaxConcurrentRequests(1024);
-        this.bulkIndexRetries = 10L;
-        this.bulkIndexRetryWaitMs = 100L;
-        this.typeSelector = null;
-        this.parentSelector = null;
-        this.keyFilter = null;
-        this.documentTypeRoutingFields = null;
-        this.ignoreDeletes = null;
-        this.ignoreDotIndexes = true;
+    public PluginSettings(Settings settings) {
+        this.setCheckpointDocumentType(CouchbaseCAPIService.Config.CHECKPOINT_DOCUMENT_TYPE.get(settings));
+        this.setResolveConflicts(CouchbaseCAPIService.Config.RESOLVE_CONFLICTS.get(settings));
+        this.setWrapCounters(CouchbaseCAPIService.Config.WRAP_COUNTERS.get(settings));
+        this.setMaxConcurrentRequests(CouchbaseCAPIService.Config.MAX_CONCURRENT_REQUESTS.get(settings));
+        this.setBulkIndexRetries(CouchbaseCAPIService.Config.BULK_INDEX_RETRIES.get(settings));
+        this.setBulkIndexRetryWaitMs(CouchbaseCAPIService.Config.BULK_INDEX_RETRIES_WAIT_MS.get(settings));
+        this.setIgnoreDeletes(CouchbaseCAPIService.Config.IGNORE_DELETES.get(settings));
+        this.getIgnoreDeletes().removeAll(Arrays.asList("", null));
+        this.setIgnoreFailures(CouchbaseCAPIService.Config.IGNORE_FAILURES.get(settings));
+        this.setDocumentTypeRoutingFields(CouchbaseCAPIService.Config.DOCUMENT_TYPE_ROUTING_FIELDS.get(settings).getAsMap());
+        this.setIgnoreDotIndexes(CouchbaseCAPIService.Config.IGNORE_DOT_INDEXES.get(settings));
+        this.setIncludeIndexes(CouchbaseCAPIService.Config.INCLUDE_INDEXES.get(settings));
+        this.getIncludeIndexes().removeAll(Arrays.asList("", null));
+
+        TypeSelector typeSelector;
+        Class<? extends TypeSelector> typeSelectorClass = this.getAsClass(CouchbaseCAPIService.Config.TYPE_SELECTOR.get(settings), DefaultTypeSelector.class);
+        try {
+            typeSelector = typeSelectorClass.newInstance();
+        } catch (Exception e) {
+            throw new ElasticsearchException("Invalid couchbase.typeSelector setting", e);
+        }
+        typeSelector.configure(settings);
+        this.setTypeSelector(typeSelector);
+
+        ParentSelector parentSelector;
+        Class<? extends ParentSelector> parentSelectorClass = this.getAsClass(CouchbaseCAPIService.Config.PARENT_SELECTOR.get(settings), DefaultParentSelector.class);
+        try {
+            parentSelector = parentSelectorClass.newInstance();
+        } catch (Exception e) {
+            throw new ElasticsearchException("Invalid couchbase.parentSelector setting", e);
+        }
+        parentSelector.configure(settings);
+        this.setParentSelector(parentSelector);
+
+        KeyFilter keyFilter;
+        Class<? extends KeyFilter> keyFilterClass = this.getAsClass(CouchbaseCAPIService.Config.KEY_FILTER.get(settings), DefaultKeyFilter.class);
+        try {
+            keyFilter = keyFilterClass.newInstance();
+        } catch (Exception e) {
+            throw new ElasticsearchException("Invalid couchbase.keyFilter setting", e);
+        }
+        keyFilter.configure(settings);
+        this.setKeyFilter(keyFilter);
+
     }
 
-    public PluginSettings(String checkpointDocumentType, Boolean resolveConflicts, Boolean wrapCounters, Boolean ignoreFailures, String dynamicTypePath, long maxConcurrentRequests, long bulkIndexRetries, long bulkIndexRetryWaitMs, TypeSelector typeSelector, ParentSelector parentSelector, KeyFilter keyFilter, Map<String, String> documentTypeRoutingFields, List<String> ignoreDeletes, Boolean ignoreDotIndexes, List<String> includeIndexes) {
-        this.includeIndexes = includeIndexes;
-        this.setCheckpointDocumentType(checkpointDocumentType);
-        this.setResolveConflicts(resolveConflicts);
-        this.setWrapCounters(wrapCounters);
-        this.setIgnoreFailures(ignoreFailures);
-        this.setDynamicTypePath(dynamicTypePath);
-        this.setMaxConcurrentRequests(maxConcurrentRequests);
-        this.bulkIndexRetries = bulkIndexRetries;
-        this.bulkIndexRetryWaitMs = bulkIndexRetryWaitMs;
-        this.typeSelector = typeSelector;
-        this.parentSelector = parentSelector;
-        this.keyFilter = keyFilter;
-        this.documentTypeRoutingFields = documentTypeRoutingFields;
-        this.ignoreDeletes = ignoreDeletes;
-        this.ignoreDotIndexes = ignoreDotIndexes;
+    @SuppressWarnings({"unchecked"})
+    private <T> Class<? extends T> getAsClass(String className, Class<? extends T> defaultClazz) {
+        String sValue = className;
+        if (sValue == null) {
+            return defaultClazz;
+        }
+        try {
+            return (Class<? extends T>) this.getClass().getClassLoader().loadClass(sValue);
+        } catch (ClassNotFoundException e) {
+            throw new NoClassSettingsException("Failed to load class setting ["
+                    + className + "] with value [" + sValue + "]", e);
+        }
     }
 
     @Override
@@ -76,7 +104,6 @@ public class PluginSettings {
                 ", wrapCounters=" + wrapCounters +
                 ", ignoreFailures=" + ignoreFailures +
                 ", ignoreDotIndexes=" + ignoreDotIndexes +
-                ", dynamicTypePath='" + dynamicTypePath + '\'' +
                 ", maxConcurrentRequests=" + maxConcurrentRequests +
                 ", bulkIndexRetries=" + bulkIndexRetries +
                 ", bulkIndexRetryWaitMs=" + bulkIndexRetryWaitMs +
@@ -109,14 +136,6 @@ public class PluginSettings {
         return ignoreFailures;
     }
 
-    public String getDynamicTypePath() {
-        return dynamicTypePath;
-    }
-
-    public void setDynamicTypePath(String dynamicTypePath) {
-        this.dynamicTypePath = dynamicTypePath;
-    }
-
     public long getMaxConcurrentRequests() {
         return maxConcurrentRequests;
     }
@@ -125,7 +144,7 @@ public class PluginSettings {
         return bulkIndexRetries;
     }
 
-    public void setBulkIndexRetries(long bulkIndexRetries) {
+    public void setBulkIndexRetries(int bulkIndexRetries) {
         this.bulkIndexRetries = bulkIndexRetries;
     }
 
@@ -133,7 +152,7 @@ public class PluginSettings {
         return bulkIndexRetryWaitMs;
     }
 
-    public void setBulkIndexRetryWaitMs(long bulkIndexRetryWaitMs) {
+    public void setBulkIndexRetryWaitMs(int bulkIndexRetryWaitMs) {
         this.bulkIndexRetryWaitMs = bulkIndexRetryWaitMs;
     }
 
@@ -189,7 +208,7 @@ public class PluginSettings {
         this.ignoreFailures = ignoreFailures;
     }
 
-    public void setMaxConcurrentRequests(long maxConcurrentRequests) {
+    public void setMaxConcurrentRequests(int maxConcurrentRequests) {
         this.maxConcurrentRequests = maxConcurrentRequests;
     }
 

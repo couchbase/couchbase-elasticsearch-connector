@@ -1,8 +1,9 @@
 package org.elasticsearch.transport.couchbase.capi;
 
-import org.elasticsearch.common.logging.ESLogger;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.transport.couchbase.CouchbaseCAPIService;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,7 +17,7 @@ import java.util.regex.Pattern;
  * @author tal.maayani on 1/23/2015, David Ostrovsky
  */
 public class GroupRegexTypeSelector extends DefaultTypeSelector {
-    protected ESLogger logger = Loggers.getLogger(getClass());
+    protected Logger logger = Loggers.getLogger(getClass());
 
     private static final String TYPE = "type";
     private Pattern documentTypesRegex;
@@ -25,7 +26,7 @@ public class GroupRegexTypeSelector extends DefaultTypeSelector {
     public void configure(Settings settings) {
         super.configure(settings);
 
-        String documentTypesPattern = settings.get("couchbase.typeSelector.documentTypesRegex");
+        String documentTypesPattern = CouchbaseCAPIService.Config.DOCUMENT_TYPE_REGEX.get(settings);
         if (null == documentTypesPattern) {
             logger.error("No configuration found for couchbase.typeSelector.documentTypesRegex, please set types regex");
             throw new RuntimeException("No configuration found for couchbase.typeSelector.documentTypesRegex, please set types regex");

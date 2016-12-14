@@ -5,9 +5,10 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.elasticsearch.common.logging.ESLogger;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.transport.couchbase.CouchbaseCAPIService;
 
 /**
  * Use regular expression for parent indexing - assuming define a named group parent as part of regex.
@@ -26,16 +27,16 @@ import org.elasticsearch.common.settings.Settings;
  */
 public class RegexParentSelector implements ParentSelector {
     public static final String PARENT = "parent";
-    protected ESLogger logger = Loggers.getLogger(getClass());
+    protected Logger logger = Loggers.getLogger(getClass());
     private Map<String, Pattern> documentTypeParentRegexMap;
     private Map<String, String> documentTypeParentFormatMap;
 
     @Override
     public void configure(Settings settings) {
-        Map<String, String> documentTypeParentRegexMap = settings.getByPrefix("couchbase.parentSelector.documentTypesParentRegex.").getAsMap();
-        Map<String, String> documentTypeParentFormatInternalMap = settings.getByPrefix("couchbase.parentSelector.documentTypesParentFormat.").getAsMap();
-        this.documentTypeParentRegexMap = new HashMap<String, Pattern>();
-        this.documentTypeParentFormatMap = new HashMap<String, String>();
+        Map<String, String> documentTypeParentRegexMap = CouchbaseCAPIService.Config.DOCUMENT_TYPE_PARENT_REGEX.get(settings).getAsMap();
+        Map<String, String> documentTypeParentFormatInternalMap = CouchbaseCAPIService.Config.DOCUMENT_TYPE_PARENT_FIELDS.get(settings).getAsMap();
+        this.documentTypeParentRegexMap = new HashMap<>();
+        this.documentTypeParentFormatMap = new HashMap<>();
         for (String key : documentTypeParentRegexMap.keySet()) {
             String pattern = documentTypeParentRegexMap.get(key);
             this.documentTypeParentRegexMap.put(key, Pattern.compile(pattern));

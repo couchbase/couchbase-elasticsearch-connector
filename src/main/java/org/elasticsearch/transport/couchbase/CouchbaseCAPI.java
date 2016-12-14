@@ -20,20 +20,16 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.service.NodeService;
 import org.elasticsearch.rest.RestController;
 
-public class CouchbaseCAPI extends AbstractLifecycleComponent<CouchbaseCAPI> {
+public class CouchbaseCAPI extends AbstractLifecycleComponent {
 
     private final CouchbaseCAPITransport transport;
 
     private final NodeService nodeService;
 
-    private final RestController restController;
-
     @Inject
-    public CouchbaseCAPI(Settings settings, CouchbaseCAPITransport transport,
-            RestController restController, NodeService nodeService) {
+    public CouchbaseCAPI(Settings settings, CouchbaseCAPITransport transport, NodeService nodeService) {
         super(settings);
         this.transport = transport;
-        this.restController = restController;
         this.nodeService = nodeService;
     }
 

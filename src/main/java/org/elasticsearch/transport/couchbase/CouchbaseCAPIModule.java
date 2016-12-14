@@ -21,10 +21,6 @@ public class CouchbaseCAPIModule extends AbstractModule {
 	// pkg private so it is settable by tests
     static Class<? extends CouchbaseCAPITransport> couchbaseCAPITransportImpl = CouchbaseCAPITransportImpl.class;
 
-    public static Class<? extends CouchbaseCAPITransport> getS3ServiceImpl() {
-        return couchbaseCAPITransportImpl;
-    }
-
     @Override
     protected void configure() {
     	bind(CouchbaseCAPITransport.class).to(couchbaseCAPITransportImpl).asEagerSingleton();

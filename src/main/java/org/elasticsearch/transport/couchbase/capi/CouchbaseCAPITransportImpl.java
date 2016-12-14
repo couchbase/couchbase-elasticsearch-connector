@@ -13,49 +13,39 @@
  */
 package org.elasticsearch.transport.couchbase.capi;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.MetaDataMappingService;
-import org.elasticsearch.common.component.AbstractLifecycleComponent;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.network.NetworkService;
-import org.elasticsearch.common.settings.NoClassSettingsException;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.BoundTransportAddress;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.common.transport.PortsRange;
-import org.elasticsearch.http.BindHttpException;
-import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.rest.RestController;
-import org.elasticsearch.transport.couchbase.CouchbaseCAPITransport;
-
 import com.couchbase.capi.CAPIBehavior;
 import com.couchbase.capi.CAPIServer;
 import com.couchbase.capi.CouchbaseBehavior;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.common.component.AbstractLifecycleComponent;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.network.NetworkService;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.BoundTransportAddress;
+import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.common.transport.PortsRange;
+import org.elasticsearch.http.BindHttpException;
+import org.elasticsearch.transport.couchbase.CouchbaseCAPIService;
+import org.elasticsearch.transport.couchbase.CouchbaseCAPITransport;
 
-public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<CouchbaseCAPITransport> implements CouchbaseCAPITransport {
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent implements CouchbaseCAPITransport {
 
     private CAPIBehavior capiBehavior;
     private CouchbaseBehavior couchbaseBehavior;
     private CAPIServer server;
     private Client client;
     private final NetworkService networkService;
-    private final IndicesService indicesService;
-    private final MetaDataMappingService metaDataMappingService;
 
     private final String port;
     private final String bindHost;
@@ -72,37 +62,22 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
     private PluginSettings pluginSettings;
 
-    @SuppressWarnings({"unchecked"})
-    private <T> Class<? extends T> getAsClass(String className, Class<? extends T> defaultClazz) {
-      String sValue = className;
-      if (sValue == null) {
-         return defaultClazz;
-      }
-      try {
-         return (Class<? extends T>) this.getClass().getClassLoader().loadClass(sValue);
-      } catch (ClassNotFoundException e) {
-         throw new NoClassSettingsException("Failed to load class setting [" 
-            + className + "] with value [" + sValue + "]", e);
-      }
-    }
     
     @Inject
-    public CouchbaseCAPITransportImpl(Settings settings, RestController restController, NetworkService networkService, IndicesService indicesService, MetaDataMappingService metaDataMappingService, Client client) {
+    public CouchbaseCAPITransportImpl(Settings settings, NetworkService networkService, Client client) {
         super(settings);
         
         this.networkService = networkService;
-        this.indicesService = indicesService;
-        this.metaDataMappingService = metaDataMappingService;
         this.client = client;
-        this.port = settings.get("couchbase.port", "9091-10091");
+        this.port = CouchbaseCAPIService.Config.PORT.get(settings);
        
         this.bindHost = settings.get("network.bind_host");
         this.publishHost = settings.get("network.publish_host");
         
-        this.username = settings.get("couchbase.username", "Administrator");
-        this.password = settings.get("couchbase.password", "");
+        this.username = CouchbaseCAPIService.Config.USERNAME.get(settings);
+        this.password = CouchbaseCAPIService.Config.PASSWORD.get(settings);
         
-        this.bucketUUIDCacheEvictMs = settings.getAsLong("couchbase.bucketUUIDCacheEvictMs", 300000L);
+        this.bucketUUIDCacheEvictMs = CouchbaseCAPIService.Config.BUCKET_UUID_CACHE_EVICT_MS.get(settings);
         this.bucketUUIDCache = CacheBuilder.newBuilder().expireAfterWrite(this.bucketUUIDCacheEvictMs, TimeUnit.MILLISECONDS).build();
 
         int defaultNumVbuckets = 1024;
@@ -110,60 +85,17 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
             logger.info("Detected platform is Mac, changing default num_vbuckets to 64");
             defaultNumVbuckets = 64;
         }
-        this.numVbuckets = settings.getAsInt("couchbase.num_vbuckets", defaultNumVbuckets);
+        this.numVbuckets = CouchbaseCAPIService.Config.NUM_VBUCKETS.exists(settings) ?
+                CouchbaseCAPIService.Config.NUM_VBUCKETS.get(settings) : defaultNumVbuckets;
 
-        pluginSettings = new PluginSettings();
-        pluginSettings.setCheckpointDocumentType(settings.get("couchbase.typeSelector.checkpointDocumentType", PluginSettings.DEFAULT_DOCUMENT_TYPE_CHECKPOINT));
-        pluginSettings.setDynamicTypePath(settings.get("couchbase.dynamicTypePath"));
-        pluginSettings.setResolveConflicts(settings.getAsBoolean("couchbase.resolveConflicts", true));
-        pluginSettings.setWrapCounters(settings.getAsBoolean("couchbase.wrapCounters", false));
-        pluginSettings.setMaxConcurrentRequests(settings.getAsLong("couchbase.maxConcurrentRequests", 1024L));
-        pluginSettings.setBulkIndexRetries(settings.getAsLong("couchbase.bulkIndexRetries", 10L));
-        pluginSettings.setBulkIndexRetryWaitMs(settings.getAsLong("couchbase.bulkIndexRetryWaitMs", 1000L));
-        pluginSettings.setIgnoreDeletes(new ArrayList<String>(Arrays.asList(settings.get("couchbase.ignoreDeletes","").split("[:,;\\s]"))));
-        pluginSettings.getIgnoreDeletes().removeAll(Arrays.asList("", null));
-        pluginSettings.setIgnoreFailures(settings.getAsBoolean("couchbase.ignoreFailures", false));
-        pluginSettings.setDocumentTypeRoutingFields(settings.getByPrefix("couchbase.documentTypeRoutingFields.").getAsMap());
-        pluginSettings.setIgnoreDotIndexes(settings.getAsBoolean("couchbase.ignoreDotIndexes", true));
-        pluginSettings.setIncludeIndexes(new ArrayList<String>(Arrays.asList(settings.get("couchbase.includeIndexes", "").split("[:,;\\s]"))));
-        pluginSettings.getIncludeIndexes().removeAll(Arrays.asList("", null));
-
-        TypeSelector typeSelector;
-        Class<? extends TypeSelector> typeSelectorClass = this.getAsClass(settings.get("couchbase.typeSelector"), DefaultTypeSelector.class);
-        try {
-            typeSelector = typeSelectorClass.newInstance();
-        } catch (Exception e) {
-            throw new ElasticsearchException("couchbase.typeSelector", e);
-        }
-        typeSelector.configure(settings);
-        pluginSettings.setTypeSelector(typeSelector);
-
-        ParentSelector parentSelector;
-        Class<? extends ParentSelector> parentSelectorClass = this.getAsClass(settings.get("couchbase.parentSelector"), DefaultParentSelector.class);
-        try {
-            parentSelector = parentSelectorClass.newInstance();
-        } catch (Exception e) {
-            throw new ElasticsearchException("couchbase.parentSelector", e);
-        }
-        parentSelector.configure(settings);
-        pluginSettings.setParentSelector(parentSelector);
-
-        KeyFilter keyFilter;
-        Class<? extends KeyFilter> keyFilterClass = this.getAsClass(settings.get("couchbase.keyFilter"), DefaultKeyFilter.class);  
-        try {
-            keyFilter = keyFilterClass.newInstance();
-        } catch (Exception e) {
-            throw new ElasticsearchException("couchbase.keyFilter", e);
-        }
-        keyFilter.configure(settings);
-        pluginSettings.setKeyFilter(keyFilter);
+        pluginSettings = new PluginSettings(settings);
 
         // Log settings info
         logger.info("Couchbase transport will ignore delete/expiration operations for these buckets: {}", pluginSettings.getIgnoreDeletes());
         logger.info("Couchbase transport will ignore indexing failures and not throw exception to Couchbase: {}", pluginSettings.getIgnoreFailures());
-        logger.info("Couchbase transport is using type selector: {}", typeSelector.getClass().getCanonicalName());
-        logger.info("Couchbase transport is using parent selector: {}", parentSelector.getClass().getCanonicalName());
-        logger.info("Couchbase transport is using key filter: {}", keyFilter.getClass().getCanonicalName());
+        logger.info("Couchbase transport is using type selector: {}", pluginSettings.getTypeSelector().getClass().getCanonicalName());
+        logger.info("Couchbase transport is using parent selector: {}", pluginSettings.getParentSelector().getClass().getCanonicalName());
+        logger.info("Couchbase transport is using key filter: {}", pluginSettings.getKeyFilter().getClass().getCanonicalName());
         for (String key: pluginSettings.getDocumentTypeRoutingFields().keySet()) {
             String routingField = pluginSettings.getDocumentTypeRoutingFields().get(key);
             logger.info("Using field {} as routing for type {}", routingField, key);
@@ -210,38 +142,33 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
         logger.info("Using port(s):"+ port);
 
-        final AtomicReference<Exception> lastException = new AtomicReference<Exception>();
+        final AtomicReference<Exception> lastException = new AtomicReference<>();
      
-        boolean success = portsRange.iterate(new PortsRange.PortCallback() {
-            @Override
-            public boolean onPortNumber(final int portNumber) {
-                    AccessController.doPrivileged(new PrivilegedAction<Void>() {
-                    	public Void run() {
-                            try {
-                                logger.info("Starting transport-couchbase plugin server on address:" + bindAddress + " port: " + portNumber + " publish address: " + publishAddressHost);
-                                server = new CAPIServer(capiBehavior, couchbaseBehavior,
-			                            new InetSocketAddress(bindAddress, portNumber),
-			                            CouchbaseCAPITransportImpl.this.username,
-			                            CouchbaseCAPITransportImpl.this.password,
-			                            numVbuckets);
-	                  
-			                    if (publishAddressHost != null) {
-			                    	server.setPublishAddress(publishAddressHost);
-			                    }                    	
-	
-			                    server.start();
-			                    result = true;
-                            } catch (Exception e) {
-                                lastException.set(e);
-                                result = false;
-                            }
-                            	
-                            return null;
-                    	}
-                    });
-                    return result;
-                }
-        });
+        boolean success = portsRange.iterate(portNumber -> {
+                AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                    try {
+                        logger.info("Starting transport-couchbase plugin server on address:" + bindAddress + " port: " + portNumber + " publish address: " + publishAddressHost);
+                        server = new CAPIServer(capiBehavior, couchbaseBehavior,
+                                new InetSocketAddress(bindAddress, portNumber),
+                                CouchbaseCAPITransportImpl.this.username,
+                                CouchbaseCAPITransportImpl.this.password,
+                                numVbuckets);
+
+                        if (publishAddressHost != null) {
+                            server.setPublishAddress(publishAddressHost);
+                        }
+
+                        server.start();
+                        result = true;
+                    } catch (Exception e) {
+                        lastException.set(e);
+                        result = false;
+                    }
+
+                    return null;
+                });
+                return result;
+            });
         if (!success) {
             throw new BindHttpException("Failed to bind to [" + port + "]",
                     lastException.get());

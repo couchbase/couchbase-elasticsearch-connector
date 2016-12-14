@@ -4,22 +4,24 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import org.elasticsearch.common.logging.ESLogger;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.transport.couchbase.CouchbaseCAPIService;
 
 public class RegexTypeSelector extends DefaultTypeSelector {
 
-    protected ESLogger logger = Loggers.getLogger(getClass());
+    protected Logger logger;
     private Map<String,String> documentTypePatternStrings;
     private Map<String, Pattern> documentTypePatterns;
 
     @Override
     public void configure(Settings settings) {
         super.configure(settings);
+        this.logger = Loggers.getLogger(getClass(), settings);
 
-        this.documentTypePatterns = new HashMap<String,Pattern>();
-        this.documentTypePatternStrings = settings.getByPrefix("couchbase.typeSelector.documentTypesRegex.").getAsMap();
+        this.documentTypePatterns = new HashMap<>();
+        this.documentTypePatternStrings = CouchbaseCAPIService.Config.DOCUMENT_TYPE_REGEX_LIST.get(settings).getAsMap();
         for (String key : documentTypePatternStrings.keySet()) {
             String pattern = documentTypePatternStrings.get(key);
             logger.info("See document type: {} with pattern: {} compiling...", key, pattern);

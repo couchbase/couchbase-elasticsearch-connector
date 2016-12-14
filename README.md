@@ -10,27 +10,25 @@ Installation
 
 Note that as of Elasticsearch version 2.0, plugins are version specific. This means that each minor version of Elasticsearch has a corresponding version of the plugin. For example, ES 2.3.1 works with plugin version 2.2.3.1 and so on. 
 
-As of ES 2.2, the plugin versions are aligned to be 2.`<ES_VERSION>`, so to install for ES 2.2+, use the following command and replace `<ES_VERSION>` with your ES version:
-
-    bin/plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/2.<ES_VERSION>/elasticsearch-transport-couchbase-2.<ES_VERSION>.zip
-
-You will be asked to approve additional permissions required by the plugin, please do so.
-
-To install the ES 2.1.1 compatible version, run the following command from your Elasticsearch installation folder:
-
-    bin/plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/v2.2.1.2/elasticsearch-transport-couchbase-2.2.1.2.zip
-
 To install the ES 1.x compatible plugin, run the following command from your Elasticsearch installation folder:
 
     bin/plugin -i transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.1.2/elasticsearch-transport-couchbase-2.1.2.zip
     
+To install the ES 2.1.1 compatible version, run the following command from your Elasticsearch installation folder:
 
-Version Compatibility: 
+    bin/plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/v2.2.1.2/elasticsearch-transport-couchbase-2.2.1.2.zip
+
+As of ES 2.2, the plugin versions are aligned to be 2.`<ES_VERSION>`, so to install for ES 2.2+, use the following command and replace `<ES_VERSION>` with your ES version:
+
+    bin/plugin -i transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.1.2/elasticsearch-transport-couchbase-2.1.2.zip
+    
+
+Version Compatibility:
 
     +------------------------------------------------------------------+
     |  Plugin                       |  Couchbase    | Elasticsearch    |
     +------------------------------------------------------------------+
-    | master                        |  2.5.x - 4.x  | 2.4.0            |
+    | master                        |  2.5.x - 4.x  | 2.3.1            |
     +------------------------------------------------------------------+
     | 2.5.0.0-alpha2                |  2.5.x - 4.x  | 5.0.0-alpha2     |
     +------------------------------------------------------------------+
@@ -62,10 +60,10 @@ Configuration for the plugin is specified as part of the Elasticsearch config fi
 ## Advanced Settings ##
 
 - **couchbase.ignoreFailures** - Enabling this flag will cause the plugin to return a success status to Couchbase even if it cannot index some of the documents. This will prevent the XDCR replication from being stalled due to indexing errors in Elasticsearch, for example when a schema change breaks some of the ES type mappings. Default is `false`.
-- **couchbase.ignoreDeletes** - Specifying one or more index names (as a comma or semicolon delimited string) here will cause the plugin to ignore document deletion and expiration for those indexes. This can be used to turn Elasticsearch into a sort of searchable archive for a Couchbase bucket. Note that this also means that the index will continue to grow indefinitely.
+- **couchbase.ignoreDeletes** - Specifying one or more index names (as a comma delimited string) here will cause the plugin to ignore document deletion and expiration for those indexes. This can be used to turn Elasticsearch into a sort of searchable archive for a Couchbase bucket. Note that this also means that the index will continue to grow indefinitely.
 - **couchbase.wrapCounters** - Enabling this flag will cause the plugin to wrap integer values from Couchbase, which are not valid JSON documents, in a simple document before indexing them in Elasticsearch. The resulting document is in the format `{ "value" : <value> }` and is stored under the ID of the original value from Couchbase.
 - **couchbase.ignoreDotIndexes** - Enabled by default (`true`). Causes the plugin to completely ignore indexes/aliases whose name starts with ".", such as ".kibana", ".marvel", etc.
-- **couchbase.includeIndexes** - Specifying one or more index/alias names (as a comma or semicolon delimited string) here will cause the plugin to ignore the existence of all other indexes. For example, if you have only a few indexes replicated from Couchbase, there's no reason to store checkpoint metadata in all other indexes. Note that this setting takes precedence over ignoreDotIndexes, so if you whitelist an index or alias that starts with a dot, the plugin will use it. 
+- **couchbase.includeIndexes** - Specifying one or more index/alias names (as a comma delimited string) here will cause the plugin to ignore the existence of all other indexes. For example, if you have only a few indexes replicated from Couchbase, there's no reason to store checkpoint metadata in all other indexes. Note that this setting takes precedence over ignoreDotIndexes, so if you whitelist an index or alias that starts with a dot, the plugin will use it.
 
 ### Mapping Couchbase documents to Elasticsearch types ###
 

@@ -7,7 +7,7 @@
 	<includeBaseDirectory>false</includeBaseDirectory>
 	<dependencySets>
 		<dependencySet>
-			<outputDirectory>/</outputDirectory>
+			<outputDirectory>/elasticsearch</outputDirectory>
 			<useProjectArtifact>true</useProjectArtifact>
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 			<excludes>
@@ -19,14 +19,14 @@
 		<file>
 			<source>src/main/resources/couchbase_template.json</source>
 			
-			<outputDirectory>/</outputDirectory>
+			<outputDirectory>/elasticsearch</outputDirectory>
 		</file>
 		<file>
 		    <source>src/main/plugin-metadata/plugin-descriptor.properties</source>
-		    <outputDirectory>/</outputDirectory>
+		    <outputDirectory>/elasticsearch</outputDirectory>
 		</file>
         <file>
             <source>src/main/plugin-metadata/plugin-security.policy</source>
-            <outputDirectory>/</outputDirectory>
+            <outputDirectory>/elasticsearch</outputDirectory>
         </file>	</files>
 </assembly>

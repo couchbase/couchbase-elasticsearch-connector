@@ -39,18 +39,19 @@ import org.elasticsearch.cluster.metadata.IndexMetaData;
 import com.google.common.cache.Cache;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import com.carrotsearch.hppc.cursors.ObjectCursor;
-import org.elasticsearch.common.logging.ESLogger;
+import org.apache.logging.log4j.Logger;
 
 import com.couchbase.capi.CouchbaseBehavior;
+import org.elasticsearch.rest.RestStatus;
 
 public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     protected Client client;
-    protected ESLogger logger;
+    protected Logger logger;
     protected Cache<String, String> bucketUUIDCache;
     private final PluginSettings pluginSettings;
 
-    public ElasticSearchCouchbaseBehavior(Client client, ESLogger logger, Cache<String, String> bucketUUIDCache, PluginSettings pluginSettings) {
+    public ElasticSearchCouchbaseBehavior(Client client, Logger logger, Cache<String, String> bucketUUIDCache, PluginSettings pluginSettings) {
         this.client = client;
         this.logger = logger;
         this.bucketUUIDCache = bucketUUIDCache;
@@ -179,7 +180,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         ListenableActionFuture<IndexResponse> laf = builder.execute();
         if(laf != null) {
             response = laf.actionGet();
-            if(!response.isCreated()) {
+            if(response.status() != RestStatus.CREATED) {
                 logger.error("did not succeed creating uuid");
             }
         }
@@ -234,7 +235,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
                 // FIXME there has to be a better way than
                 // parsing this string
                 // but so far I have not found it
-                if (nodeInfo.getServiceAttributes() != null) {
+                if (nodeInfo.getPlugins().getPluginInfos().getServiceAttributes() != null) {
                     for (Map.Entry<String, String> nodeAttribute : nodeInfo
                             .getServiceAttributes().entrySet()) {
                         if (nodeAttribute.getKey().equals(
