@@ -3,9 +3,9 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.couchbase</groupId>
     <artifactId>elasticsearch-transport-couchbase</artifactId>
-    <version>2.${elasticsearch.version}-update1</version>
+    <version>2.${elasticsearch.version}</version>
     <properties>
-        <elasticsearch.version>2.3.5</elasticsearch.version>
+        <elasticsearch.version>2.4.3</elasticsearch.version>
     </properties>
 
     <repositories>
