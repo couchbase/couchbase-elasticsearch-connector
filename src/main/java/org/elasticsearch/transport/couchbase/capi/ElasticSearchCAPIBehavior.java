@@ -15,13 +15,8 @@ package org.elasticsearch.transport.couchbase.capi;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.UUID;
 
 import javax.servlet.UnavailableException;
 
@@ -43,6 +38,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexRequest.OpType;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.support.replication.ReplicationRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Base64;
 import com.google.common.cache.Cache;
@@ -435,6 +431,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
         do {
             // build the bulk request for this iteration
+            response = null;
             bulkBuilder = client.prepareBulk();
             for (Entry<String,IndexRequest> entry : bulkIndexRequests.entrySet()) {
                 bulkBuilder.add(entry.getValue());
@@ -456,10 +453,37 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 }
             }
             
-            if(bulkBuilder.numberOfActions() > 0)
-	            response = bulkBuilder.execute().actionGet();
+            if(bulkBuilder.numberOfActions() > 0) {
+                try {
+                    response = bulkBuilder.execute().actionGet();
+                } catch (Exception e) {
+                    errors.append("Error indexing bulk with document IDs: [");
+
+                    for (Entry<String, IndexRequest> entry : bulkIndexRequests.entrySet()) {
+                        errors.append(entry.getKey() + ", ");
+                        if (pluginSettings.getIgnoreFailures()) {
+                            Map<String, Object> mockResult = new HashMap<String, Object>();
+                            mockResult.put("id", entry.getKey());
+                            mockResult.put("rev", revisions.get(entry.getKey()));
+                            mockResults.add(mockResult);
+                        }
+                    }
+                    for (Entry<String, DeleteRequest> entry : bulkDeleteRequests.entrySet()) {
+                        errors.append(entry.getKey() + ", ");
+                        if (pluginSettings.getIgnoreFailures()) {
+                            Map<String, Object> mockResult = new HashMap<String, Object>();
+                            mockResult.put("id", entry.getKey());
+                            mockResult.put("rev", revisions.get(entry.getKey()));
+                            mockResults.add(mockResult);
+                        }
+                        errors.append("]" + System.lineSeparator());
+                        errors.append("ERROR: " + e.toString() + System.lineSeparator());
+                        break; // Do not retry bulk
+                    }
+                }
+            }
             else
-                break;
+                break; // No actions left to retry
             
             if(response != null) {
                 for (BulkItemResponse bulkItemResponse : response.getItems()) {
@@ -493,10 +517,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                                 mockResult.put("rev", itemRev);
                                 mockResults.add(mockResult);
                             }
-                            else {
-                                errors.append(failure.getMessage());
-                                errors.append(System.lineSeparator());
-                            }
+
+                            errors.append(failure.getMessage());
+                            errors.append(System.lineSeparator());
                         }
                     }
                 }
