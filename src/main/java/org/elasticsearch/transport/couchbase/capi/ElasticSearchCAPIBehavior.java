@@ -384,7 +384,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             if(deleted) {
             	if (!ignoreDelete) {
                 	DeleteRequest deleteRequest = client.prepareDelete(index, type, id).request();
-                	bulkDeleteRequests.put(id, deleteRequest);
+                    bulkDeleteRequests.put(id, deleteRequest);
             	}else{
                 	// For ignored deletes, we want to bypass from adding the delete request
             		// as a hack - we add a "mock" response for each delete request as if ES returned
@@ -476,10 +476,11 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                             mockResult.put("rev", revisions.get(entry.getKey()));
                             mockResults.add(mockResult);
                         }
-                        errors.append("]" + System.lineSeparator());
-                        errors.append("ERROR: " + e.toString() + System.lineSeparator());
-                        break; // Do not retry bulk
                     }
+
+                    errors.append("]" + System.lineSeparator());
+                    errors.append("ERROR: " + e.toString() + System.lineSeparator());
+                    break; // Do not retry bulk
                 }
             }
             else
@@ -504,8 +505,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
                         // If the error is fatal, don't retry the request.
                         if(failureMessageAppearsFatal(failure.getMessage())) {
-                            logger.error("error indexing document id: " + itemId + " exception: " + failure.getMessage());
-
+                            String operation = bulkDeleteRequests.containsKey(itemId) ? "deleting" : "indexing";
+                            logger.error("Error " + operation + " document id: " + itemId + " exception: " + failure.getMessage());
                             bulkIndexRequests.remove(itemId);
                             bulkDeleteRequests.remove(itemId);
 
