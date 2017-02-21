@@ -33,7 +33,7 @@ public interface CouchbaseCAPIService {
         public static final Setting<Boolean> ENABLED = Setting.boolSetting("couchbase.enabled", true, Property.NodeScope);
 
         // Network
-        public static final Setting<String> PORT = new Setting<>("couchbase.port", s -> "9091-10091", Function.identity(), Property.NodeScope);
+        public static final Setting<Integer> PORT = Setting.intSetting("couchbase.port", 9091, Property.NodeScope);
 
         // Behavior
         public static final Setting<Boolean> IGNORE_FAILURES = Setting.boolSetting("couchbase.ignoreFailures", false, Property.NodeScope);

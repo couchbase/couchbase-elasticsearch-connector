@@ -47,7 +47,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent imple
     private Client client;
     private final NetworkService networkService;
 
-    private final String port;
+    private final int port;
     private final String bindHost;
     private final String publishHost;
 
@@ -138,37 +138,32 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent imple
         capiBehavior = new ElasticSearchCAPIBehavior(client, logger, bucketUUIDCache, pluginSettings);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, bucketUUIDCache, pluginSettings);
 
-        PortsRange portsRange = new PortsRange(port);
-
-        logger.info("Using port(s):"+ port);
+        logger.info("Using port:"+ port);
 
         final AtomicReference<Exception> lastException = new AtomicReference<>();
-     
-        boolean success = portsRange.iterate(portNumber -> {
-                AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
-                    try {
-                        logger.info("Starting transport-couchbase plugin server on address:" + bindAddress + " port: " + portNumber + " publish address: " + publishAddressHost);
-                        server = new CAPIServer(capiBehavior, couchbaseBehavior,
-                                new InetSocketAddress(bindAddress, portNumber),
-                                CouchbaseCAPITransportImpl.this.username,
-                                CouchbaseCAPITransportImpl.this.password,
-                                numVbuckets);
 
-                        if (publishAddressHost != null) {
-                            server.setPublishAddress(publishAddressHost);
-                        }
+        boolean success = AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> {
+            try {
+                logger.info("Starting transport-couchbase plugin server on address:" + bindAddress + " port: " + port + " publish address: " + publishAddressHost);
+                server = new CAPIServer(capiBehavior, couchbaseBehavior,
+                        new InetSocketAddress(bindAddress, port),
+                        CouchbaseCAPITransportImpl.this.username,
+                        CouchbaseCAPITransportImpl.this.password,
+                        numVbuckets);
 
-                        server.start();
-                        result = true;
-                    } catch (Exception e) {
-                        lastException.set(e);
-                        result = false;
-                    }
+                if (publishAddressHost != null) {
+                    server.setPublishAddress(publishAddressHost);
+                }
 
-                    return null;
-                });
-                return result;
-            });
+                server.start();
+                result = true;
+            } catch (Exception e) {
+                lastException.set(e);
+                result = false;
+            }
+
+            return result;
+        });
         if (!success) {
             throw new BindHttpException("Failed to bind to [" + port + "]",
                     lastException.get());

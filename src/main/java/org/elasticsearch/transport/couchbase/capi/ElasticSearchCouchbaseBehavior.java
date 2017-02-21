@@ -42,6 +42,7 @@ import com.carrotsearch.hppc.cursors.ObjectCursor;
 import org.apache.logging.log4j.Logger;
 
 import com.couchbase.capi.CouchbaseBehavior;
+import org.elasticsearch.plugins.PluginInfo;
 import org.elasticsearch.rest.RestStatus;
 
 public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
@@ -60,7 +61,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     @Override
     public List<String> getPools() {
-        List<String> result = new ArrayList<String>();
+        List<String> result = new ArrayList<>();
         result.add("default");
         return result;
     }
@@ -228,49 +229,32 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             NodesInfoRequestBuilder infoBuilder = client.admin().cluster().prepareNodesInfo((String[]) null);
             NodesInfoResponse infoResponse = infoBuilder.execute().actionGet();
 
-            // extract what we need from this response
-            List<Object> nodes = new ArrayList<Object>();
+            List<Object> nodes = new ArrayList<>();
+            int port = pluginSettings.getPort();
+
+            // Find which nodes are running the transport-couchbase plugin
             for (NodeInfo nodeInfo : infoResponse.getNodes()) {
+                List<PluginInfo> plugins = nodeInfo.getPlugins().getPluginInfos();
+                String host = nodeInfo.getHostname();
 
-                // FIXME there has to be a better way than
-                // parsing this string
-                // but so far I have not found it
-                if (nodeInfo.getPlugins().getPluginInfos().getServiceAttributes() != null) {
-                    for (Map.Entry<String, String> nodeAttribute : nodeInfo
-                            .getServiceAttributes().entrySet()) {
-                        if (nodeAttribute.getKey().equals(
-                                "couchbase_address")) {
-                            int start = nodeAttribute
-                                    .getValue()
-                                    .lastIndexOf("/");
-                            int end = nodeAttribute
-                                    .getValue()
-                                    .lastIndexOf("]");
-                            
-                            if (end == -1) {
-                            	end = nodeAttribute.getValue().length();
-                            }
-                            
-                            String hostPort = nodeAttribute
-                                    .getValue().substring(
-                                            start + 1, end);
-                            String[] parts = hostPort.split(":");
+                if (plugins != null) {
+                    for (PluginInfo plugin : plugins) {
+                        if (plugin.getName().contains("transport-couchbase")) {
+                            Map<String, Object> nodePorts = new HashMap<>();
+                            nodePorts.put("direct", port);
 
-                            Map<String, Object> nodePorts = new HashMap<String, Object>();
-                            nodePorts.put("direct", Integer.parseInt(parts[1]));
-
-                            Map<String, Object> node = new HashMap<String, Object>();
-                            node.put("couchApiBase", String.format("http://%s/", hostPort));
-                            node.put("hostname", hostPort);
+                            Map<String, Object> node = new HashMap<>();
+                            node.put("couchApiBase", String.format("http://%s:%s/", host, port));
+                            node.put("hostname", String.format("%s:%s", host, port));
                             node.put("ports", nodePorts);
 
                             nodes.add(node);
+                            logger.debug(String.format("Found transport-couchbase running on: %s:%s", host, port));
                         }
                     }
                 }
             }
             return nodes;
-
         }
         return null;
     }

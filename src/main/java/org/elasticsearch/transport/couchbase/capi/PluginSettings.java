@@ -35,6 +35,8 @@ public class PluginSettings {
 
     private List<String> includeIndexes;
 
+    private int port;
+
     public PluginSettings(Settings settings) {
         this.setCheckpointDocumentType(CouchbaseCAPIService.Config.CHECKPOINT_DOCUMENT_TYPE.get(settings));
         this.setResolveConflicts(CouchbaseCAPIService.Config.RESOLVE_CONFLICTS.get(settings));
@@ -49,6 +51,7 @@ public class PluginSettings {
         this.setIgnoreDotIndexes(CouchbaseCAPIService.Config.IGNORE_DOT_INDEXES.get(settings));
         this.setIncludeIndexes(CouchbaseCAPIService.Config.INCLUDE_INDEXES.get(settings));
         this.getIncludeIndexes().removeAll(Arrays.asList("", null));
+        this.setPort(CouchbaseCAPIService.Config.PORT.get(settings));
 
         TypeSelector typeSelector;
         Class<? extends TypeSelector> typeSelectorClass = this.getAsClass(CouchbaseCAPIService.Config.TYPE_SELECTOR.get(settings), DefaultTypeSelector.class);
@@ -113,6 +116,7 @@ public class PluginSettings {
                 ", documentTypeRoutingFields=" + documentTypeRoutingFields +
                 ", ignoreDeletes=" + ignoreDeletes +
                 ", includeIndexes=" + includeIndexes +
+                ", port=" + port +
                 '}';
     }
 
@@ -226,5 +230,13 @@ public class PluginSettings {
 
     public void setIncludeIndexes(List<String> includeIndexes) {
         this.includeIndexes = includeIndexes;
+    }
+
+    public int getPort() {
+        return this.port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
     }
 }
