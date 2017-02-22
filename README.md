@@ -204,14 +204,12 @@ At the end of the process, your policy tool should look similar to this:
 Click "Done" to close the "Policy Entry" window and then select "Save" from the File menu of the "Policy Tool" window. Close the `policytool` utility when you're finished.
 
 
-Couchbase Document Expiration
-=============================
+# Couchbase Document Expiration #
 
-If you use the document expiration feature of Couchbase Server to expire documents after a specified TTL, you must enable the corresponding feature in your Elasticsearch mapping.  There is some cost associated with enabling this feature, so it is left disabled by default.
+**IMPORTANT NOTE:** the `_ttl` field has been deprecated and removed in ES 5.x, so it is no longer possible to forward document expiration from Couchbase to Elastic. See [this page](https://www.elastic.co/guide/en/elasticsearch/reference/5.2/breaking_50_mapping_changes.html#_literal__timestamp_literal_and_literal__ttl_literal) in the Elastic documentation to details. 
 
-See this page in the Elasticsearch guide for more information about enabling this feature:
+In ES 2.x and earlier, if you use the document expiration feature of Couchbase Server to expire documents after a specified time, you must enable the corresponding feature in your Elasticsearch mapping. There is some cost associated with enabling this feature, so it is left disabled by default. See [this page](http://www.elasticsearch.org/guide/reference/mapping/ttl-field.html) in the Elasticsearch guide for more information about enabling this feature.
 
-http://www.elasticsearch.org/guide/reference/mapping/ttl-field.html
 
 # Logging #
 
@@ -224,8 +222,7 @@ To set up logging on ES 1.x to 2.x, add the following to the logging.yml file un
 
     transport.couchbase: <ERROR|WARN|INFO|DEBUG|TRACE>
 
-Usage
-=====
+# Usage #
 
 Preparing Elasticsearch
 
@@ -252,8 +249,7 @@ Starting Data Transfer
 4. Type in the name of the Elasticsearch index you wish to store the data in.  This index must already exist.
 5. If you are using Couchbase Server 2.2 or later, click Advanced settings and change the XDCR Protocol setting to Version 1
 
-Building
-========
+# Building #
 
 This module is built using maven.  It depends on another project which is not in any public maven repositories, see https://github.com/couchbaselabs/couchbase-capi-server and run `mvn install` on that first.
 
