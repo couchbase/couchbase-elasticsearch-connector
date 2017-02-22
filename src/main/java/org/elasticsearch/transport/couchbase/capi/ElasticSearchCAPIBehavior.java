@@ -210,23 +210,21 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 logger.debug("client was null");
             }
             if(response != null) {
-                Iterator<MultiGetItemResponse> iterator = response.iterator();
-                while(iterator.hasNext()) {
-                    MultiGetItemResponse item = iterator.next();
-                    if(item.isFailed()) {
+                for (MultiGetItemResponse item : response) {
+                    if (item.isFailed()) {
                         logger.warn("_revs_diff get failure on index: {} id: {} message: {}", item.getIndex(), item.getId(), item.getFailure().getMessage());
                     } else {
-                        if(item.getResponse().isExists()) {
+                        if (item.getResponse().isExists()) {
                             String itemId = item.getId();
                             Map<String, Object> source = item.getResponse().getSourceAsMap();
-                            if(source != null) {
-                                Map<String, Object> meta = (Map<String, Object>)source.get("meta");
-                                if(meta != null) {
-                                    String rev = (String)meta.get("rev");
+                            if (source != null) {
+                                Map<String, Object> meta = (Map<String, Object>) source.get("meta");
+                                if (meta != null) {
+                                    String rev = (String) meta.get("rev");
                                     //retrieve the revision passed in from Couchbase
-                                    Map<String, String> sourceRevMap = (Map<String, String>)responseMap.get(itemId);
+                                    Map<String, String> sourceRevMap = (Map<String, String>) responseMap.get(itemId);
                                     String sourceRev = sourceRevMap.get("missing");
-                                    if(rev.equals(sourceRev)) {
+                                    if (rev.equals(sourceRev)) {
                                         // if our revision is the same as the source rev
                                         // remove it from the response map
                                         responseMap.remove(itemId);

@@ -77,10 +77,10 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     @Override
     public Map<String, Object> getPoolDetails(String pool) {
         if("default".equals(pool)) {
-            Map<String, Object> bucket = new HashMap<String, Object>();
+            Map<String, Object> bucket = new HashMap<>();
             bucket.put("uri", "/pools/" + pool + "/buckets?uuid=" + getPoolUUID(pool));
 
-            Map<String, Object> responseMap = new HashMap<String, Object>();
+            Map<String, Object> responseMap = new HashMap<>();
             responseMap.put("buckets", bucket);
 
             List<Object> nodes = getNodesServingPool(pool);
@@ -94,7 +94,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     @Override
     public List<String> getBucketsInPool(String pool) {
         if("default".equals(pool)) {
-            List<String> bucketNameList = new ArrayList<String>();
+            List<String> bucketNameList = new ArrayList<>();
 
             ClusterStateRequestBuilder stateBuilder = client.admin().cluster().prepareState();
             ClusterStateResponse response = stateBuilder.execute().actionGet();
@@ -165,9 +165,9 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         if(shouldIgnoreBucket(bucket)) // Don't touch buckets on the ignore list
             return;
 
-        Map<String,Object> doc = new HashMap<String, Object>();
+        Map<String,Object> doc = new HashMap<>();
         doc.put("uuid", uuid);
-        Map<String, Object> toBeIndexed = new HashMap<String, Object>();
+        Map<String, Object> toBeIndexed = new HashMap<>();
         toBeIndexed.put("doc", doc);
 
         IndexRequestBuilder builder = client.prepareIndex();
@@ -238,20 +238,20 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
                 String host = nodeInfo.getHostname();
 
                 if (plugins != null) {
-                    for (PluginInfo plugin : plugins) {
-                        if (plugin.getName().contains("transport-couchbase")) {
-                            Map<String, Object> nodePorts = new HashMap<>();
-                            nodePorts.put("direct", port);
+                    plugins.stream()
+                    .filter(plugin -> plugin.getName().contains("transport-couchbase"))
+                    .forEach(plugin -> {
+                        Map<String, Object> nodePorts = new HashMap<>();
+                        nodePorts.put("direct", port);
 
-                            Map<String, Object> node = new HashMap<>();
-                            node.put("couchApiBase", String.format("http://%s:%s/", host, port));
-                            node.put("hostname", String.format("%s:%s", host, port));
-                            node.put("ports", nodePorts);
+                        Map<String, Object> node = new HashMap<>();
+                        node.put("couchApiBase", String.format("http://%s:%s/", host, port));
+                        node.put("hostname", String.format("%s:%s", host, port));
+                        node.put("ports", nodePorts);
 
-                            nodes.add(node);
-                            logger.debug(String.format("Found transport-couchbase running on: %s:%s", host, port));
-                        }
-                    }
+                        nodes.add(node);
+                        logger.debug(String.format("Found transport-couchbase running on: %s:%s", host, port));
+                });
                 }
             }
             return nodes;
@@ -261,8 +261,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     @Override
     public Map<String, Object> getStats() {
-        Map<String, Object> result = new HashMap<String, Object>();
-        return result;
+        return new HashMap<>();
     }
 
 }
