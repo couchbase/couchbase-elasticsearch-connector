@@ -213,6 +213,16 @@ See this page in the Elasticsearch guide for more information about enabling thi
 
 http://www.elasticsearch.org/guide/reference/mapping/ttl-field.html
 
+# Logging #
+
+To set up logging on ES 5.x, add the following to the log4j2.properties file located in Elastic's config folder:
+
+    logger.transport.name = org.elasticsearch.transport.couchbase
+    logger.transport.level = <error|warn|info|debug|trace>
+
+To set up logging on ES 1.x to 2.x, add the following to the logging.yml file under the `logger:` section:
+
+    transport.couchbase: <ERROR|WARN|INFO|DEBUG|TRACE>
 
 Usage
 =====

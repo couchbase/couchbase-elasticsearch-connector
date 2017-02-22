@@ -24,13 +24,10 @@ public class CouchbaseCAPI extends AbstractLifecycleComponent {
 
     private final CouchbaseCAPITransport transport;
 
-    private final NodeService nodeService;
-
     @Inject
-    public CouchbaseCAPI(Settings settings, CouchbaseCAPITransport transport, NodeService nodeService) {
+    public CouchbaseCAPI(Settings settings, CouchbaseCAPITransport transport) {
         super(settings);
         this.transport = transport;
-        this.nodeService = nodeService;
     }
 
     @Override
@@ -39,12 +36,10 @@ public class CouchbaseCAPI extends AbstractLifecycleComponent {
         if (logger.isInfoEnabled()) {
             logger.info("{}", transport.boundAddress());
         }
-        //nodeService.putAttribute("couchbase_address", transport.boundAddress().publishAddress().toString());
     }
 
     @Override
     protected void doStop() throws ElasticsearchException {
-        //nodeService.removeAttribute("couchbase_address");
         transport.stop();
     }
 
