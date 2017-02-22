@@ -372,6 +372,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             Integer expiration = (Integer)meta.get("expiration");
             if(expiration != null && expiration > 0) {
                 ttl = (expiration.longValue() * 1000) - System.currentTimeMillis();
+                if(logger.isDebugEnabled())
+                    logger.debug(String.format("Document %s has expiration set, which is not supported in ES 5.0+", id));
             }
 
             String routingField = null;
