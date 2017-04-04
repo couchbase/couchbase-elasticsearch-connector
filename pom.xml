@@ -54,7 +54,7 @@
         <dependency>
         	<groupId>com.couchbase</groupId>
         	<artifactId>couchbase-capi-server</artifactId>
-            <version>1.6.0</version>
+            <version>1.6.2</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>

@@ -83,7 +83,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             Map<String, Object> responseMap = new HashMap<>();
             responseMap.put("buckets", bucket);
 
-            List<Object> nodes = getNodesServingPool(pool);
+            List<Map<String, Object>> nodes = getNodesServingPool(pool);
             responseMap.put("nodes", nodes);
 
             return responseMap;
@@ -223,13 +223,13 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     }
 
     @Override
-    public List<Object> getNodesServingPool(String pool) {
+    public List<Map<String, Object>> getNodesServingPool(String pool) {
         if("default".equals(pool)) {
 
             NodesInfoRequestBuilder infoBuilder = client.admin().cluster().prepareNodesInfo((String[]) null);
             NodesInfoResponse infoResponse = infoBuilder.execute().actionGet();
 
-            List<Object> nodes = new ArrayList<>();
+            List<Map<String, Object>> nodes = new ArrayList<>();
             int port = pluginSettings.getPort();
 
             // Find which nodes are running the transport-couchbase plugin
