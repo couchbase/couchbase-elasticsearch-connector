@@ -27,6 +27,7 @@ import java.util.Base64;
 import javax.servlet.UnavailableException;
 
 import org.codehaus.jackson.map.ObjectMapper;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.ListenableActionFuture;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequestBuilder;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
@@ -41,7 +42,6 @@ import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetRequestBuilder;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexRequest.OpType;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
@@ -705,7 +705,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         builder.setId(id);
         builder.setType(pluginSettings.getCheckpointDocumentType());
         builder.setSource(toBeIndexed);
-        builder.setOpType(OpType.CREATE);
+        builder.setOpType(DocWriteRequest.OpType.CREATE);
 
         IndexResponse response;
         ListenableActionFuture<IndexResponse> laf = builder.execute();

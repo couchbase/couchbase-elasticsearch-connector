@@ -17,8 +17,6 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.node.service.NodeService;
-import org.elasticsearch.rest.RestController;
 
 public class CouchbaseCAPI extends AbstractLifecycleComponent {
 
