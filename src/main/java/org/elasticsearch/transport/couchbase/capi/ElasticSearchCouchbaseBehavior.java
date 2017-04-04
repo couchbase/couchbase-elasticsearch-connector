@@ -81,7 +81,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             Map<String, Object> responseMap = new HashMap<String, Object>();
             responseMap.put("buckets", bucket);
 
-            List<Object> nodes = getNodesServingPool(pool);
+            List<Map<String, Object>> nodes = getNodesServingPool(pool);
             responseMap.put("nodes", nodes);
 
             return responseMap;
@@ -204,7 +204,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             int tries = 0;
             bucketUUID = this.lookupUUID(bucket, "bucketUUID");
             while(bucketUUID == null && tries < 100) {
-                logger.debug("bucket UUID doesn't exist yet, creaating, attempt: {}", tries+1);
+                logger.debug("bucket UUID doesn't exist yet, creating, attempt: {}", tries+1);
                 String newUUID = UUID.randomUUID().toString().replace("-", "");
                 storeUUID(bucket, "bucketUUID", newUUID);
                 bucketUUID = this.lookupUUID(bucket, "bucketUUID");
@@ -221,14 +221,14 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     }
 
     @Override
-    public List<Object> getNodesServingPool(String pool) {
+    public List<Map<String, Object>> getNodesServingPool(String pool) {
         if("default".equals(pool)) {
 
             NodesInfoRequestBuilder infoBuilder = client.admin().cluster().prepareNodesInfo((String[]) null);
             NodesInfoResponse infoResponse = infoBuilder.execute().actionGet();
 
             // extract what we need from this response
-            List<Object> nodes = new ArrayList<Object>();
+            List<Map<String, Object>> nodes = new ArrayList<>();
             for (NodeInfo nodeInfo : infoResponse.getNodes()) {
 
                 // FIXME there has to be a better way than
@@ -255,10 +255,10 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
                                             start + 1, end);
                             String[] parts = hostPort.split(":");
 
-                            Map<String, Object> nodePorts = new HashMap<String, Object>();
+                            Map<String, Object> nodePorts = new HashMap<>();
                             nodePorts.put("direct", Integer.parseInt(parts[1]));
 
-                            Map<String, Object> node = new HashMap<String, Object>();
+                            Map<String, Object> node = new HashMap<>();
                             node.put("couchApiBase", String.format("http://%s/", hostPort));
                             node.put("hostname", hostPort);
                             node.put("ports", nodePorts);
@@ -276,7 +276,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     @Override
     public Map<String, Object> getStats() {
-        Map<String, Object> result = new HashMap<String, Object>();
+        Map<String, Object> result = new HashMap<>();
         return result;
     }
 

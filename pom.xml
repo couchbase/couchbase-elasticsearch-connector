@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.couchbase</groupId>
     <artifactId>elasticsearch-transport-couchbase</artifactId>
-    <version>2.${elasticsearch.version}-update2</version>
+    <version>2.${elasticsearch.version}-update3</version>
     <properties>
         <elasticsearch.version>2.3.4</elasticsearch.version>
     </properties>
@@ -39,7 +39,7 @@
         <dependency>
             <groupId>com.couchbase</groupId>
             <artifactId>couchbase-capi-server</artifactId>
-            <version>1.4.1</version>
+            <version>1.4.2</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
