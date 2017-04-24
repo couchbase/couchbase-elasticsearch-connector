@@ -20,7 +20,7 @@ As of ES 5.x, use the following command to install the plugin:
 
 To install the ES 1.x compatible plugin, run the following command from your Elasticsearch installation folder:
 
-    bin/plugin -i transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.1.2/elasticsearch-transport-couchbase-2.1.2.zip
+    bin/plugin -i transport-couchbase -url https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/2.1.2-GA/elasticsearch-transport-couchbase-2.1.2.zip
 
 
 Version Compatibility:
