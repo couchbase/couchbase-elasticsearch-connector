@@ -2,6 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.couchbase</groupId>
   <artifactId>elasticsearch-transport-couchbase</artifactId>
+
   <version>2.5.6.2</version>
     <properties>
         <elasticsearch.version>5.6.2</elasticsearch.version>
