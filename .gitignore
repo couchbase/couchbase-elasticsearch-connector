@@ -6,3 +6,5 @@ target/
 .settings/
 bin/
 .DS_Store
+.gradle/
+build/
