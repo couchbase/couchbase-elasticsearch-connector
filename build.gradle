@@ -1,0 +1,121 @@
+import java.security.MessageDigest
+
+defaultTasks 'clean', 'buildAll'
+
+apply plugin: 'java'
+
+def baseVersion = '3.0.0'
+def snapshot = true
+
+def branch = 'cypress'
+
+ext.elasticsearchVersions = [
+        '5.6.4',
+        '5.6.3',
+        '5.6.2',
+        '5.6.1',
+        '5.6.0',
+        '5.5.3',
+        '5.5.2',
+        '5.5.1',
+        '5.5.0',
+        '5.4.3',
+        '5.4.2',
+        '5.4.1',
+        '5.4.0',
+        '5.3.3',
+        '5.3.2',
+        '5.3.1',
+        '5.3.0',
+]
+
+if (!project.hasProperty("elasticsearchVersion")) {
+    // Set default version for 'build' task, and for IDE to use when importing the project
+    ext.elasticsearchVersion = elasticsearchVersions[0]
+}
+
+group = 'com.couchbase'
+version = baseVersion + "-" + branch + "-es" + ext.elasticsearchVersion + (snapshot ? "-SNAPSHOT" : "")
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenLocal()
+    jcenter()
+}
+
+dependencies {
+    compile "com.google.guava:guava:19.0"
+    compile "com.couchbase:couchbase-capi-server:1.6.3"
+    compile ("org.slf4j:slf4j-log4j12:1.7.23") { // SLF4J bridge required by CAPI server
+        transitive = false // Elasticsearch provides the log4j library
+    }
+
+    compileOnly "org.elasticsearch:elasticsearch:${elasticsearchVersion}"
+    compileOnly "com.carrotsearch:hppc:0.7.1"
+    compileOnly "org.apache.logging.log4j:log4j-1.2-api:2.7"
+
+    testCompile "org.apache.logging.log4j:log4j-core:2.7"
+    testCompile "org.apache.logging.log4j:log4j-api:2.7"
+}
+
+task buildAll(group: "Build", description: "Assemble plugins compatible with all supported Elasticsearch versions")
+
+ext.elasticsearchVersions.each { esVersion ->
+    def taskName = "build-" + esVersion
+    task "$taskName"(type: GradleBuild, group: "Build", description: "Assemble a plugin compatible with Elasticsearch $esVersion") {
+        buildFile = 'build.gradle'
+        tasks = ['build']
+        startParameter.projectProperties = [
+                elasticsearchVersion: esVersion
+        ]
+    }
+    buildAll.dependsOn taskName
+}
+
+task pluginMetadata(type: Copy, group: "Build", description: "Assembles the plugin metadata resources") {
+    def placeholders = [
+            'plugin.version'       : project.version,
+            'elasticsearch.version': elasticsearchVersion,
+            'java.version'         : targetCompatibility.toString(),
+    ]
+
+    inputs.properties(placeholders)
+
+    from 'src/main/plugin-metadata'
+    into "${buildDir}/pluginMetadata"
+    filteringCharset = 'UTF-8'
+    filter { line ->
+        placeholders.each { placeholder, replacement -> line = line.replace("@$placeholder@", replacement) }
+        return line
+    }
+}
+
+task pluginArchive(type: Zip, group: "Build", description: "Assembles the distribution archive") {
+    into('elasticsearch') {
+        from jar
+        from configurations.compile
+        from pluginMetadata
+    }
+}
+
+def sha1(File file) {
+    MessageDigest md = MessageDigest.getInstance("SHA-1");
+    file.eachByte 4096, { bytes, size -> md.update(bytes, 0, size) }
+    return md.digest().encodeHex()
+}
+
+task checksum(group: "Build", description: "Generates SHA1 hash for the distribution archive") {
+    inputs.files pluginArchive.outputs
+    outputs.file pluginArchive.outputs.files.singleFile.path + ".sha1"
+
+    doLast {
+        outputs.files.singleFile.withWriter('UTF-8') { writer ->
+            writer.write(sha1(inputs.files.singleFile))
+        }
+    }
+}
+
+build.description = "Assemble plugin compatible with latest supported Elasticsearch version ($elasticsearchVersion)"
+build.dependsOn checksum
