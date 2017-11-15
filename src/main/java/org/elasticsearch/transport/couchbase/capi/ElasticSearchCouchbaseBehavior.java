@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2012 Couchbase, Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
@@ -13,12 +13,9 @@
  */
 package org.elasticsearch.transport.couchbase.capi;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
+import com.carrotsearch.hppc.cursors.ObjectCursor;
+import com.couchbase.capi.CouchbaseBehavior;
+import com.google.common.cache.Cache;
 import org.elasticsearch.action.ListenableActionFuture;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequestBuilder;
@@ -36,12 +33,14 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
-import com.google.common.cache.Cache;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
-import com.carrotsearch.hppc.cursors.ObjectCursor;
 import org.elasticsearch.common.logging.ESLogger;
 
-import com.couchbase.capi.CouchbaseBehavior;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
@@ -74,7 +73,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     @Override
     public Map<String, Object> getPoolDetails(String pool) {
-        if("default".equals(pool)) {
+        if ("default".equals(pool)) {
             Map<String, Object> bucket = new HashMap<String, Object>();
             bucket.put("uri", "/pools/" + pool + "/buckets?uuid=" + getPoolUUID(pool));
 
@@ -91,20 +90,20 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     @Override
     public List<String> getBucketsInPool(String pool) {
-        if("default".equals(pool)) {
+        if ("default".equals(pool)) {
             List<String> bucketNameList = new ArrayList<String>();
 
             ClusterStateRequestBuilder stateBuilder = client.admin().cluster().prepareState();
             ClusterStateResponse response = stateBuilder.execute().actionGet();
             ImmutableOpenMap<String, IndexMetaData> indices = response.getState().getMetaData().getIndices();
             for (ObjectCursor<String> index : indices.keys()) {
-                if(!shouldIgnoreBucket(index.value)) // Don't include indexes on the ignore list
+                if (!shouldIgnoreBucket(index.value)) // Don't include indexes on the ignore list
                     bucketNameList.add(index.value);
 
                 IndexMetaData indexMetaData = indices.get(index.value);
                 ImmutableOpenMap<String, AliasMetaData> aliases = indexMetaData.getAliases();
-                for(ObjectCursor<String> alias : aliases.keys()) {
-                    if(!shouldIgnoreBucket(alias.value)) // Don't include aliases on the ignore list
+                for (ObjectCursor<String> alias : aliases.keys()) {
+                    if (!shouldIgnoreBucket(alias.value)) // Don't include aliases on the ignore list
                         bucketNameList.add(alias.value);
                 }
             }
@@ -115,29 +114,29 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     }
 
     protected Boolean shouldIgnoreBucket(String bucketName) {
-        if(bucketName == null)
+        if (bucketName == null)
             return true;
 
         // The includeIndexes setting takes precedence over ignoreDotIndexes
-        if(pluginSettings.getIncludeIndexes() != null &&
-           pluginSettings.getIncludeIndexes().size() > 0)
+        if (pluginSettings.getIncludeIndexes() != null &&
+                pluginSettings.getIncludeIndexes().size() > 0)
             return !pluginSettings.getIncludeIndexes().contains(bucketName);
 
-        if(pluginSettings.getIgnoreDotIndexes() && bucketName.startsWith("."))
+        if (pluginSettings.getIgnoreDotIndexes() && bucketName.startsWith("."))
             return true;
 
         return false;
     }
 
     protected String getUUIDFromCheckpointDocSource(Map<String, Object> source) {
-        Map<String,Object> docMap = (Map<String,Object>)source.get("doc");
-        String uuid = (String)docMap.get("uuid");
+        Map<String, Object> docMap = (Map<String, Object>) source.get("doc");
+        String uuid = (String) docMap.get("uuid");
         return uuid;
     }
 
     protected String lookupUUID(String bucket, String id) {
-        if(shouldIgnoreBucket(bucket)) // No point in checking buckets on the ignore list
-            return  null;
+        if (shouldIgnoreBucket(bucket)) // No point in checking buckets on the ignore list
+            return null;
 
         GetRequestBuilder builder = client.prepareGet();
         builder.setIndex(bucket);
@@ -148,11 +147,11 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         String bucketUUID = null;
         GetResponse response;
         ListenableActionFuture<GetResponse> laf = builder.execute();
-        if(laf != null) {
+        if (laf != null) {
             response = laf.actionGet();
-            if(response.isExists()) {
-            Map<String,Object> responseMap = response.getSourceAsMap();
-            bucketUUID = this.getUUIDFromCheckpointDocSource(responseMap);
+            if (response.isExists()) {
+                Map<String, Object> responseMap = response.getSourceAsMap();
+                bucketUUID = this.getUUIDFromCheckpointDocSource(responseMap);
             }
         }
 
@@ -160,10 +159,10 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     }
 
     protected void storeUUID(String bucket, String id, String uuid) {
-        if(shouldIgnoreBucket(bucket)) // Don't touch buckets on the ignore list
+        if (shouldIgnoreBucket(bucket)) // Don't touch buckets on the ignore list
             return;
 
-        Map<String,Object> doc = new HashMap<String, Object>();
+        Map<String, Object> doc = new HashMap<String, Object>();
         doc.put("uuid", uuid);
         Map<String, Object> toBeIndexed = new HashMap<String, Object>();
         toBeIndexed.put("doc", doc);
@@ -177,9 +176,9 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
         IndexResponse response;
         ListenableActionFuture<IndexResponse> laf = builder.execute();
-        if(laf != null) {
+        if (laf != null) {
             response = laf.actionGet();
-            if(!response.isCreated()) {
+            if (!response.isCreated()) {
                 logger.error("did not succeed creating uuid");
             }
         }
@@ -187,7 +186,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     @Override
     public String getBucketUUID(String pool, String bucket) {
-        if(shouldIgnoreBucket(bucket)) // Don't touch buckets on the ignore list
+        if (shouldIgnoreBucket(bucket)) // Don't touch buckets on the ignore list
             return null;
 
         // first look for bucket UUID in cache
@@ -200,18 +199,18 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         logger.debug("bucket UUID not in cache, looking up");
         IndicesExistsRequestBuilder existsBuilder = client.admin().indices().prepareExists(bucket);
         IndicesExistsResponse response = existsBuilder.execute().actionGet();
-        if(response.isExists()) {
+        if (response.isExists()) {
             int tries = 0;
             bucketUUID = this.lookupUUID(bucket, "bucketUUID");
-            while(bucketUUID == null && tries < 100) {
-                logger.debug("bucket UUID doesn't exist yet, creating, attempt: {}", tries+1);
+            while (bucketUUID == null && tries < 100) {
+                logger.debug("bucket UUID doesn't exist yet, creating, attempt: {}", tries + 1);
                 String newUUID = UUID.randomUUID().toString().replace("-", "");
                 storeUUID(bucket, "bucketUUID", newUUID);
                 bucketUUID = this.lookupUUID(bucket, "bucketUUID");
                 tries++;
             }
 
-            if(bucketUUID != null) {
+            if (bucketUUID != null) {
                 // store it in the cache
                 bucketUUIDCache.put(bucket, bucketUUID);
                 return bucketUUID;
@@ -222,7 +221,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     @Override
     public List<Map<String, Object>> getNodesServingPool(String pool) {
-        if("default".equals(pool)) {
+        if ("default".equals(pool)) {
 
             NodesInfoRequestBuilder infoBuilder = client.admin().cluster().prepareNodesInfo((String[]) null);
             NodesInfoResponse infoResponse = infoBuilder.execute().actionGet();
@@ -245,11 +244,11 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
                             int end = nodeAttribute
                                     .getValue()
                                     .lastIndexOf("]");
-                            
+
                             if (end == -1) {
-                            	end = nodeAttribute.getValue().length();
+                                end = nodeAttribute.getValue().length();
                             }
-                            
+
                             String hostPort = nodeAttribute
                                     .getValue().substring(
                                             start + 1, end);

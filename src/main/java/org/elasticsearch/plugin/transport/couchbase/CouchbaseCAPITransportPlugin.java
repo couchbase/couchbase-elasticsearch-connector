@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2012 Couchbase, Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
@@ -13,16 +13,16 @@
  */
 package org.elasticsearch.plugin.transport.couchbase;
 
-import static com.google.common.collect.Lists.newArrayList;
-
-import java.util.Collection;
-
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPI;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPIModule;
+
+import java.util.Collection;
+
+import static com.google.common.collect.Lists.newArrayList;
 
 public class CouchbaseCAPITransportPlugin extends Plugin {
 

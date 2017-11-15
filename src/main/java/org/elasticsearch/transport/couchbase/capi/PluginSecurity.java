@@ -19,6 +19,10 @@
 
 package org.elasticsearch.transport.couchbase.capi;
 
+import org.elasticsearch.common.cli.Terminal;
+import org.elasticsearch.common.cli.Terminal.Verbosity;
+import org.elasticsearch.env.Environment;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,12 +37,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import org.elasticsearch.common.cli.Terminal;
-import org.elasticsearch.common.cli.Terminal.Verbosity;
-import org.elasticsearch.env.Environment;
-
 class PluginSecurity {
-    
+
     /**
      * Reads plugin policy, prints/confirms exceptions
      */
@@ -49,7 +49,7 @@ class PluginSecurity {
             terminal.print(Verbosity.VERBOSE, "plugin has a policy file with no additional permissions");
             return;
         }
-        
+
         // sort permissions in a reasonable order
         Collections.sort(requested, new Comparator<Permission>() {
             @Override
@@ -80,7 +80,7 @@ class PluginSecurity {
                 return cmp;
             }
         });
-        
+
         terminal.println(Verbosity.NORMAL, "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
         terminal.println(Verbosity.NORMAL, "@     WARNING: plugin requires additional permissions     @");
         terminal.println(Verbosity.NORMAL, "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
@@ -98,11 +98,13 @@ class PluginSecurity {
             }
         }
     }
-    
-    /** Format permission type, name, and actions into a string */
+
+    /**
+     * Format permission type, name, and actions into a string
+     */
     static String formatPermission(Permission permission) {
         StringBuilder sb = new StringBuilder();
-        
+
         String clazz = null;
         if (permission instanceof UnresolvedPermission) {
             clazz = ((UnresolvedPermission) permission).getUnresolvedType();
@@ -110,7 +112,7 @@ class PluginSecurity {
             clazz = permission.getClass().getName();
         }
         sb.append(clazz);
-        
+
         String name = null;
         if (permission instanceof UnresolvedPermission) {
             name = ((UnresolvedPermission) permission).getUnresolvedName();
@@ -121,7 +123,7 @@ class PluginSecurity {
             sb.append(' ');
             sb.append(name);
         }
-        
+
         String actions = null;
         if (permission instanceof UnresolvedPermission) {
             actions = ((UnresolvedPermission) permission).getUnresolvedActions();
@@ -134,7 +136,7 @@ class PluginSecurity {
         }
         return sb.toString();
     }
-    
+
     /**
      * Parses plugin policy into a set of permissions
      */
@@ -152,7 +154,7 @@ class PluginSecurity {
             throw new RuntimeException(e);
         }
         //PluginManager.tryToDeletePath(terminal, emptyPolicyFile);
-        
+
         // parse the plugin's policy file into a set of permissions
         final Policy policy;
         try {

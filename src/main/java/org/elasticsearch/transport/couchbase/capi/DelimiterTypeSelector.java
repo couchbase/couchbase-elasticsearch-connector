@@ -13,7 +13,7 @@ public class DelimiterTypeSelector extends DefaultTypeSelector {
     private String documentTypeDelimiter;
     protected ESLogger logger = Loggers.getLogger(getClass());
 
-    public DelimiterTypeSelector () {
+    public DelimiterTypeSelector() {
         this.documentTypeDelimiter = DEFAULT_DOCUMENT_TYPE_DELIMITER; // Sanity
     }
 
@@ -26,8 +26,7 @@ public class DelimiterTypeSelector extends DefaultTypeSelector {
     }
 
     @Override
-    public String getType(final String index, final String docId)
-    {
+    public String getType(final String index, final String docId) {
         final int pos = docId.indexOf(documentTypeDelimiter);
 
         return pos > 0 ? docId.substring(0, pos) : super.getType(index, docId);

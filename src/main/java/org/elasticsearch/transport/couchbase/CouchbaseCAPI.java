@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2012 Couchbase, Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
@@ -30,7 +30,7 @@ public class CouchbaseCAPI extends AbstractLifecycleComponent<CouchbaseCAPI> {
 
     @Inject
     public CouchbaseCAPI(Settings settings, CouchbaseCAPITransport transport,
-            RestController restController, NodeService nodeService) {
+                         RestController restController, NodeService nodeService) {
         super(settings);
         this.transport = transport;
         this.restController = restController;
