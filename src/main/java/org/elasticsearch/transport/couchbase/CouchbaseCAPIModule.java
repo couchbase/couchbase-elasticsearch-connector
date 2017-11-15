@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2012 Couchbase, Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
@@ -18,12 +18,12 @@ import org.elasticsearch.transport.couchbase.capi.CouchbaseCAPITransportImpl;
 
 public class CouchbaseCAPIModule extends AbstractModule {
 
-	// pkg private so it is settable by tests
+    // pkg private so it is settable by tests
     static Class<? extends CouchbaseCAPITransport> couchbaseCAPITransportImpl = CouchbaseCAPITransportImpl.class;
 
     @Override
     protected void configure() {
-    	bind(CouchbaseCAPITransport.class).to(couchbaseCAPITransportImpl).asEagerSingleton();
+        bind(CouchbaseCAPITransport.class).to(couchbaseCAPITransportImpl).asEagerSingleton();
         bind(CouchbaseCAPI.class).asEagerSingleton();
     }
 

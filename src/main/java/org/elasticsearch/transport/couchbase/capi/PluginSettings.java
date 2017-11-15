@@ -111,7 +111,7 @@ public class PluginSettings {
                 ", bulkIndexRetries=" + bulkIndexRetries +
                 ", bulkIndexRetryWaitMs=" + bulkIndexRetryWaitMs +
                 ", typeSelector=" + typeSelector.getClass().getCanonicalName() +
-                ", parentSelector=" + parentSelector .getClass().getCanonicalName()+
+                ", parentSelector=" + parentSelector.getClass().getCanonicalName() +
                 ", keyFilter=" + keyFilter.getClass().getCanonicalName() +
                 ", documentTypeRoutingFields=" + documentTypeRoutingFields +
                 ", ignoreDeletes=" + ignoreDeletes +

@@ -1,18 +1,18 @@
 package org.elasticsearch.transport.couchbase.capi;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Pattern;
-
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPIService;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Pattern;
+
 public class RegexTypeSelector extends DefaultTypeSelector {
 
     protected Logger logger;
-    private Map<String,String> documentTypePatternStrings;
+    private Map<String, String> documentTypePatternStrings;
     private Map<String, Pattern> documentTypePatterns;
 
     @Override
@@ -31,8 +31,8 @@ public class RegexTypeSelector extends DefaultTypeSelector {
 
     @Override
     public String getType(String index, String docId) {
-        for(Map.Entry<String,Pattern> typePattern : this.documentTypePatterns.entrySet()) {
-            if(typePattern.getValue().matcher(docId).matches()) {
+        for (Map.Entry<String, Pattern> typePattern : this.documentTypePatterns.entrySet()) {
+            if (typePattern.getValue().matcher(docId).matches()) {
                 return typePattern.getKey();
             }
         }

@@ -13,14 +13,14 @@ public class RegexKeyFilter implements KeyFilter {
 
     protected Logger logger = Loggers.getLogger(getClass());
     private String keyFilterType;
-    private Map<String,String> keyFilterPatternStrings;
+    private Map<String, String> keyFilterPatternStrings;
     private Map<String, Pattern> keyFilterPatterns;
 
     @Override
     public void configure(Settings settings) {
         this.keyFilterType = CouchbaseCAPIService.Config.KEY_FILTER_TYPE.get(settings);
         logger.info("Using key filter type: {}", keyFilterType);
-        this.keyFilterPatterns = new HashMap<String,Pattern>();
+        this.keyFilterPatterns = new HashMap<String, Pattern>();
         this.keyFilterPatternStrings = CouchbaseCAPIService.Config.KEY_FILTER_REGEX_LIST.get(settings).getAsMap();
         for (String key : keyFilterPatternStrings.keySet()) {
             String pattern = keyFilterPatternStrings.get(key);
@@ -33,7 +33,7 @@ public class RegexKeyFilter implements KeyFilter {
     @Override
     public Boolean shouldAllow(String index, String docId) {
         Boolean matches = matchesAnyFilter(index, docId);
-        if(keyFilterType.toLowerCase().equals("include"))
+        if (keyFilterType.toLowerCase().equals("include"))
             return matches;
         else
             return !matches;
@@ -42,7 +42,7 @@ public class RegexKeyFilter implements KeyFilter {
     private Boolean matchesAnyFilter(String index, String docId) {
         Boolean include = false;
 
-        for(Map.Entry<String,Pattern> typePattern : this.keyFilterPatterns.entrySet()) {
+        for (Map.Entry<String, Pattern> typePattern : this.keyFilterPatterns.entrySet()) {
             include = include || typePattern.getValue().matcher(docId).matches();
         }
 

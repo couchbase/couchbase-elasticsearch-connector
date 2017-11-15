@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
  * If you would like to use a specific type regex @use{RegexTypeSelector}
  * Example:
  * couchbase.typeSelector.documentTypesRegex: ^(?<type>\w+)::.+$
+ *
  * @author tal.maayani on 1/23/2015, David Ostrovsky
  */
 public class GroupRegexTypeSelector extends DefaultTypeSelector {

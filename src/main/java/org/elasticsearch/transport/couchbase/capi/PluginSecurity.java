@@ -100,7 +100,9 @@ class PluginSecurity {
         }
     }
 
-    /** Format permission type, name, and actions into a string */
+    /**
+     * Format permission type, name, and actions into a string
+     */
     static String formatPermission(Permission permission) {
         StringBuilder sb = new StringBuilder();
 
