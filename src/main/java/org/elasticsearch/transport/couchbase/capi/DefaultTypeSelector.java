@@ -16,7 +16,7 @@ public class DefaultTypeSelector implements TypeSelector {
 
     @Override
     public String getType(String index, String docId) {
-        if(docId.startsWith("_local/")) {
+        if (docId.startsWith("_local/")) {
             return this.checkpointDocumentType;
         }
         return this.defaultDocumentType;

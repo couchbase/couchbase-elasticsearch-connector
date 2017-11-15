@@ -1,14 +1,14 @@
 package org.elasticsearch.transport.couchbase.capi;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPIService;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Use regular expression for parent indexing - assuming define a named group parent as part of regex.
@@ -18,7 +18,7 @@ import org.elasticsearch.transport.couchbase.CouchbaseCAPIService;
  * for example:
  * couchbase.documentTypesParentRegex.typeA: ^typeA::(?<parent>.+)
  * couchbase.documentTypesParentFormat.typeA: parentType::<parent>
- *
+ * <p>
  * When indexing typeA (typeA::123) document the parent is taken from typeA (123) document Id and composed into
  * parent id according to couchbase.documentTypesParentRegex.typeA configuration. Therefore parent id that is indexed is
  * parentType::123
@@ -43,8 +43,8 @@ public class RegexParentSelector implements ParentSelector {
             logger.info("Using regex {} to select parent for type {}", pattern, key);
             if (documentTypeParentFormatInternalMap.containsKey(key)) {
                 String parentFormat = documentTypeParentFormatInternalMap.get(key);
-                logger.info("Using parent format {} to select parent of type {}",parentFormat,key);
-                documentTypeParentFormatMap.put(key, parentFormat.replace("<parent>","%s"));
+                logger.info("Using parent format {} to select parent of type {}", parentFormat, key);
+                documentTypeParentFormatMap.put(key, parentFormat.replace("<parent>", "%s"));
             }
         }
     }
@@ -63,7 +63,7 @@ public class RegexParentSelector implements ParentSelector {
         if (matcher.matches()) {
             String parent = matcher.group(PARENT);
             if (documentTypeParentFormatMap.containsKey(type)) {
-                parent = String.format(documentTypeParentFormatMap.get(type),parent);
+                parent = String.format(documentTypeParentFormatMap.get(type), parent);
             }
             return parent;
         }
