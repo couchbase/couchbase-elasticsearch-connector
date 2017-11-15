@@ -365,8 +365,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             revisions.put(id, rev);
 
             long ttl = 0;
-            Integer expiration = (Integer) meta.get("expiration");
-            if (expiration != null && expiration > 0) {
+            Number expiration = (Number) meta.get("expiration"); // Integer or Long
+            if (expiration != null && expiration.longValue() > 0) {
                 ttl = (expiration.longValue() * 1000) - System.currentTimeMillis();
             }
 
