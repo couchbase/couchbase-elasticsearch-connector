@@ -13,11 +13,16 @@
  */
 package org.elasticsearch.transport.couchbase.capi;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Timer;
+import com.codahale.metrics.json.MetricsModule;
 import com.couchbase.capi.CAPIBehavior;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
 import com.google.common.cache.Cache;
 import org.apache.logging.log4j.Logger;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.ListenableActionFuture;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequestBuilder;
@@ -36,8 +41,6 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.metrics.CounterMetric;
-import org.elasticsearch.common.metrics.MeanMetric;
 import org.elasticsearch.rest.RestStatus;
 
 import javax.servlet.UnavailableException;
@@ -53,37 +56,45 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
+    protected static final ObjectMapper mapper = new ObjectMapper();
+
+    static {
+        mapper.registerModule(new MetricsModule(SECONDS, MILLISECONDS, false));
+    }
+
     private final AtomicLong nextRequestId = new AtomicLong();
 
-    protected ObjectMapper mapper = new ObjectMapper();
     protected Client client;
     protected Logger logger;
 
-    protected CounterMetric activeRevsDiffRequests;
-    protected MeanMetric meanRevsDiffRequests;
-    protected CounterMetric activeBulkDocsRequests;
-    protected MeanMetric meanBulkDocsRequests;
-    protected CounterMetric totalTooManyConcurrentRequestsErrors;
+    protected final MetricRegistry metricRegistry;
+    protected final Timer bulkDocsTimer;
+    protected final Timer revsDiffTimer;
+    protected final Counter activeRevsDiffRequests;
+    protected final Counter activeBulkDocsRequests;
+    protected final Meter tooManyConcurrentRequestsMeter;
 
     protected Cache<String, String> bucketUUIDCache;
 
     protected PluginSettings pluginSettings;
 
-    public ElasticSearchCAPIBehavior(Client client, Logger logger, Cache<String, String> bucketUUIDCache, PluginSettings pluginSettings) {
+    public ElasticSearchCAPIBehavior(Client client, Logger logger, Cache<String, String> bucketUUIDCache, PluginSettings pluginSettings, MetricRegistry metricRegistry) {
         this.client = client;
         this.logger = logger;
         this.pluginSettings = pluginSettings;
-
-        this.activeRevsDiffRequests = new CounterMetric();
-        this.meanRevsDiffRequests = new MeanMetric();
-        this.activeBulkDocsRequests = new CounterMetric();
-        this.meanBulkDocsRequests = new MeanMetric();
-        this.totalTooManyConcurrentRequestsErrors = new CounterMetric();
-
         this.bucketUUIDCache = bucketUUIDCache;
+        this.metricRegistry = metricRegistry;
+
+        this.bulkDocsTimer = metricRegistry.timer("bulkDocs");
+        this.revsDiffTimer = metricRegistry.timer("revsDiff");
+        this.activeRevsDiffRequests = metricRegistry.counter("activeRevsDiffRequests");
+        this.activeBulkDocsRequests = metricRegistry.counter("activeBulkDocsRequests");
+        this.tooManyConcurrentRequestsMeter = metricRegistry.meter("tooManyConcurrentRequests");
     }
 
     @Override
@@ -145,13 +156,15 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     }
 
     private void throwIfTooManyConcurrentRequests() throws UnavailableException {
-        // check to see if too many requests are already active
-        if (activeBulkDocsRequests.count() + activeRevsDiffRequests.count() >= pluginSettings.getMaxConcurrentRequests()) {
-            totalTooManyConcurrentRequestsErrors.inc();
+        long bulkDocsRequests = activeBulkDocsRequests.getCount();
+        long revsDiffRequests = activeRevsDiffRequests.getCount();
+
+        if (bulkDocsRequests + revsDiffRequests >= pluginSettings.getMaxConcurrentRequests()) {
+            tooManyConcurrentRequestsMeter.mark();
+
             logger.error("Too many concurrent requests. _bulk_docs requests: {}, _revs_diff requests: {}, Max configured: {}",
-                    activeBulkDocsRequests.count(),
-                    activeRevsDiffRequests.count(),
-                    pluginSettings.getMaxConcurrentRequests());
+                    bulkDocsRequests, revsDiffRequests, pluginSettings.getMaxConcurrentRequests());
+
             throw new UnavailableException("Too many concurrent requests");
         }
     }
@@ -261,7 +274,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             activeRevsDiffRequests.dec();
 
             stopwatch.stop();
-            meanRevsDiffRequests.inc(stopwatch.elapsed(MILLISECONDS));
+            revsDiffTimer.update(stopwatch.elapsed(NANOSECONDS), NANOSECONDS);
             logger.debug("exit revsDiff requestId={} database={} elapsedMs={}",
                     requestId, database, stopwatch.elapsed(MILLISECONDS));
         }
@@ -546,7 +559,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             activeBulkDocsRequests.dec();
 
             stopwatch.stop();
-            meanBulkDocsRequests.inc(stopwatch.elapsed(MILLISECONDS));
+            bulkDocsTimer.update(stopwatch.elapsed(NANOSECONDS), NANOSECONDS);
             logger.debug("exit bulkDocs requestId={} database={} elapsedMs={}",
                     requestId, database, stopwatch.elapsed(MILLISECONDS));
         }
@@ -662,24 +675,8 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     }
 
     public Map<String, Object> getStats() {
-        Map<String, Object> stats = new HashMap<>();
-
-        Map<String, Object> bulkDocsStats = new HashMap<>();
-        bulkDocsStats.put("activeCount", activeBulkDocsRequests.count());
-        bulkDocsStats.put("totalCount", meanBulkDocsRequests.count());
-        bulkDocsStats.put("totalTime", meanBulkDocsRequests.sum());
-        bulkDocsStats.put("avgTime", meanBulkDocsRequests.mean());
-
-        Map<String, Object> revsDiffStats = new HashMap<>();
-        revsDiffStats.put("activeCount", activeRevsDiffRequests.count());
-        revsDiffStats.put("totalCount", meanRevsDiffRequests.count());
-        revsDiffStats.put("totalTime", meanRevsDiffRequests.sum());
-        revsDiffStats.put("avgTime", meanRevsDiffRequests.mean());
-
-        stats.put("_bulk_docs", bulkDocsStats);
-        stats.put("_revs_diff", revsDiffStats);
-        stats.put("tooManyConcurrentRequestsErrors", totalTooManyConcurrentRequestsErrors.count());
-
+        Map<String, Object> stats = mapper.convertValue(metricRegistry, Map.class);
+        stats.remove("version");
         return stats;
     }
 
