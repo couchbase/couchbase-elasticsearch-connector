@@ -130,10 +130,11 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent imple
         logger.info(("Resolved publish host:" + publishAddressHost));
 
         InetAddress hostAddress;
-        if (hostAddressX.length > 0)
+        if (hostAddressX.length > 0) {
             hostAddress = hostAddressX[hostAddressX.length - 1];
-        else
+        } else {
             hostAddress = publishAddressHostX;
+        }
         final InetAddress bindAddress = hostAddress;
 
         logger.info(("Resolved bind host:" + bindAddress));
