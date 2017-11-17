@@ -85,6 +85,7 @@ public class CouchbaseCAPITransportPlugin extends Plugin {
                 CouchbaseCAPIService.Config.DOCUMENT_TYPE_PARENT_FORMAT,
                 CouchbaseCAPIService.Config.KEY_FILTER,
                 CouchbaseCAPIService.Config.KEY_FILTER_TYPE,
-                CouchbaseCAPIService.Config.KEY_FILTER_REGEX_LIST);
+                CouchbaseCAPIService.Config.KEY_FILTER_REGEX_LIST,
+                CouchbaseCAPIService.Config.PIPELINE);
     }
 }

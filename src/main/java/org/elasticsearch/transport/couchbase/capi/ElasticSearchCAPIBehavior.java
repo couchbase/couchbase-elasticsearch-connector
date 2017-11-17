@@ -429,6 +429,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 } else {
                     IndexRequestBuilder indexBuilder = client.prepareIndex(index, type, id);
                     indexBuilder.setSource(toBeIndexed);
+                    indexBuilder.setPipeline(pluginSettings.getPipeline());
                     if (!ignoreDelete && ttl > 0) {
                         indexBuilder.setTTL(ttl);
                     }
