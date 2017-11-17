@@ -399,8 +399,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 Number expiration = (Number) meta.get("expiration"); // Integer or Long
                 if (expiration != null && expiration.longValue() > 0) {
                     ttl = (expiration.longValue() * 1000) - System.currentTimeMillis();
-                    if (logger.isDebugEnabled())
-                        logger.debug(String.format("Document %s has expiration set, which is not supported in ES 5.0+", id));
+                    logger.debug("Document {} has expiration set, which is not supported in ES 5.0+", id);
                 }
 
                 String routingField = null;
@@ -485,8 +484,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                         }
                     }
                     response = bulkBuilder.execute().actionGet();
-                } else
+                } else {
                     break;
+                }
 
                 if (response != null) {
                     for (BulkItemResponse bulkItemResponse : response.getItems()) {
@@ -533,10 +533,12 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
             } while (response != null && response.hasFailures() && retriesLeft > 0);
 
-            if (response == null && bulkBuilder != null && bulkBuilder.numberOfActions() > 0)
+            if (response == null && bulkBuilder != null && bulkBuilder.numberOfActions() > 0) {
                 errors.append("Indexing error: bulk index response was null" + System.lineSeparator());
-            if (retriesLeft == 0)
+            }
+            if (retriesLeft == 0) {
                 errors.append("Indexing error: bulk index failed after all retries" + System.lineSeparator());
+            }
 
             if (errors.length() > 0) {
                 if (pluginSettings.getIgnoreFailures()) {
@@ -739,7 +741,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         IndicesExistsResponse response = existsBuilder.execute().actionGet();
         if (response.isExists()) {
             int tries = 0;
-            String key = String.format("vbucket%dUUID", vbucket);
+            String key = "vbucket" + vbucket + "UUID";
             String bucketUUID = this.lookupUUID(bucket, key);
             while (bucketUUID == null && tries < 100) {
                 logger.debug("vbucket {} UUID doesn't exist yet,  creating", vbucket);
