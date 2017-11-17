@@ -1,5 +1,6 @@
 package org.elasticsearch.transport.couchbase.capi;
 
+import com.google.common.base.Strings;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.settings.NoClassSettingsException;
 import org.elasticsearch.common.settings.Settings;
@@ -37,6 +38,8 @@ public class PluginSettings {
 
     private int port;
 
+    private String pipeline;
+
     public PluginSettings(Settings settings) {
         this.setCheckpointDocumentType(CouchbaseCAPIService.Config.CHECKPOINT_DOCUMENT_TYPE.get(settings));
         this.setResolveConflicts(CouchbaseCAPIService.Config.RESOLVE_CONFLICTS.get(settings));
@@ -52,6 +55,7 @@ public class PluginSettings {
         this.setIncludeIndexes(CouchbaseCAPIService.Config.INCLUDE_INDEXES.get(settings));
         this.getIncludeIndexes().removeAll(Arrays.asList("", null));
         this.setPort(CouchbaseCAPIService.Config.PORT.get(settings));
+        this.setPipeline(Strings.emptyToNull(CouchbaseCAPIService.Config.PIPELINE.get(settings)));
 
         TypeSelector typeSelector;
         Class<? extends TypeSelector> typeSelectorClass = this.getAsClass(CouchbaseCAPIService.Config.TYPE_SELECTOR.get(settings), DefaultTypeSelector.class);
@@ -117,6 +121,7 @@ public class PluginSettings {
                 ", ignoreDeletes=" + ignoreDeletes +
                 ", includeIndexes=" + includeIndexes +
                 ", port=" + port +
+                ", pipeline='" + pipeline + '\'' +
                 '}';
     }
 
@@ -238,5 +243,13 @@ public class PluginSettings {
 
     public void setPort(int port) {
         this.port = port;
+    }
+
+    public String getPipeline() {
+        return pipeline;
+    }
+
+    public void setPipeline(String pipeline) {
+        this.pipeline = pipeline;
     }
 }

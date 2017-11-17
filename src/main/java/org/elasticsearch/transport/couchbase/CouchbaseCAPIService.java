@@ -57,6 +57,9 @@ public interface CouchbaseCAPIService {
         public static final Setting<Settings> DOCUMENT_TYPE_PARENT_REGEX = Setting.groupSetting("couchbase.parentSelector.documentTypesParentRegex.", Setting.Property.NodeScope);
         public static final Setting<Settings> DOCUMENT_TYPE_PARENT_FORMAT = Setting.groupSetting("couchbase.parentSelector.documentTypesParentFormat.", Setting.Property.NodeScope);
 
+        // Ingestion
+        public static final Setting<String> PIPELINE = Setting.simpleString("couchbase.pipeline", Property.NodeScope);
+
         // Filtering
         public static final Setting<String> KEY_FILTER = new Setting<>("couchbase.keyFilter", s -> "org.elasticsearch.transport.couchbase.capi.DefaultKeyFilter", Function.identity(), Property.NodeScope);
         public static final Setting<String> KEY_FILTER_TYPE = new Setting<>("couchbase.keyFilter.type", s -> "exclude", Function.identity(), Property.NodeScope);
