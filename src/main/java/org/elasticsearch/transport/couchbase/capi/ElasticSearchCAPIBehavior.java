@@ -22,7 +22,7 @@ import com.couchbase.capi.CAPIBehavior;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
 import com.google.common.cache.Cache;
-import org.elasticsearch.action.ListenableActionFuture;
+import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequestBuilder;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -218,7 +218,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                         }
                         if (builder != null) {
                             if (added > 0) {
-                                ListenableActionFuture<MultiGetResponse> laf = builder.execute();
+                                ActionFuture<MultiGetResponse> laf = builder.execute();
                                 if (laf != null) {
                                     response = laf.actionGet();
                                 } else {
@@ -728,7 +728,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
         String bucketUUID = null;
         GetResponse response;
-        ListenableActionFuture<GetResponse> laf = builder.execute();
+        ActionFuture<GetResponse> laf = builder.execute();
         if (laf != null) {
             response = laf.actionGet();
             if (response.isExists()) {
@@ -754,7 +754,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         builder.setOpType(OpType.CREATE);
 
         IndexResponse response;
-        ListenableActionFuture<IndexResponse> laf = builder.execute();
+        ActionFuture<IndexResponse> laf = builder.execute();
         if (laf != null) {
             response = laf.actionGet();
             if (!response.isCreated()) {
