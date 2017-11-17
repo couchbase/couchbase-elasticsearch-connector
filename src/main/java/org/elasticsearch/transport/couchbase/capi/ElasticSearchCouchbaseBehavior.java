@@ -58,7 +58,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     @Override
     public List<String> getPools() {
-        List<String> result = new ArrayList<String>();
+        List<String> result = new ArrayList<>();
         result.add("default");
         return result;
     }
@@ -74,10 +74,10 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     @Override
     public Map<String, Object> getPoolDetails(String pool) {
         if ("default".equals(pool)) {
-            Map<String, Object> bucket = new HashMap<String, Object>();
+            Map<String, Object> bucket = new HashMap<>();
             bucket.put("uri", "/pools/" + pool + "/buckets?uuid=" + getPoolUUID(pool));
 
-            Map<String, Object> responseMap = new HashMap<String, Object>();
+            Map<String, Object> responseMap = new HashMap<>();
             responseMap.put("buckets", bucket);
 
             List<Map<String, Object>> nodes = getNodesServingPool(pool);
@@ -91,7 +91,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     @Override
     public List<String> getBucketsInPool(String pool) {
         if ("default".equals(pool)) {
-            List<String> bucketNameList = new ArrayList<String>();
+            List<String> bucketNameList = new ArrayList<>();
 
             ClusterStateRequestBuilder stateBuilder = client.admin().cluster().prepareState();
             ClusterStateResponse response = stateBuilder.execute().actionGet();
@@ -162,9 +162,9 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         if (shouldIgnoreBucket(bucket)) // Don't touch buckets on the ignore list
             return;
 
-        Map<String, Object> doc = new HashMap<String, Object>();
+        Map<String, Object> doc = new HashMap<>();
         doc.put("uuid", uuid);
-        Map<String, Object> toBeIndexed = new HashMap<String, Object>();
+        Map<String, Object> toBeIndexed = new HashMap<>();
         toBeIndexed.put("doc", doc);
 
         IndexRequestBuilder builder = client.prepareIndex();

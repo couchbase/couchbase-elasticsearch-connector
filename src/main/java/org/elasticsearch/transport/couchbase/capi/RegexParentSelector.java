@@ -34,8 +34,8 @@ public class RegexParentSelector implements ParentSelector {
     public void configure(Settings settings) {
         Map<String, String> documentTypeParentRegexMap = settings.getByPrefix("couchbase.parentSelector.documentTypesParentRegex.").getAsMap();
         Map<String, String> documentTypeParentFormatInternalMap = settings.getByPrefix("couchbase.parentSelector.documentTypesParentFormat.").getAsMap();
-        this.documentTypeParentRegexMap = new HashMap<String, Pattern>();
-        this.documentTypeParentFormatMap = new HashMap<String, String>();
+        this.documentTypeParentRegexMap = new HashMap<>();
+        this.documentTypeParentFormatMap = new HashMap<>();
         for (String key : documentTypeParentRegexMap.keySet()) {
             String pattern = documentTypeParentRegexMap.get(key);
             this.documentTypeParentRegexMap.put(key, Pattern.compile(pattern));

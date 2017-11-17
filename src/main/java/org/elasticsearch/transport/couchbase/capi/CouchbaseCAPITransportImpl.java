@@ -121,12 +121,12 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         pluginSettings.setMaxConcurrentRequests(settings.getAsLong("couchbase.maxConcurrentRequests", 1024L));
         pluginSettings.setBulkIndexRetries(settings.getAsLong("couchbase.bulkIndexRetries", 10L));
         pluginSettings.setBulkIndexRetryWaitMs(settings.getAsLong("couchbase.bulkIndexRetryWaitMs", 1000L));
-        pluginSettings.setIgnoreDeletes(new ArrayList<String>(Arrays.asList(settings.get("couchbase.ignoreDeletes", "").split("[:,;\\s]"))));
+        pluginSettings.setIgnoreDeletes(new ArrayList<>(Arrays.asList(settings.get("couchbase.ignoreDeletes", "").split("[:,;\\s]"))));
         pluginSettings.getIgnoreDeletes().removeAll(Arrays.asList("", null));
         pluginSettings.setIgnoreFailures(settings.getAsBoolean("couchbase.ignoreFailures", false));
         pluginSettings.setDocumentTypeRoutingFields(settings.getByPrefix("couchbase.documentTypeRoutingFields.").getAsMap());
         pluginSettings.setIgnoreDotIndexes(settings.getAsBoolean("couchbase.ignoreDotIndexes", true));
-        pluginSettings.setIncludeIndexes(new ArrayList<String>(Arrays.asList(settings.get("couchbase.includeIndexes", "").split("[:,;\\s]"))));
+        pluginSettings.setIncludeIndexes(new ArrayList<>(Arrays.asList(settings.get("couchbase.includeIndexes", "").split("[:,;\\s]"))));
         pluginSettings.getIncludeIndexes().removeAll(Arrays.asList("", null));
 
         TypeSelector typeSelector;
@@ -212,7 +212,7 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
         logger.info("Using port(s):" + port);
 
-        final AtomicReference<Exception> lastException = new AtomicReference<Exception>();
+        final AtomicReference<Exception> lastException = new AtomicReference<>();
 
         boolean success = portsRange.iterate(new PortsRange.PortCallback() {
             @Override

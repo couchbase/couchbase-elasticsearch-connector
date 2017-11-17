@@ -18,7 +18,7 @@ public class RegexTypeSelector extends DefaultTypeSelector {
     public void configure(Settings settings) {
         super.configure(settings);
 
-        this.documentTypePatterns = new HashMap<String, Pattern>();
+        this.documentTypePatterns = new HashMap<>();
         this.documentTypePatternStrings = settings.getByPrefix("couchbase.typeSelector.documentTypesRegex.").getAsMap();
         for (String key : documentTypePatternStrings.keySet()) {
             String pattern = documentTypePatternStrings.get(key);
