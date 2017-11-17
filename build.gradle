@@ -1,3 +1,7 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version '2.0.1'
+}
+
 import java.security.MessageDigest
 
 defaultTasks 'clean', 'buildAll'
@@ -45,11 +49,21 @@ repositories {
 }
 
 dependencies {
-    compile "com.couchbase:couchbase-capi-server:1.4.2"
-    compile ("org.slf4j:slf4j-log4j12:1.6.4") { // SLF4J bridge required by CAPI server
+    // shadow = Normal dependencies, not included in uber-jar.
+    shadow "com.couchbase:couchbase-capi-server:1.4.2"
+    shadow("org.slf4j:slf4j-log4j12:1.6.4") { // SLF4J bridge required by CAPI server
         transitive = false // Elasticsearch provides the log4j library
     }
 
+    // compile = Included in uber-jar. This is everything we want to relocate to avoid conflicts with
+    // versions provided by ES (like Jackson) as well as everything that depends on the relocated classes.
+    compile "com.fasterxml.jackson.core:jackson-databind:2.9.2"
+    compile("io.dropwizard.metrics:metrics-json:3.2.5") {
+        // Already included in 'shadow' config (via CAPI server) and ES complains if it's duplicated.
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
+
+    // compileOnly = Libraries provided by Elasticsearch that we're comfortable depending on.
     compileOnly "org.elasticsearch:elasticsearch:${elasticsearchVersion}"
     compileOnly "com.carrotsearch:hppc:0.7.1"
     compileOnly "com.google.guava:guava:18.0"
@@ -57,6 +71,10 @@ dependencies {
 
     testCompile "org.apache.logging.log4j:log4j-core:2.7"
     testCompile "org.apache.logging.log4j:log4j-api:2.7"
+}
+
+shadowJar {
+    relocate 'com.fasterxml.jackson', 'com.couchbase.relocated.com.fasterxml.jackson'
 }
 
 task buildAll(group: "Build", description: "Assemble plugins compatible with all supported Elasticsearch versions")
@@ -93,8 +111,8 @@ task pluginMetadata(type: Copy, group: "Build", description: "Assembles the plug
 
 task pluginArchive(type: Zip, group: "Build", description: "Assembles the distribution archive") {
     into('elasticsearch') {
-        from jar
-        from configurations.compile
+        from shadowJar
+        from configurations.shadow
         from pluginMetadata
     }
 }

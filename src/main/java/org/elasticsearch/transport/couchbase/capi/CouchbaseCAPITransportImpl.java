@@ -13,6 +13,8 @@
  */
 package org.elasticsearch.transport.couchbase.capi;
 
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Slf4jReporter;
 import com.couchbase.capi.CAPIBehavior;
 import com.couchbase.capi.CAPIServer;
 import com.couchbase.capi.CouchbaseBehavior;
@@ -33,6 +35,7 @@ import org.elasticsearch.http.BindHttpException;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.transport.couchbase.CouchbaseCAPITransport;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -46,6 +49,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<CouchbaseCAPITransport> implements CouchbaseCAPITransport {
 
+    private Slf4jReporter metricReporter;
     private CAPIBehavior capiBehavior;
     private CouchbaseBehavior couchbaseBehavior;
     private CAPIServer server;
@@ -200,7 +204,8 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
 
         logger.info(("Resolved bind host:" + bindAddress));
 
-        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, bucketUUIDCache, pluginSettings);
+        MetricRegistry metricRegistry = new MetricRegistry();
+        capiBehavior = new ElasticSearchCAPIBehavior(client, logger, bucketUUIDCache, pluginSettings, metricRegistry);
         couchbaseBehavior = new ElasticSearchCouchbaseBehavior(client, logger, bucketUUIDCache, pluginSettings);
 
         PortsRange portsRange = new PortsRange(port);
@@ -253,10 +258,22 @@ public class CouchbaseCAPITransportImpl extends AbstractLifecycleComponent<Couch
         array[0] = new InetSocketTransportAddress(boundAddress);
 
         this.boundAddress = new BoundTransportAddress(array, new InetSocketTransportAddress(publishAddress));
+
+        metricReporter = Slf4jReporter.forRegistry(metricRegistry)
+                .convertDurationsTo(TimeUnit.MILLISECONDS)
+                .convertRatesTo(TimeUnit.SECONDS)
+                .outputTo(LoggerFactory.getLogger("org.elasticsearch.transport.couchbase.CouchbaseTransportMetrics"))
+                .withLoggingLevel(Slf4jReporter.LoggingLevel.INFO)
+                .build();
+        metricReporter.start(1, 1, TimeUnit.MINUTES);
     }
 
     @Override
     protected void doStop() throws ElasticsearchException {
+        if (metricReporter != null) {
+            metricReporter.stop();
+        }
+
         if (server != null) {
             try {
                 server.stop();
