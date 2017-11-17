@@ -32,10 +32,11 @@ public class RegexKeyFilter implements KeyFilter {
     @Override
     public Boolean shouldAllow(String index, String docId) {
         Boolean matches = matchesAnyFilter(index, docId);
-        if (keyFilterType.toLowerCase().equals("include"))
+        if (keyFilterType.toLowerCase().equals("include")) {
             return matches;
-        else
+        } else {
             return !matches;
+        }
     }
 
     private Boolean matchesAnyFilter(String index, String docId) {

@@ -97,14 +97,18 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             ClusterStateResponse response = stateBuilder.execute().actionGet();
             ImmutableOpenMap<String, IndexMetaData> indices = response.getState().getMetaData().getIndices();
             for (ObjectCursor<String> index : indices.keys()) {
-                if (!shouldIgnoreBucket(index.value)) // Don't include indexes on the ignore list
+                // Don't include indexes on the ignore list
+                if (!shouldIgnoreBucket(index.value)) {
                     bucketNameList.add(index.value);
+                }
 
                 IndexMetaData indexMetaData = indices.get(index.value);
                 ImmutableOpenMap<String, AliasMetaData> aliases = indexMetaData.getAliases();
                 for (ObjectCursor<String> alias : aliases.keys()) {
-                    if (!shouldIgnoreBucket(alias.value)) // Don't include aliases on the ignore list
+                    if (!shouldIgnoreBucket(alias.value)) {
+                        // Don't include aliases on the ignore list
                         bucketNameList.add(alias.value);
+                    }
                 }
             }
 
@@ -114,16 +118,19 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     }
 
     protected Boolean shouldIgnoreBucket(String bucketName) {
-        if (bucketName == null)
+        if (bucketName == null) {
             return true;
+        }
 
         // The includeIndexes setting takes precedence over ignoreDotIndexes
         if (pluginSettings.getIncludeIndexes() != null &&
-                pluginSettings.getIncludeIndexes().size() > 0)
+                pluginSettings.getIncludeIndexes().size() > 0) {
             return !pluginSettings.getIncludeIndexes().contains(bucketName);
+        }
 
-        if (pluginSettings.getIgnoreDotIndexes() && bucketName.startsWith("."))
+        if (pluginSettings.getIgnoreDotIndexes() && bucketName.startsWith(".")) {
             return true;
+        }
 
         return false;
     }
@@ -135,8 +142,10 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     }
 
     protected String lookupUUID(String bucket, String id) {
-        if (shouldIgnoreBucket(bucket)) // No point in checking buckets on the ignore list
+        if (shouldIgnoreBucket(bucket)) {
+            // No point in checking buckets on the ignore list
             return null;
+        }
 
         GetRequestBuilder builder = client.prepareGet();
         builder.setIndex(bucket);
@@ -159,8 +168,10 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
     }
 
     protected void storeUUID(String bucket, String id, String uuid) {
-        if (shouldIgnoreBucket(bucket)) // Don't touch buckets on the ignore list
+        if (shouldIgnoreBucket(bucket)) {
+            // Don't touch buckets on the ignore list
             return;
+        }
 
         Map<String, Object> doc = new HashMap<>();
         doc.put("uuid", uuid);
@@ -186,8 +197,10 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
     @Override
     public String getBucketUUID(String pool, String bucket) {
-        if (shouldIgnoreBucket(bucket)) // Don't touch buckets on the ignore list
+        if (shouldIgnoreBucket(bucket)) {
+            // Don't touch buckets on the ignore list
             return null;
+        }
 
         // first look for bucket UUID in cache
         String bucketUUID = this.bucketUUIDCache.getIfPresent(bucket);
@@ -258,7 +271,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
                             nodePorts.put("direct", Integer.parseInt(parts[1]));
 
                             Map<String, Object> node = new HashMap<>();
-                            node.put("couchApiBase", String.format("http://%s/", hostPort));
+                            node.put("couchApiBase", "http://" + hostPort + "/");
                             node.put("hostname", hostPort);
                             node.put("ports", nodePorts);
 

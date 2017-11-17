@@ -514,8 +514,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                         errors.append("ERROR: " + e.toString() + System.lineSeparator());
                         break; // Do not retry bulk
                     }
-                } else
+                } else {
                     break; // No actions left to retry
+                }
 
                 if (response != null) {
                     for (BulkItemResponse bulkItemResponse : response.getItems()) {
@@ -559,10 +560,12 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 retriesLeft--;
             } while (response != null && response.hasFailures() && retriesLeft > 0);
 
-            if (response == null && bulkBuilder != null && bulkBuilder.numberOfActions() > 0)
+            if (response == null && bulkBuilder != null && bulkBuilder.numberOfActions() > 0) {
                 errors.append("indexing error: bulk index response was null" + System.lineSeparator());
-            if (retriesLeft == 0)
+            }
+            if (retriesLeft == 0) {
                 errors.append("indexing error: bulk index failed after all retries" + System.lineSeparator());
+            }
 
             if (errors.length() > 0) {
                 if (pluginSettings.getIgnoreFailures()) {
@@ -765,7 +768,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         IndicesExistsResponse response = existsBuilder.execute().actionGet();
         if (response.isExists()) {
             int tries = 0;
-            String key = String.format("vbucket%dUUID", vbucket);
+            String key = "vbucket" + vbucket + "UUID";
             String bucketUUID = this.lookupUUID(bucket, key);
             while (bucketUUID == null && tries < 100) {
                 logger.debug("vbucket {} UUID doesn't exist yet,  creating", vbucket);
