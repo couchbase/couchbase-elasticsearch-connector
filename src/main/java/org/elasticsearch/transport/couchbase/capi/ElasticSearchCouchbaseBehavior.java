@@ -17,7 +17,7 @@ import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.couchbase.capi.CouchbaseBehavior;
 import com.google.common.cache.Cache;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ListenableActionFuture;
+import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequestBuilder;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
@@ -157,7 +157,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
         String bucketUUID = null;
         GetResponse response;
-        ListenableActionFuture<GetResponse> laf = builder.execute();
+        ActionFuture<GetResponse> laf = builder.execute();
         if (laf != null) {
             response = laf.actionGet();
             if (response.isExists()) {
@@ -188,7 +188,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         builder.setOpType(OpType.CREATE);
 
         IndexResponse response;
-        ListenableActionFuture<IndexResponse> laf = builder.execute();
+        ActionFuture<IndexResponse> laf = builder.execute();
         if (laf != null) {
             response = laf.actionGet();
             if (response.status() != RestStatus.CREATED) {
