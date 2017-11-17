@@ -5,39 +5,66 @@ For a pre-built binary package and instruction manual, see the [Couchbase Downlo
 
 This plugin makes your Elasticsearch node appear like a Couchbase Server node.  After installation you can use the Cross-Datacenter Replication (XDCR) feature of Couchbase Server to transfer data continuously.
 
+A Note About Plugin Versions
+============================
+
+An Elasticsearch plugin is tied to a specific version of Elasticsearch. Each minor version of Elasticsearch 
+works only with plugins built for that exact version.
+
+In order to support a broad range of Elasticsearch versions, there are multiple development lines of
+the Couchbase plugin. Each line supports a different set of Elasticsearch versions, shown by this table:
+
+    +---------------------------------------------------------------------+
+    |  Plugin Line    |  Git Branch     |  Elasticsearch  |  Couchbase    |
+    +---------------------------------------------------------------------+
+    | cypress         | master          | 5.3.0 and up    |  2.5.x - 5.x  |
+    +---------------------------------------------------------------------+
+    | birch           | release/birch   | 5.0.0 - 5.2.2   |  2.5.x - 5.x  |
+    +---------------------------------------------------------------------+    
+    | alder           | release/alder   | 2.2.0 - 2.4.6   |  2.5.x - 5.x  |
+    +---------------------------------------------------------------------+
+
+Starting with version 3 of the Couchbase plugin, a version string has the form
+`<plugin-version>-<plugin-line>-es<elasticsearch-version>`.
+Let's look at an example plugin filename and break it down:
+
+    elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip
+
+That filename identifies version 3.0.0 in the `cypress` line, built for Elasticsearch 5.6.4.
+The lines are versioned in lockstep, so that ideally `3.0.0-cypress` and `3.0.0-alder`
+are identical in terms of features, and differ only as required by the
+underlying Elasticsearch API.
+
+NOTE: Older versions of the plugin used the version naming scheme `2.<elasticsearch-version>`.
+It is recommended that users of those versions upgrade to the corresponding version from
+the appropriate 3.x development line. Don't be scared by the major version bump;
+version 3.0.0 offers a seamless transition from 2.x. It's the same code (with some minor improvements),
+relabeled for easier versioning and maintenance going forward.
+
+
 Installation
 ============
 
-Note that as of Elasticsearch version 2.0, plugins are version specific. This means that each minor version of Elasticsearch has a corresponding version of the plugin. For example, ES 2.3.1 works with plugin version 2.2.3.1 and so on. 
+For ES 5 and up, run the following command from the root of your Elasticsearch installation:
 
-As of ES 2.x, the plugin versions are aligned to be 2.`<ES_VERSION>`, so to install for ES 2.2+, use the following command and replace `<ES_VERSION>` with your ES version:
+    bin/elasticsearch-plugin install <plugin-url>
 
-    bin/plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/2.<ES_VERSION>/elasticsearch-transport-couchbase-2.<ES_VERSION>.zip
-    
-As of ES 5.x, use the following command to install the plugin:
+For ES 2.x, the command is slightly different:
 
-    bin/elasticsearch-plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/2.<ES_VERSION>/elasticsearch-transport-couchbase-2.<ES_VERSION>.zip
+    bin/plugin install <plugin-url>
 
-To install the ES 1.x compatible plugin, run the following command from your Elasticsearch installation folder:
+For `<plugin-url>` substitute an appropriate download link from the
+[Releases](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases)
+page (you want a file ending in `.zip` whose `es` version component exactly matches
+your version of Elasticsearch).
 
-    bin/plugin -i transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.1.2/elasticsearch-transport-couchbase-2.1.2.zip
+Alternatively, download the plugin first and refer to it using a filesystem URL like
+`file:///path/to/plugin.zip`.
 
+Either way, the install command will prompt you to grant certain permissions to the plugin.
+If you wish to skip the user interaction and automatically grant permissions, modify the command to use
+`install -b` instead of `install`.
 
-Version Compatibility:
-
-    +------------------------------------------------------------------+
-    |  Plugin                       |  Couchbase    | Elasticsearch    |
-    +------------------------------------------------------------------+
-    | master                        |  2.5.x - 5.x  | 5.6.3            |
-    +------------------------------------------------------------------+
-    | 2.5.x.y                       |  2.5.x - 5.x  | 5.x.y            |
-    +------------------------------------------------------------------+
-    | 2.2.x.y                       |  2.5.x - 4.x  | 2.x.y            | 
-    +------------------------------------------------------------------+
-    | 2.1                           |  2.5.x - 4.x  | 1.3.0 - 1.7.x    |
-    +------------------------------------------------------------------+
-    | 2.0                           |  3.x, 2.5.x   | 1.3.0            |
-    +------------------------------------------------------------------+
     
 # Configuration #
 
@@ -252,10 +279,10 @@ Starting Data Transfer
 
 # Building #
 
-This module is built using maven.  It depends on another project which is not in any public maven repositories, see https://github.com/couchbaselabs/couchbase-capi-server and run `mvn install` on that first.
+This module is built using Gradle. It depends on another project which is not in any public maven repositories, see https://github.com/couchbaselabs/couchbase-capi-server and run `mvn install` on that first.
 
-Then in this project run
+Then in this project run:
 
-    mvn package
-    
-The final plugin package will be in the target/releases folder.
+    ./gradlew buildAll
+
+The final plugin package will be in the `build/distributions` folder.
