@@ -538,21 +538,25 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             if (retriesLeft == 0)
                 errors.append("Indexing error: bulk index failed after all retries" + System.lineSeparator());
 
-            if (errors.length() > 0)
-                if (pluginSettings.getIgnoreFailures())
-                    logger.error(errors.toString());
-                else
+            if (errors.length() > 0) {
+                if (pluginSettings.getIgnoreFailures()) {
+                    logger.error("bulk index requestId={} Ignoring failures: {}", requestId, errors);
+                } else {
+                    logger.error("bulk index requestId={} Failing due to errors: {}", requestId, errors);
                     throw new RuntimeException(errors.toString());
-            else if (attempt == 1)
-                logger.debug("Bulk index succeeded after {} tries", attempt);
-            else
-                logger.warn("Bulk index succeeded after {} tries", attempt);
+                }
+            } else {
+                if (attempt == 1) {
+                    logger.debug("Bulk index succeeded on first try");
+                } else {
+                    logger.warn("Bulk index succeeded after {} tries", attempt);
+                }
+            }
 
             // Before we return, in case of ignore delete or filtered keys
             // we want to add the "mock" confirmations for the ignored operations
             // in order to satisfy the XDCR mechanism
-            if (mockResults != null && mockResults.size() > 0)
-                result.addAll(mockResults);
+            result.addAll(mockResults);
 
             return result;
 
