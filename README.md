@@ -8,7 +8,7 @@ This plugin makes your Elasticsearch node appear like a Couchbase Server node.  
 A Note About Plugin Versions
 ============================
 
-An Elasticsearch plugin is tied to a specific version of Elasticsearch. Each minor version of Elasticsearch 
+An Elasticsearch plugin is tied to a specific version of Elasticsearch. Each version of Elasticsearch 
 works only with plugins built for that exact version.
 
 In order to support a broad range of Elasticsearch versions, there are multiple development lines of
