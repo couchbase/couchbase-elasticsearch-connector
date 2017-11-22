@@ -17,11 +17,11 @@ the Couchbase plugin. Each line supports a different set of Elasticsearch versio
     +---------------------------------------------------------------------+
     |  Plugin Line    |  Git Branch     |  Elasticsearch  |  Couchbase    |
     +---------------------------------------------------------------------+
-    | cypress         | master          | 5.3.0 and up    |  2.5.x - 5.x  |
+    | cypress         | release/cypress | 5.3.0 and up    |  4.x - 5.x    |
     +---------------------------------------------------------------------+
-    | birch           | release/birch   | 5.0.0 - 5.2.2   |  2.5.x - 5.x  |
+    | birch           | release/birch   | 5.0.0 - 5.2.2   |  4.x - 5.x    |
     +---------------------------------------------------------------------+    
-    | alder           | release/alder   | 2.2.0 - 2.4.6   |  2.5.x - 5.x  |
+    | alder           | release/alder   | 2.2.0 - 2.4.6   |  4.x - 5.x    |
     +---------------------------------------------------------------------+
 
 Starting with version 3 of the Couchbase plugin, a version string has the form
