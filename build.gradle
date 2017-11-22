@@ -8,8 +8,8 @@ defaultTasks 'clean', 'buildAll'
 
 apply plugin: 'java'
 
-def baseVersion = '3.0.0'
-def snapshot = false
+def baseVersion = '3.0.1'
+def snapshot = true
 
 def branch = 'cypress'
 
