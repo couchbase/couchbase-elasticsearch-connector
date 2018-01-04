@@ -15,8 +15,8 @@ import java.util.regex.Pattern;
  * couchbase.documentTypesParentRegex - specify the parent regular expression selector. to select group name 'parent'
  * couchbase.documentTypesParentFormat - optionally specify parent document id format
  * for example:
- * couchbase.documentTypesParentRegex.typeA: ^typeA::(?<parent>.+)
- * couchbase.documentTypesParentFormat.typeA: parentType::<parent>
+ * couchbase.parentSelector.documentTypesParentRegex.typeA: ^typeA::(?<parent>.+)
+ * couchbase.parentSelector.documentTypesParentFormat.typeA: parentType::<parent>
  * <p>
  * When indexing typeA (typeA::123) document the parent is taken from typeA (123) document Id and composed into
  * parent id according to couchbase.documentTypesParentRegex.typeA configuration. Therefore parent id that is indexed is
