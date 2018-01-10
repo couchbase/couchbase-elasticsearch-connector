@@ -45,13 +45,22 @@ relabeled for easier versioning and maintenance going forward.
 Installation
 ============
 
+<div class="tabs">
+	<a name="es2">ElasticSearch 2.x</a>
+	<a name="es5">ElasticSearch 5</a>
+</div>
+
 For ES 5 and up, run the following command from the root of your Elasticsearch installation:
 
     bin/elasticsearch-plugin install <plugin-url>
 
+- - -
+
 For ES 2.x, the command is slightly different:
 
     bin/plugin install <plugin-url>
+
+- - -
 
 For `<plugin-url>` substitute an appropriate download link from the
 [Releases](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases)
