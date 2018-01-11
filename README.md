@@ -46,8 +46,8 @@ Installation
 ============
 
 <div class="tabs">
-	<a name="es2">ElasticSearch 2.x</a>
 	<a name="es5">ElasticSearch 5</a>
+	<a name="es2">ElasticSearch 2.x</a>
 </div>
 
 For ES 5 and up, run the following command from the root of your Elasticsearch installation:
