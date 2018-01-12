@@ -3,73 +3,97 @@
 
 A Couchbase-Elasticsearch data-replication system consists of three principal components:
 
-- a **Couchbase Server-cluster** of one or more nodes
+- a **Couchbase Server cluster** of one or more nodes
 - an **Elasticsearch cluster** of one or more nodes
 - the **Elasticsearch Transport Plug-in**, installed in the Elasticsearch environment.
 
-This section provides a step-by-step procedure, whereby the three components can be installed, configured, and run.
+This section provides step-by-step instructions to install the Couchbase Elasticsearch plugin.
 
-## Pre-requisites
+## Plugin pre-requisites
 
-- Ubuntu 14.04 or 16.04
-- Java
+- Java (see [installation guide](https://docs.oracle.com/javase/8/))
+- Download and install Elasticsearch =< 5.x (see [installation guide](https://www.elastic.co/guide/en/elasticsearch/reference/5.6/install-elasticsearch.html), Elasticsearch 6.0 is not supported by the plugin)
+- Download and install Couchbase Server >= 3.0 (see [installation guide](https://www.couchbase.com/downloads))
+
+Verify the Elasticsearch cluster is up and running (the default port is `9200`).
+
+```bash
+$ curl localhost:9200
+
+{
+  "name" : "K3RqW4F",
+  "cluster_name" : "elasticsearch",
+  "cluster_uuid" : "Bw-Ta0wDTcekzQIhXZHGkg",
+  "version" : {
+    "number" : "5.6.5",
+    "build_hash" : "6a37571",
+    "build_date" : "2017-12-04T07:50:10.466Z",
+    "build_snapshot" : false,
+    "lucene_version" : "6.6.1"
+  },
+  "tagline" : "You Know, for Search"
+}
+```
+
+Verify that Couchbase Server is running.
+
+```bash
+$ curl localhost:8092
+
+{"couchdb":"Welcome","version":"v4.5.1-60-g3cf258d","couchbase":"5.0.2-5506-community"}
+```
 
 ## Installation
 
-1. Download the Elasticsearch 2.4.0 package for Ubuntu.
+Navigate to the Elasticsearch installation directory.
 
-	```bash
-	$ wget https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-2.4.6.deb
-	```
+```bash
+$ cd /usr/share/elasticsearch
+```
 
-2. Install the package.
+Download and install the plug-in package.
 
-	```bash
-	$ dpkg -i elasticsearch-2.4.6.deb
-	```
+```bash
+$ bin/elasticsearch-plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/3.0.0-cypress/elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip
+```
 
-3. Navigate to the Elasticsearch installation directory.
+Replace the plugin URL with the one that matches your Elasticsearch version, all URLs can be found on the [releases page](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases).
 
-	```bash
-	$ cd /usr/share/elasticsearch
-	```
+When the installation is successful, the message "Installed transport-couchbase into /usr/share/elasticsearch/plugins/transport/couchbase" will be logged.
 
-4. Download and install the plug-in package.
+## Configuration
 
-	```bash
-	$ bin/plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/3.0.0-cypress/elasticsearch-transport-couchbase-3.0.0-alder-es2.4.6.zip
-	```
+Open the Elasticsearch configuration file (**/etc/elasticsearch/elasticsearch.yml**) and add the following to the end of the file.
 
-When the installation is successful, the message "Installed transport-couchbase into /usr/share/elasticsearch/plugins/transport/couchbase" is logged.
+```yaml
+couchbase.username: <USERNAME>
+couchbase.password: <PASSWORD>
+couchbase.maxConcurrentRequests: 1024
+```
 
-5. Open the Elasticsearch configuration file (**/etc/elasticsearch/elasticsearch.yml**) and add the following to the end of the file. The **username** and **password** should be the one used to connect to Couchbase Server.
+The **username** and **password** credentials will be used again later when configuring Couchbase Server.
 
-	```yaml
-	couchbase.username: <USERNAME>
-	couchbase.password: <PASSWORD>
-	couchbase.maxConcurrentRequests: 1024
-	```
+Still in the **/usr/share/elasticsearch** directory, configure the Elasticsearch plugin with the following curl command (Couchbase Server must be running).
 
-6. Start Elasticsearch
+```bash
+$ curl -X PUT http://localhost:9200/_template/couchbase -d @plugins/transport-couchbase/couchbase_template.json
+```
 
-	```bash
-	$ /etc/init.d/elasticsearch start
-	```
+When successful, the configuration-routine provides the following response: `{"acknowledged":true}`.
 
-7. Still in the **/usr/share/elasticsearch** directory, configure the Elasticsearch plugin with the following curl command (Couchbase Server must be running).
+Create an Elasticsearch index to receive the data from the Couchbase bucket. Later, when configuring XDCR, the "remote bucket name" must match the Elasticsearch index name.
 
-	```bash
-	$ curl -X PUT http://localhost:9200/_template/couchbase -d @plugins/transport-couchbase/couchbase_template.json
-	```
+```bash
+$ curl -X PUT http://localhost:9200/travel-sample
 
-	When successful, the configuration-routine provides the following response: `{"acknowledged":true}`.
+{"acknowledged":true}
+```
 
-8. Instantiate an Elasticsearch index to be applied by Elasticsearch to the data in a given Couchbase bucket (in this case, the **travel-sample** bucket).
+Now to configure Couchbase Server, open the Couchbase Web Console and select **XDCR > Add Remote Cluster**.
 
-	```bash
-	$ curl -X PUT http://localhost:9200/travel-sample
-	
-	{"acknowledged":true}
-	```
+![](img/xdcrInitial.png)
 
-You have now completed all basic installation and configuration requirements for Elasticsearch, the Elasticsearch Plug-in, and Couchbase Server.
+In the dialog, enter the **Cluster Name** of your choice, the **IP/hostname** should correspond to the Elasticsearch cluster and **Username**/**Password** to the credentials previously stored in **elasticsearch.yml**.
+
+
+![](img/remotecluster.png)
