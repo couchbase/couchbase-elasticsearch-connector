@@ -73,7 +73,7 @@ couchbase.maxConcurrentRequests: 1024
 
 The **username** and **password** credentials will be used again later when configuring Couchbase Server.
 
-Still in the **/usr/share/elasticsearch** directory, configure the Elasticsearch plugin with the following curl command (Couchbase Server must be running).
+Still in the **/usr/share/elasticsearch** directory, configure the Elasticsearch plugin with the following curl command.
 
 ```bash
 $ curl -X PUT http://localhost:9200/_template/couchbase -d @plugins/transport-couchbase/couchbase_template.json
@@ -81,7 +81,7 @@ $ curl -X PUT http://localhost:9200/_template/couchbase -d @plugins/transport-co
 
 When successful, the configuration-routine provides the following response: `{"acknowledged":true}`.
 
-Create an Elasticsearch index to receive the data from the Couchbase bucket. Later, when configuring XDCR, the "remote bucket name" must match the Elasticsearch index name.
+Create an Elasticsearch index to receive the data from the Couchbase bucket. Later, when configuring XDCR, the "remote bucket name" should match the Elasticsearch **index name**.
 
 ```bash
 $ curl -X PUT http://localhost:9200/travel-sample
@@ -93,7 +93,36 @@ Now to configure Couchbase Server, open the Couchbase Web Console and select **X
 
 ![](img/xdcrInitial.png)
 
-In the dialog, enter the **Cluster Name** of your choice, the **IP/hostname** should correspond to the Elasticsearch cluster and **Username**/**Password** to the credentials previously stored in **elasticsearch.yml**.
-
+In the dialog, enter the **Cluster Name** of your choice, the **IP/hostname** and port number where the Elasticsearch cluster is running (the Elasticsearch plugin listens on port 9091 by default) and the **Username**/**Password** previously stored in **elasticsearch.yml**.
 
 ![](img/remotecluster.png)
+
+Next, select the **Add Replication** option.
+
+![](img/addreplication.png)
+
+In the pop-up window, enter the origin bucket, the remote cluster and remote bucket (in this case it's the index created earlier). Also make sure that the **XDCR Protocol** version is set to 1 and click **Save**.
+
+![](img/addreplication-popup.png)
+
+Now that the replication is up and running, you can run full-text search queries on the Elasticsearch node.
+
+```bash
+$ curl localhost:9200/travel-sample/_search?q=san+francisco
+
+{
+	"took":5,
+	"timed_out":false,
+	"_shards":{"total":5,"successful":5,"skipped":0,"failed":0},
+	"hits":{
+		"total":1599,
+		"max_score":11.965878,
+		"hits":[
+			{"_index":"travel-sample","_type":"couchbaseDocument","_id":"landmark_36047","_score":11.965878,"_source":{"meta":{"rev":"1-1508c18bdbb400000000000002000000","flags":33554432,"expiration":0,"id":"landmark_36047"}}},
+			{"_index":"travel-sample","_type":"couchbaseDocument","_id":"landmark_25611","_score":11.905596,"_source":{"meta":{"rev":"1-1508c18bb43400000000000002000000","flags":33554432,"expiration":0,"id":"landmark_25611"}}},
+			{"_index":"travel-sample","_type":"couchbaseDocument","_id":"landmark_25712","_score":11.905596,"_source":{"meta":{"rev":"1-1508c18bb61e00000000000002000000","flags":33554432,"expiration":0,"id":"landmark_25712"}}}
+			...
+		]
+	}
+}
+```
