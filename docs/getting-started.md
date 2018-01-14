@@ -59,6 +59,8 @@ $ bin/elasticsearch-plugin install https://github.com/couchbaselabs/elasticsearc
 
 Replace the plugin URL with the one that matches your Elasticsearch version, all URLs can be found on the [releases page](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases).
 
+> **Note:** If you're using Elasticsearch 2.x, the command to install plugins is `bin/plugin` instead of `bin/elastichsearch-plugin`.
+
 When the installation is successful, the message "Installed transport-couchbase into /usr/share/elasticsearch/plugins/transport/couchbase" will be logged.
 
 ## Configuration
