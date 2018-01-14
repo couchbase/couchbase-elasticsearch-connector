@@ -91,19 +91,19 @@ $ curl -X PUT http://localhost:9200/travel-sample
 
 Now to configure Couchbase Server, open the Couchbase Web Console and select **XDCR > Add Remote Cluster**.
 
-![](img/xdcrInitial.png)
+![](assets/xdcrInitial.png)
 
 In the dialog, enter the **Cluster Name** of your choice, the **IP/hostname** and port number where the Elasticsearch cluster is running (the Elasticsearch plugin listens on port 9091 by default) and the **Username**/**Password** previously stored in **elasticsearch.yml**.
 
-![](img/remotecluster.png)
+![](assets/remotecluster.png)
 
 Next, select the **Add Replication** option.
 
-![](img/addreplication.png)
+![](assets/addreplication.png)
 
 In the pop-up window, enter the origin bucket, the remote cluster and remote bucket (in this case it's the index created earlier). Also make sure that the **XDCR Protocol** version is set to 1 and click **Save**.
 
-![](img/addreplication-popup.png)
+![](assets/addreplication-popup.png)
 
 Now that the replication is up and running, you can run full-text search queries on the Elasticsearch node.
 
