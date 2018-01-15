@@ -57,7 +57,7 @@ Download and install the plug-in package.
 $ bin/elasticsearch-plugin install https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/3.0.0-cypress/elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip
 ```
 
-Replace the plugin URL with the one that matches your Elasticsearch version, all URLs can be found on the [releases page](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases).
+Replace the plugin URL with the one that matches your Elasticsearch version; all URLs can be found on the [releases page](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases).
 
 > **Note:** If you're using Elasticsearch 2.x, the command to install plugins is `bin/plugin` instead of `bin/elastichsearch-plugin`.
 
@@ -103,7 +103,7 @@ Next, select the **Add Replication** option.
 
 ![](assets/addreplication.png)
 
-In the pop-up window, enter the origin bucket, the remote cluster and remote bucket (in this case it's the index created earlier). Also make sure that the **XDCR Protocol** version is set to 1 and click **Save**.
+On the pop-up window, enter the origin bucket, the remote cluster, and remote bucket (in this case it's the index that was created earlier). Also make sure that the **XDCR Protocol** version is set to 1 and that the **XDCR Optimistic Replication Threshold** is set to the maximum value of **20971520** for optimal performance. Then click **Save**.
 
 ![](assets/addreplication-popup.png)
 
