@@ -133,3 +133,9 @@ Let's take a moment to discuss some properties in the response object:
 
 - The `took` parameter indicates the number of milliseconds required for the search; while fields within the `_shards` object indicate how many Elasticsearch shards were available for search, how many were accessed successfully, and how many unsuccessfully.
 - The `total` field indicates the total number of items. A `max_score` is provided, to indicate Elasticsearch’s estimate of the relevance of each search-hit. Note that the source object contains only metadata, rather than a document’s entire contents: this is because the contents, if and when required, can more rapidly be retrieved from Couchbase itself; using the document ID that is the value of the `_id` field.
+
+## Deployment Considerations
+
+If you are working with an ElasticSearch cluster, it is recommended that you install the ElasticSearch Transport Plugin on every node. At minimum, you can install it on a single node. The plugin checks which nodes it's installed on and reports the public host addresses of those back to Couchbase. XDCR is then directed to every node where the plugin is installed.
+
+Optionally, if your ElasticSearch cluster has [separate data and client nodes](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-node.html), you can elect to install the ElasticSearch Transport Plugin on just one set of nodes. By installing on the data nodes only, you can reduce the amount of routing that needs to be done. Alternatively, installing the plugin on only the client nodes will offload CPU from the data nodes.
