@@ -128,3 +128,8 @@ $ curl localhost:9200/travel-sample/_search?q=san+francisco
 	}
 }
 ```
+
+Let's take a moment to discuss some properties in the response object:
+
+- The `took` parameter indicates the number of milliseconds required for the search; while fields within the `_shards` object indicate how many Elasticsearch shards were available for search, how many were accessed successfully, and how many unsuccessfully.
+- The `total` field indicates the total number of items. A `max_score` is provided, to indicate Elasticsearch’s estimate of the relevance of each search-hit. Note that the source object contains only metadata, rather than a document’s entire contents: this is because the contents, if and when required, can more rapidly be retrieved from Couchbase itself; using the document ID that is the value of the `_id` field.
