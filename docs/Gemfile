@@ -1,0 +1,13 @@
+source 'https://rubygems.org'
+gem 'redcarpet'
+gem 'sanitize'
+gem 'jekyll'
+
+# By default, this project installs the theme from the master branch of the git repository. Uncomment the following line to install it from the local filesystem (useful during development)		 +# This is the default theme for new Jekyll sites. You may change this to anything you like.
+gem "couchbase-theme", :git => "git://github.com/couchbaselabs/docs-style-guide.git"		 
+# gem "couchbase-theme", path: "./../../docs-style-guide/jekyll-theme"
+gem "jekyll-redirect-from", :git => "git://github.com/jamiltz/jekyll-redirect-from.git"
+
+group :jekyll_plugins do
+    gem 'jekyll-livereload'
+end
