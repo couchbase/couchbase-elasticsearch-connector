@@ -18,7 +18,6 @@ import com.couchbase.capi.CouchbaseBehavior;
 import com.google.common.cache.Cache;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionFuture;
-import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequestBuilder;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
@@ -28,6 +27,7 @@ import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsReques
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.get.GetRequestBuilder;
 import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
@@ -185,7 +185,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         builder.setId(id);
         builder.setType(pluginSettings.getCheckpointDocumentType());
         builder.setSource(toBeIndexed);
-        builder.setOpType(DocWriteRequest.OpType.CREATE);
+        builder.setOpType(IndexRequest.OpType.CREATE);
 
         IndexResponse response;
         ActionFuture<IndexResponse> laf = builder.execute();
