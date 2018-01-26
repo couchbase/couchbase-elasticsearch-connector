@@ -1,0 +1,139 @@
+---
+layout: docs
+permalink: connectors/elasticsearch-2.2/working-with-documents.html
+---
+
+Couchbase documents can be of arbitrary complexity. However, if they are to be searched on by means of Elasticsearch, you should specifically design them for trouble-free replication and retrieval. This section details a number of important design-issues, and also provides an overview of the different forms of _meta-data_ used by Couchbase Server and Elasticsearch.
+
+## Handling Types in Couchbase Server and Elasticsearch
+
+Couchbase Server and Elasticsearch handle types differently: this must be recognised and understood, to ensure comprehensive replication and retrieval.
+
+Within Couchbase, multiple, similarly structured JSON documents may each contain a `{name:value}` pair characterized by the same name; but with a value that differs in type. For example, an SKU or serial-number might be represented either as an integer; or as a string, in which both letters and numbers are represented: a single JSON schema is able to encompass both possibilities; such that the value associated with any given name-instance can be either one or the other.
+
+However, this is not directly supported by Elasticsearch; which, at the start of the replication process, creates a mapping whereby searches are conducted; and associates a specific type with each value, based on the first value-instance it encounters. Subsequently, documents that contain a differently typed value in the same position are not indexed by Elasticsearch, and so are not retrieved by searches.
+
+You should therefore maintain the type-consistency of specific values as much as possible, across Couchbase documents. If a value's type is updated within Couchbase Server, the default mapping for the Elasticsearch replication should be updated accordingly.
+
+## Preparing Mappings for Arrays
+
+You typically need to prepare a specific Elasticsearch mapping for arrays that are stored within Couchbase documents, in order to ensure consistency in terms of query-results. This can be demonstrated by the following example:
+
+```json
+{
+    ＂object1＂ : [
+        {
+            ＂name＂: ＂blue＂,
+            ＂count＂: 4
+        },
+        {
+            ＂name＂: ＂green＂,
+            ＂count＂: 6
+        }
+    ]
+}
+```
+
+Once the above object has been replicated, within a Couchbase document, to Elasticsearch, a search conducted for the name blue and count-value of `greater than 5` will likely return the document; even though the count-value associated with blue is actually `less than 5`.
+
+A nested object mapping for Elasticsearch should be created, to avoid this problem. For information, see [Nested Object Mapping](https://www.elastic.co/guide/en/elasticsearch/guide/current/nested-mapping.html), in the online Elasticsearch documentation.
+
+## Enabling Document-Expiration
+
+_Time To Live_ (TTL) refers to the time permitted to elapse before a Couchbase document expires. By default, all Couchbase documents have a TTL of zero; indicating that the document is to be kept indefinitely. Specific TTLs (such as 30, to indicate thirty seconds) can be assigned to documents by the application-designer: Couchbase Server removes expired documents, by means of a maintenance-process that runs, by default, every sixty minutes.
+
+TTL is not automatically propagated to Elasticsearch. Instead, Couchbase Server sends information on document-deletion to Elasticsearch when the maintenance-process runs; allowing Elasticsearch to make corresponding deletions. Potentially, however, this does mean that a document-ID may continue to appear in an Elasticsearch index for some time after it has been removed from Couchbase Server.
+
+To mitigate this problem, you should manually enable the Elasticsearch expiration field, `_ttl`, for any Couchbase document that has a non-zero TTL: this allows Elasticsearch itself to remove the item at its locally defined expiration-point.
+
+(Note that although this reduces the number of potentially orphaned items, the removal processes in Couchbase and Elasticsearch are not executed simultaneously; resulting in a continued if significantly diminished chance of noticeable inconsistency.)
+
+## Understanding Metadata
+
+Different forms of metadata are created and employed by Couchbase Server and Elasticsearch during the replication and search-retrieval processes. This section provides a summary of the forms of data and metadata that are encountered.
+
+#### Couchbase Data
+
+A JSON document within Couchbase Server takes the following form:
+
+```bash
+{
+    ＂name＂ : ＂Green Monsta Ale＂,
+    ＂abv＂ : 7.3,
+    ＂ibu＂ : 0,
+    ＂srm＂ : 0,
+    ＂upc＂ : 0,
+    ＂type＂ : ＂beer＂,
+    ＂brewery_id＂ : ＂wachusetts_brewing_company＂,
+    ＂updated＂ : ＂2010-07-22 20:00:20＂,
+    ＂description＂ : ＂A BIG PALE ALE with an awesome balance of Belgian malts with Fuggles and East Kent Golding hops.＂,
+    ＂style＂ : ＂American-Style Strong Pale Ale＂,
+    ＂category＂ : ＂North American Ale＂
+}
+```
+
+#### Couchbase Metadata
+
+The Couchbase metadata for the document shown above is as follows:
+
+```bash
+{
+    {
+        ＂id＂ : ＂wachusetts_brewing_company-green_monsta_ale＂,
+        ＂rev＂ : "1-00000005ce01e6210000000000000000",
+        ＂expiration＂ : 0,
+        ＂flags＂ : 0,
+        ＂type＂ : "json"
+    },
+    {
+        ＂name＂ : ＂Green Monsta Ale＂,
+        ＂abv＂ : 7.3,
+        ＂ibu＂ : 0,
+        ＂srm＂ : 0,
+        ＂upc＂ : 0,
+        ＂type＂ : ＂beer＂,
+        ＂brewery_id＂ : ＂wachusetts_brewing_company＂,
+        ＂updated＂ : ＂2010-07-22 20:00:20＂,
+        ＂description＂ : ＂A BIG PALE ALE with an awesome balance of Belgian malts with Fuggles and East Kent Golding hops.＂,
+        ＂style＂ : ＂American-Style Strong Pale Ale＂,
+        ＂category＂ : ＂North American Ale＂
+    }
+}
+```
+
+The metadata provided by Couchbase thus includes a document id, an internal revision number, an expiration number (representing number of seconds before the document expires, and can be removed by Couchbase Server), flags, and the document type. On replication, all data and metadata is sent to Elasticsearch by Couchbase.
+
+### Elasticsearch Metadata
+
+An Elasticsearch query returns metadata for the located document. This metadata is a combination of that provided by Couchbase, and that used by Elasticsearch:
+
+```json
+{
+    took: 22
+    timed_out: false
+    _shards: {
+        total: 5
+        successful: 5
+        failed: 0
+    },
+    hits: {
+        total: 1
+        max_score: 0.18642133
+        hits: [{
+                _index: beer-sample
+                _type: couchbaseDocument
+                _id: wachusetts_brewing_company-green-Monsta_ale
+                _score: 0.18642133
+                _source: {
+                    meta: {
+                        id: wachusetts_brewing_company-green_monsta_ale
+                        rev: 1-00000005ce01e6210000000000000000
+                        flags: 0
+                        expiration: 0
+                    } 
+                }
+            }]
+        }
+    }
+}
+```
