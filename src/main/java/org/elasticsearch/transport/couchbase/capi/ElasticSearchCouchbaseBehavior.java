@@ -36,13 +36,14 @@ import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.plugins.PluginInfo;
-import org.elasticsearch.rest.RestStatus;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import static org.elasticsearch.transport.couchbase.capi.CompatibilityHelper.isCreated;
 
 public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
@@ -191,7 +192,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         ActionFuture<IndexResponse> laf = builder.execute();
         if (laf != null) {
             response = laf.actionGet();
-            if (response.status() != RestStatus.CREATED) {
+            if (!isCreated(response)) {
                 logger.error("did not succeed creating uuid");
             }
         }
@@ -218,7 +219,7 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
             int tries = 0;
             bucketUUID = this.lookupUUID(bucket, "bucketUUID");
             while (bucketUUID == null && tries < 100) {
-                logger.debug("bucket UUID doesn't exist yet, creaating, attempt: {}", tries + 1);
+                logger.debug("bucket UUID doesn't exist yet, creating, attempt: {}", tries + 1);
                 String newUUID = UUID.randomUUID().toString().replace("-", "");
                 storeUUID(bucket, "bucketUUID", newUUID);
                 bucketUUID = this.lookupUUID(bucket, "bucketUUID");
