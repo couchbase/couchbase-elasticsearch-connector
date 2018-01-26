@@ -36,11 +36,9 @@ import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetRequestBuilder;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexRequest.OpType;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.Base64;
 import org.elasticsearch.common.logging.ESLogger;
 
 import javax.servlet.UnavailableException;
@@ -57,6 +55,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static javax.xml.bind.DatatypeConverter.parseBase64Binary;
+import static org.elasticsearch.transport.couchbase.capi.CompatibilityHelper.isCreated;
+import static org.elasticsearch.transport.couchbase.capi.CompatibilityHelper.setPipeline;
 
 public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
@@ -357,7 +358,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 } else if (json == null && base64 != null) {
                     // no plain json, let's try parsing the base64 data
                     try {
-                        byte[] decodedData = Base64.decode(base64);
+                        byte[] decodedData = parseBase64Binary(base64);
                         try {
                             // now try to parse the decoded data as json
                             json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
@@ -378,7 +379,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                                 logger.error("Body was: {} Parse error was: {}", new String(decodedData), e);
                             }
                         }
-                    } catch (IOException e) {
+                    } catch (IllegalArgumentException e) {
                         logger.error("Unable to decoded base64, indexing stub for id: {}", meta.get("id"));
                         logger.error("Base64 was was: {} Parse error was: {}", base64, e);
                         json = new HashMap<>();
@@ -398,6 +399,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 Number expiration = (Number) meta.get("expiration"); // Integer or Long
                 if (expiration != null && expiration.longValue() > 0) {
                     ttl = (expiration.longValue() * 1000) - System.currentTimeMillis();
+                    logger.debug("Document {} has expiration set, which is not supported in ES 5.0+", id);
                 }
 
                 String routingField = null;
@@ -426,6 +428,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 } else {
                     IndexRequestBuilder indexBuilder = client.prepareIndex(index, type, id);
                     indexBuilder.setSource(toBeIndexed);
+                    setPipeline(indexBuilder, pluginSettings);
                     if (!ignoreDelete && ttl > 0) {
                         indexBuilder.setTTL(ttl);
                     }
@@ -748,13 +751,13 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         builder.setId(id);
         builder.setType(pluginSettings.getCheckpointDocumentType());
         builder.setSource(toBeIndexed);
-        builder.setOpType(OpType.CREATE);
+        builder.setOpType(IndexRequest.OpType.CREATE);
 
         IndexResponse response;
         ActionFuture<IndexResponse> laf = builder.execute();
         if (laf != null) {
             response = laf.actionGet();
-            if (!response.isCreated()) {
+            if (!isCreated(response)) {
                 logger.error("did not succeed creating uuid");
             }
         }
