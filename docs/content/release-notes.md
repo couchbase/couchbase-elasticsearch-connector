@@ -5,6 +5,34 @@ permalink: connectors/elasticsearch-2.2/release-notes.html
 
 This section provides a set of Release Notes for successive versions of the Elasticsearch Transport Plug-in, provided by Couchbase. Each set of notes provide details of changes and additions that have been made.
 
+## Version Compatibility
+
+The [GitHub releases](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases) page lists all the plugin variants. In a given release, the plugin's filename is of the form **elasticsearch-transport-couchbase-${PLUGIN\_VERSION}-alder-es${ES\_VERSION}.zip**. It is imperative to use the file where **ES_VERSION** matches your Elasticsearch cluster version. For example, to use the 3.0.0 version of the plugin with Elasticsearch 5.6.4, you will need to download **elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip**.
+
+## Elasticsearch Plug-in 3.0
+
+With [this release](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/tag/3.0.0-cypress), the Couchbase plugin for Elasticsearch moves to a new versioning and branch management strategy that allows for simultaneous releases across ES versions (see [Version Compatibility](release-notes.html#version-compatibility)). All the versions are expected to work and are supported. However, versions which have received more testing and are **officially** supported are:
+
+- 3.0.0-cypress-es5.6.4
+- 3.0.0-birch-es5.2.2
+- 3.0.0-alder-es2.4.0
+
+Don't be alarmed by the major version bump; upgrading from version 2.x of the plugin should be seamless, and is recommended for all users. The code has just been relabeled for easier maintenance.
+
+### New Feature
+
+- Adds the `couchbase.pipeline` config for specifying the ingestion pipeline.
+
+### Enhancements
+
+- Improves logging for indexing errors.
+- Uses Dropwizard Metrics to collect and log richer stats.
+
+### Bug Fixes
+
+- [CBES-48](https://issues.couchbase.com/browse/CBES-48): Connection counter leak could cause spurious `TooManyConcurrentConnections` errors.
+- [#153](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/issues/153): ClassCastException error when the TTL is of type `Long` instead of `Integer`.
+
 ### Known issues
 
 The Elasticsearch Plug-in does not support IPv6. So to use the plugin, the Couchbase Server and Elasticsearch clusters will need to run on instances which are addressable with IPv4.
