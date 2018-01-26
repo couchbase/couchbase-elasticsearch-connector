@@ -1,0 +1,11 @@
+# For the Edit on GitHub button
+gh_link: https://github.com/couchbaselabs/elasticsearch-transport-couchbase/tree/master/docs/
+# Use the Couchbase theme
+theme: couchbase-theme
+# Used for redirects
+plugins:
+  - jekyll-redirect-from
+# To avoid port conflicts
+reload_port: 35730
+# Required for the header links to be generated
+markdown: redcarpet

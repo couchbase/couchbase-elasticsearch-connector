@@ -1,4 +1,6 @@
 ---
+layout: docs
+permalink: connectors/elasticsearch-2.2/getting-started.html
 ---
 
 A Couchbase-Elasticsearch data-replication system consists of three principal components:

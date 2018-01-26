@@ -1,0 +1,4 @@
+highlighter: none
+# used by https://github.com/jamiltz/jekyll-redirect-from
+url: https://developer.couchbase.com
+baseurl: documentation/server/5.0
