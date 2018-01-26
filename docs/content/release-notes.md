@@ -7,7 +7,7 @@ This section provides a set of Release Notes for successive versions of the Elas
 
 ### Known issues
 
-The Elasticsearch Plug-in does not support IPv6. So to use the Elasticsearch plugin, the Couchbase Server and Elasticsearch clusters will need to run on instances which are addressable with IPv4.
+The Elasticsearch Plug-in does not support IPv6. So to use the plugin, the Couchbase Server and Elasticsearch clusters will need to run on instances which are addressable with IPv4.
 
 ## Elasticsearch Plug-in 2.2
 
