@@ -5,6 +5,10 @@ permalink: connectors/elasticsearch-2.2/release-notes.html
 
 This section provides a set of Release Notes for successive versions of the Elasticsearch Transport Plug-in, provided by Couchbase. Each set of notes provide details of changes and additions that have been made.
 
+### Known issues
+
+The Elasticsearch Plug-in does not support IPv6. So to use the Elasticsearch plugin, the Couchbase Server and Elasticsearch clusters will need to run on instances which are addressable with IPv4.
+
 ## Elasticsearch Plug-in 2.2
 
 This release note applies to the 2.2 version of the Elasticsearch Transport Plug-in (February 2017). It adds a number of bug fixes. See [Installation and Configuration](connectors/elasticsearch-2.2/install-and-config.html) for versioning and compatibility information.

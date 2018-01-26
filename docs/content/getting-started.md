@@ -101,6 +101,8 @@ In the dialog, enter the **Cluster Name** of your choice, the **IP/hostname** an
 
 ![](https://user-images.githubusercontent.com/2589337/34956202-0bfc72e0-fa20-11e7-9717-f7bf8e13c1e2.png)
 
+> **Note:** The Elasticsearch Plug-in does not support IPv6. So to use the Elasticsearch plugin, the Couchbase Server and Elasticsearch clusters will need to run on instances which are addressable with IPv4.
+
 Next, select the **Add Replication** option.
 
 ![](https://user-images.githubusercontent.com/2589337/34956190-0445dcf8-fa20-11e7-89f0-4b8288e80980.png)
