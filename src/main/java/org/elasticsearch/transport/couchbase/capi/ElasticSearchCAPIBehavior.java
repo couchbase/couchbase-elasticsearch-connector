@@ -24,7 +24,6 @@ import com.google.common.base.Stopwatch;
 import com.google.common.cache.Cache;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionFuture;
-import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequestBuilder;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -41,13 +40,11 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.rest.RestStatus;
 
 import javax.servlet.UnavailableException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +55,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static javax.xml.bind.DatatypeConverter.parseBase64Binary;
+import static org.elasticsearch.transport.couchbase.capi.CompatibilityHelper.isCreated;
+import static org.elasticsearch.transport.couchbase.capi.CompatibilityHelper.setPipeline;
 
 public class ElasticSearchCAPIBehavior implements CAPIBehavior {
 
@@ -358,7 +358,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 } else if (json == null && base64 != null) {
                     // no plain json, let's try parsing the base64 data
                     try {
-                        byte[] decodedData = Base64.getDecoder().decode(base64);
+                        byte[] decodedData = parseBase64Binary(base64);
                         try {
                             // now try to parse the decoded data as json
                             json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
@@ -428,7 +428,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 } else {
                     IndexRequestBuilder indexBuilder = client.prepareIndex(index, type, id);
                     indexBuilder.setSource(toBeIndexed);
-                    indexBuilder.setPipeline(pluginSettings.getPipeline());
+                    setPipeline(indexBuilder, pluginSettings);
                     if (!ignoreDelete && ttl > 0) {
                         indexBuilder.setTTL(ttl);
                     }
@@ -724,13 +724,13 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         builder.setId(id);
         builder.setType(pluginSettings.getCheckpointDocumentType());
         builder.setSource(toBeIndexed);
-        builder.setOpType(DocWriteRequest.OpType.CREATE);
+        builder.setOpType(IndexRequest.OpType.CREATE);
 
         IndexResponse response;
         ActionFuture<IndexResponse> laf = builder.execute();
         if (laf != null) {
             response = laf.actionGet();
-            if (response.status() != RestStatus.CREATED) {
+            if (!isCreated(response)) {
                 logger.error("did not succeed creating uuid");
             }
         }
