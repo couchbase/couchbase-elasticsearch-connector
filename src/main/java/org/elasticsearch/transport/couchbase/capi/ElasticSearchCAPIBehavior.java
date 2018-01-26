@@ -77,6 +77,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
     protected final Counter activeRevsDiffRequests;
     protected final Counter activeBulkDocsRequests;
     protected final Meter tooManyConcurrentRequestsMeter;
+    protected final Timer deletionRoutingTimer;
 
     protected Cache<String, String> bucketUUIDCache;
 
@@ -94,6 +95,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
         this.activeRevsDiffRequests = metricRegistry.counter("activeRevsDiffRequests");
         this.activeBulkDocsRequests = metricRegistry.counter("activeBulkDocsRequests");
         this.tooManyConcurrentRequestsMeter = metricRegistry.meter("tooManyConcurrentRequests");
+        this.deletionRoutingTimer = metricRegistry.timer("deletionRouting");
     }
 
     @Override
@@ -207,7 +209,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                         int added = 0;
                         for (String id : responseMap.keySet()) {
                             String type = pluginSettings.getTypeSelector().getType(index, id);
-                            if (pluginSettings.getDocumentTypeRoutingFields() != null && pluginSettings.getDocumentTypeRoutingFields().containsKey(type)) {
+                            if (hasCustomRouting(type)) {
                                 // if this type requires special routing, we can't find it without the doc body
                                 // so we skip this id in the lookup to avoid errors
                                 continue;
@@ -306,6 +308,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             final Map<String, IndexRequest> bulkIndexRequests = new HashMap<>();
             final Map<String, DeleteRequest> bulkDeleteRequests = new HashMap<>();
 
+            // Handles deletion requests for documents that use non-default routing
+            final DeletionRouter deletionRouter = new DeletionRouter(client, index, pluginSettings, deletionRoutingTimer);
+
             // keeps track of the ID/revision pairs for which we'll acknowledge receipt to satisfy the XDCR mechanism.
             final BulkDocsResponseBuilder responseBuilder = new BulkDocsResponseBuilder();
 
@@ -401,15 +406,27 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 logger.trace("Selecting type {} for document {} in index {}", type, id, index);
 
                 if (deleted) {
-                    if (!ignoreDelete) {
-                        DeleteRequest deleteRequest = client.prepareDelete(index, type, id).request();
-                        bulkDeleteRequests.put(id, deleteRequest);
-                    } else {
+                    if (ignoreDelete) {
                         // Acknowledge each delete request as if ES returned successful delete confirmation.
                         responseBuilder.acknowledge(id, rev);
+                    } else {
+                        final DeleteRequest deleteRequest = client.prepareDelete(index, type, id).request();
+                        bulkDeleteRequests.put(id, deleteRequest);
+
+                        if (hasParent(type) || hasCustomRouting(type)) {
+                            // Must specify routing
+                            String inferredRouting = inferRoutingFromDocumentId(id, type);
+                            if (inferredRouting != null) {
+                                deleteRequest.routing(inferredRouting);
+                            } else {
+                                // Need to do a query to find the correct route.
+                                // Remember the doomed IDs and look up the routes later all at once.
+                                deletionRouter.addRoutingLater(id);
+                            }
+                        }
                     }
                 } else {
-                    IndexRequestBuilder indexBuilder = client.prepareIndex(index, type, id);
+                    final IndexRequestBuilder indexBuilder = client.prepareIndex(index, type, id);
                     indexBuilder.setSource(toBeIndexed);
 
                     setParent(indexBuilder, toBeIndexed, id, type);
@@ -424,6 +441,9 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                     bulkIndexRequests.put(id, indexRequest);
                 }
             }
+
+            // Handle deletion requests for documents with non-default routing
+            deletionRouter.augmentBulkRequests(bulkIndexRequests, bulkDeleteRequests);
 
             int attempt = 0;
             BulkResponse response = null;
@@ -551,6 +571,31 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
             logger.debug("exit bulkDocs requestId={} database={} elapsedMs={}",
                     requestId, database, stopwatch.elapsed(MILLISECONDS));
         }
+    }
+
+    /**
+     * Returns true if the specified document type is routed to an ES shard
+     * based a field of the document content.
+     */
+    private boolean hasCustomRouting(String type) {
+        return pluginSettings.getDocumentTypeRoutingFields() != null && pluginSettings.getDocumentTypeRoutingFields().containsKey(type);
+    }
+
+    /**
+     * Returns the ES routing for the document, or {@code null} if the route cannot be inferred from the
+     * document ID. A return value of {@code null} does not necessarily mean the document uses default routing.
+     */
+    private String inferRoutingFromDocumentId(String id, String type) {
+        if (hasCustomRouting(type)) {
+            return null;
+        }
+        // If the parent ID is embedded in the child ID, the parent selector can tell us
+        // the parent ID, which is used for routing.
+        return pluginSettings.getParentSelector().getParent(id, type);
+    }
+
+    private boolean hasParent(String type) {
+        return pluginSettings.getParentSelector().typeHasParent(type);
     }
 
     private boolean shouldIgnoreDeletes(String index) {

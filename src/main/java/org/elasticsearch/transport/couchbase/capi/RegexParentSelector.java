@@ -68,4 +68,14 @@ public class RegexParentSelector implements ParentSelector {
         }
         return null;
     }
+
+    @Override
+    public String getParent(String docId, String type) {
+        return (String) getParent(null, docId, type);
+    }
+
+    @Override
+    public boolean typeHasParent(String type) {
+        return documentTypeParentRegexMap.containsKey(type);
+    }
 }
