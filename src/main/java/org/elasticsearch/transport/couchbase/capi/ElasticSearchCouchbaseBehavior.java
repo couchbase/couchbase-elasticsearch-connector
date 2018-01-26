@@ -26,7 +26,7 @@ import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsReques
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.get.GetRequestBuilder;
 import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexRequest.OpType;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
@@ -41,6 +41,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import static org.elasticsearch.transport.couchbase.capi.CompatibilityHelper.isCreated;
 
 public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
 
@@ -183,13 +185,13 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         builder.setId(id);
         builder.setType(pluginSettings.getCheckpointDocumentType());
         builder.setSource(toBeIndexed);
-        builder.setOpType(OpType.CREATE);
+        builder.setOpType(IndexRequest.OpType.CREATE);
 
         IndexResponse response;
         ActionFuture<IndexResponse> laf = builder.execute();
         if (laf != null) {
             response = laf.actionGet();
-            if (!response.isCreated()) {
+            if (!isCreated(response)) {
                 logger.error("did not succeed creating uuid");
             }
         }
@@ -281,15 +283,13 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
                 }
             }
             return nodes;
-
         }
         return null;
     }
 
     @Override
     public Map<String, Object> getStats() {
-        Map<String, Object> result = new HashMap<>();
-        return result;
+        return new HashMap<>();
     }
 
 }
