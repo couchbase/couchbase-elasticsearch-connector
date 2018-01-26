@@ -21,10 +21,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class BulkDocsResponseBuilder {
+class BulkDocsResponseBuilder {
     private final List<Map<String, Object>> results = new ArrayList<>();
 
-    public void acknowledge(String itemId, String itemRev) {
+    void acknowledge(String itemId, String itemRev) {
+        if (itemRev == null) {
+            // Probably deleting a routing signpost; Couchbase doesn't know about those.
+            return;
+        }
+
         Map<String, Object> map = new HashMap<>();
         map.put("id", itemId);
         map.put("rev", itemRev);
@@ -32,7 +37,7 @@ public class BulkDocsResponseBuilder {
     }
 
     @SuppressWarnings("unchecked")
-    public List<Object> build() {
+    List<Object> build() {
         return (List<Object>) (List) results;
     }
 }
