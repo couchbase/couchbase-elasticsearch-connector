@@ -48,7 +48,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -237,9 +236,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                     logger.debug("client was null");
                 }
                 if (response != null) {
-                    Iterator<MultiGetItemResponse> iterator = response.iterator();
-                    while (iterator.hasNext()) {
-                        MultiGetItemResponse item = iterator.next();
+                    for (MultiGetItemResponse item : response) {
                         if (item.isFailed()) {
                             logger.warn("_revs_diff get failure on index: {} id: {} message: {}", item.getIndex(), item.getId(), item.getFailure().getMessage());
                         } else {
