@@ -9,7 +9,7 @@ defaultTasks 'clean', 'buildAll'
 apply plugin: 'java'
 
 def baseVersion = '3.0.1'
-def snapshot = true
+def snapshot = false
 
 def branch = 'alder'
 
