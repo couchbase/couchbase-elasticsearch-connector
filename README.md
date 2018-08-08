@@ -16,13 +16,10 @@ works only with plugins built for that exact version.
 In order to support a broad range of Elasticsearch versions, there are multiple development lines of
 the Couchbase plugin. Each line supports a different set of Elasticsearch versions, shown by this table:
 
-    +---------------------------------------------------------------------+
-    |  Plugin Line    |  Git Branch     |  Elasticsearch  |  Couchbase    |
-    +---------------------------------------------------------------------+
-    | cypress         | release/cypress | 5.x             |  4.x - 5.x    |
-    +---------------------------------------------------------------------+    
-    | alder           | release/alder   | 2.2.0 - 2.4.6   |  4.x - 5.x    |
-    +---------------------------------------------------------------------+
+|  Plugin Line    |  Git Branch     |  Elasticsearch  |  Couchbase    |
+|-----------------|-----------------|-----------------|---------------|
+| cypress         | release/cypress | 5.x             |  4.x - 5.x    |    
+| alder           | release/alder   | 2.2.0 - 2.4.6   |  4.x - 5.x    |
 
 Starting with version 3 of the Couchbase plugin, a version string has the form
 `<plugin-version>-<plugin-line>-es<elasticsearch-version>`.
