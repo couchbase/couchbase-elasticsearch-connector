@@ -14,7 +14,7 @@ and supported versions may change before release.
 
 * Couchbase Server 5.0 or newer.
 * Elasticsearch 5 or newer (6.x recommended).
-* Java 8 or newer.
+* Java 8 or newer (Oracle or OpenJDK)
 
 You might also want the [elasticsearch-head](https://github.com/mobz/elasticsearch-head) plugin for
 Google Chrome so you can easily see the documents in Elasticsearch.
