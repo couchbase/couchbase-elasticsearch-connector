@@ -21,7 +21,7 @@ Google Chrome so you can easily see the documents in Elasticsearch.
 
 ## Installation
 
-Connector Service distributions are available from the [Releases](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases) page.
+Starting August 31st, Connector Service distributions will be available from the [Releases](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases) page.
 Download the latest `couchbase-elasticsearch-connector-<version>.zip`. (Ignore the `elasticsearch-transport-couchbase` files; those are for the plugin flavor.) 
 
 Unzip the archive. These instructions refer to the unzipped directory as `$CBES_HOME`.
