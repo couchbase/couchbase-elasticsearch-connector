@@ -1,6 +1,6 @@
-This document describes the plugin flavor of the Couchbase Elasticsearch Connector.
-
-You may also be interested in the [Connector Service](README-SERVICE.md) flavor
+> This document describes the **Elasticsearch Plugin** flavor of the Couchbase Elasticsearch Connector.
+>
+> You may also be interested in the [**Connector Service**](README-SERVICE.md) flavor
 which supports Elasticsearch 6.x and secure connections. 
 
 

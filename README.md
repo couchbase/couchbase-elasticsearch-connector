@@ -7,7 +7,7 @@ Couchbase Elasticsearch Connector
 The Couchbase Elasticsearch Connector streams documents from Couchbase into Elasticsearch.
 It comes in two flavors: a Connector Service, and an Elasticsearch plugin.
 
-The **[Connector Service](README-JAVA-APP.md)** (arriving August 31st, 2018 as a Developer Preview) is designed for
+The **[Connector Service](README-SERVICE.md)** (arriving August 31st, 2018 as a Developer Preview) is designed for
 Elasticsearch 5 and newer, including ES 6.
 It uses the Couchbase Database Change Protocol (DCP) to receive notifications whenever
 a document is modified in Couchbase. The service has an optional distributed mode for horizontal scalability.

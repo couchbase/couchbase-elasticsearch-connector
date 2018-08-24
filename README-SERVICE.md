@@ -1,7 +1,7 @@
-This document describes the **Connector Service** flavor of the Couchbase Elasticsearch Connector,
+>This document describes the **Connector Service** flavor of the Couchbase Elasticsearch Connector,
 which will be available as a Developer Preview on August 31st, 2018.
-
-You may also be interested in the [Elasticsearch Plugin](README-PLUGIN.md) flavor
+>
+>You may also be interested in the [**Elasticsearch Plugin**](README-PLUGIN.md) flavor
 which is available now. 
 
 ## Pre-Release Disclaimer
