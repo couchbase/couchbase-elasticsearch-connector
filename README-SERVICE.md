@@ -132,7 +132,7 @@ During development, it might be more convenient to run:
 
     ./gradlew installDist
     
-which creates `build/install/cbes` as a `$CBES_HOME` directory.    
+which creates `build/install/couchbase-elasticsearch-connector` as a `$CBES_HOME` directory.    
 
 ### IntelliJ setup  
 Because the project uses annotation processors, some [fiddly setup](INTELLIJ-SETUP.md) is required when importing the project into IntelliJ.

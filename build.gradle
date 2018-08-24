@@ -77,6 +77,10 @@ tasks.withType(CreateStartScripts) {
 mainClassName = "com.couchbase.connector.elasticsearch.ElasticsearchConnector"
 applicationDefaultJvmArgs = ['-server']
 
+startScripts {
+    applicationName = 'cbes'
+}
+
 def extraStartScripts = [
         'cbes-checkpoint-backup' : 'com.couchbase.connector.elasticsearch.cli.CheckpointBackup',
         'cbes-checkpoint-restore': 'com.couchbase.connector.elasticsearch.cli.CheckpointRestore',
