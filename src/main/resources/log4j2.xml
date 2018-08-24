@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The is the fallback logging config used when the connector is run within an IDE.
+  For the shipped logging config, see: src/dist/config/log4j2.xml
+-->
+<Configuration status="INFO">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger - %msg%n"/>
+        </Console>
+        <File name="Metrics" fileName="cbes-metrics.log" immediateFlush="false" append="false">
+            <PatternLayout pattern="%d{yyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </File>
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="Console"/>
+        </Root>
+        <Logger name="cbes.metrics" level="info"> <!-- additivity="false"> -->
+            <AppenderRef ref="Metrics"/>
+        </Logger>
+    </Loggers>
+</Configuration>

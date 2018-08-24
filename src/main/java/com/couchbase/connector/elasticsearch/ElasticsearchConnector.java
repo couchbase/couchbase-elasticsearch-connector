@@ -1,0 +1,266 @@
+/*
+ * Copyright 2018 Couchbase, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.couchbase.connector.elasticsearch;
+
+import com.codahale.metrics.Slf4jReporter;
+import com.couchbase.client.core.logging.RedactableArgument;
+import com.couchbase.client.dcp.Client;
+import com.couchbase.client.dcp.StreamFrom;
+import com.couchbase.client.dcp.StreamTo;
+import com.couchbase.client.java.Bucket;
+import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.util.features.Version;
+import com.couchbase.connector.cluster.Coordinator;
+import com.couchbase.connector.cluster.Membership;
+import com.couchbase.connector.cluster.StaticCoordinator;
+import com.couchbase.connector.config.ConfigException;
+import com.couchbase.connector.config.es.ConnectorConfig;
+import com.couchbase.connector.config.es.ElasticsearchConfig;
+import com.couchbase.connector.config.es.TypeConfig;
+import com.couchbase.connector.dcp.CheckpointDao;
+import com.couchbase.connector.dcp.CheckpointService;
+import com.couchbase.connector.dcp.CouchbaseCheckpointDao;
+import com.couchbase.connector.dcp.CouchbaseHelper;
+import com.couchbase.connector.dcp.DcpHelper;
+import com.couchbase.connector.dcp.SnapshotMarker;
+import com.couchbase.connector.elasticsearch.cli.AbstractCliCommand;
+import com.couchbase.connector.elasticsearch.io.RequestFactory;
+import com.couchbase.connector.util.HttpServer;
+import com.google.common.collect.Iterables;
+import joptsimple.OptionSet;
+import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.ssl.SSLContexts;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.unit.TimeValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.net.ssl.SSLContext;
+import java.io.File;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
+
+import static com.couchbase.connector.VersionHelper.getVersionString;
+import static com.couchbase.connector.dcp.CouchbaseHelper.requireCouchbaseVersion;
+import static com.couchbase.connector.dcp.DcpHelper.allPartitions;
+import static com.couchbase.connector.dcp.DcpHelper.getCurrentSeqnos;
+import static com.couchbase.connector.dcp.DcpHelper.initControlHandler;
+import static com.couchbase.connector.dcp.DcpHelper.initDataEventHandler;
+import static com.couchbase.connector.dcp.DcpHelper.initSessionState;
+import static com.couchbase.connector.dcp.DcpHelper.toBoxedShortArray;
+import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.waitForElasticsearchAndRequireVersion;
+import static com.couchbase.connector.util.ListHelper.chunks;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+
+public class ElasticsearchConnector extends AbstractCliCommand {
+
+//  static {
+//    ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
+//  }
+//
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchConnector.class);
+
+  private static class OptionsParser extends CommonParser {
+  }
+
+  private static Slf4jReporter newSlf4jReporter(TimeValue logInterval) {
+    Slf4jReporter reporter = Slf4jReporter.forRegistry(Metrics.registry())
+        .convertDurationsTo(MILLISECONDS)
+        .convertRatesTo(SECONDS)
+        .outputTo(LoggerFactory.getLogger("cbes.metrics"))
+        .withLoggingLevel(Slf4jReporter.LoggingLevel.INFO)
+        .build();
+    if (logInterval.duration() > 0) {
+      reporter.start(logInterval.duration(), logInterval.duration(), logInterval.timeUnit());
+    }
+    return reporter;
+  }
+
+  private static RestHighLevelClient newElasticsearchClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
+    final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+    credentialsProvider.setCredentials(AuthScope.ANY,
+        new UsernamePasswordCredentials(username, password));
+
+    final SSLContext sslContext = !secureConnection ? null :
+        SSLContexts.custom().loadTrustMaterial(trustStore.get(), null).build();
+
+    final RestClientBuilder builder = RestClient.builder(Iterables.toArray(hosts, HttpHost.class))
+        .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+            .setSSLContext(sslContext)
+            .setDefaultCredentialsProvider(credentialsProvider))
+        .setFailureListener(new RestClient.FailureListener() {
+          @Override
+          public void onFailure(HttpHost host) {
+            Metrics.elasticsearchHostOffline().mark();
+          }
+        });
+
+    return new RestHighLevelClient(builder);
+  }
+
+  public static void main(String... args) throws Throwable {
+    LOGGER.info("Couchbase Elasticsearch Connector version {}", getVersionString());
+
+    final OptionsParser parser = new OptionsParser();
+    final OptionSet options = parser.parse(args);
+
+    final File configFile = options.valueOf(parser.configFile);
+    System.out.println("Reading connector configuration from " + configFile.getAbsoluteFile());
+    final ConnectorConfig config = ConnectorConfig.from(configFile);
+    run(config);
+  }
+
+  public static void run(ConnectorConfig config) throws Throwable {
+    final Throwable fatalError;
+
+    final Membership staticMembership = config.group().staticMembership();
+    final int memberNumber = staticMembership.getMemberNumber();
+    final int clusterSize = staticMembership.getClusterSize();
+    Metrics.gauge("groupMembership", () -> staticMembership::toString);
+
+    final Coordinator coordinator = new StaticCoordinator(staticMembership);
+
+    LOGGER.info("Read configuration: {}", RedactableArgument.system(config));
+
+    final ScheduledExecutorService checkpointExecutor = Executors.newSingleThreadScheduledExecutor();
+
+    try (Slf4jReporter metricReporter = newSlf4jReporter(config.metrics().logInterval());
+         HttpServer httpServer = new HttpServer(config.metrics().httpPort());
+         RestHighLevelClient esClient = newElasticsearchClient(
+             config.elasticsearch().hosts(),
+             config.elasticsearch().username(),
+             config.elasticsearch().password(),
+             config.elasticsearch().secureConnection(),
+             config.trustStore())) {
+
+      httpServer.start();
+      if (config.metrics().httpPort() >= 0) {
+        LOGGER.info("Metrics available at http://localhost:{}/metrics?pretty", httpServer.getBoundPort());
+      } else {
+        LOGGER.info("Metrics HTTP server is disabled. Edit the [metrics] 'httpPort' config property to enable.");
+      }
+
+      final CouchbaseCluster cluster = CouchbaseHelper.createCluster(config.couchbase(), config.trustStore());
+
+      ElasticsearchHelper.registerElasticsearchVersionGauge(esClient);
+      CouchbaseHelper.registerCouchbaseVersionGauge(cluster);
+
+      final Version elasticsearchVersion = waitForElasticsearchAndRequireVersion(
+          esClient, new Version(5, 2, 1), new Version(6, 3, 2));
+      LOGGER.info("Elasticsearch version {}", elasticsearchVersion);
+
+      validateConfig(elasticsearchVersion, config.elasticsearch());
+
+      // Wait for couchbase server to come online, then open the bucket.
+      final Bucket bucket = CouchbaseHelper.waitForBucket(cluster, config.couchbase().bucket());
+
+      // Do this after waiting for the bucket, because waitForBucket has nicer retry backoff.
+      // Checkpoint metadata is stored using Extended Attributes, a feature introduced in 5.0.
+      LOGGER.info("Couchbase Server version {}", requireCouchbaseVersion(cluster, new Version(5, 0, 0)));
+
+      final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(bucket, config.group().name());
+
+      final String bucketUuid = ""; // todo get this from dcp client
+      final CheckpointService checkpointService = new CheckpointService(bucketUuid, checkpointDao);
+      final RequestFactory requestFactory = new RequestFactory(
+          config.elasticsearch().types(), config.elasticsearch().docStructure(), config.elasticsearch().rejectLog());
+
+      final ElasticsearchWorkerGroup workers = new ElasticsearchWorkerGroup(
+          esClient,
+          checkpointService,
+          requestFactory,
+          ErrorListener.NOOP,
+          config.elasticsearch().bulkRequest());
+
+      Metrics.gauge("writeQueue", () -> workers::getQueueSize);
+      Metrics.gauge("esWaitMs", () -> workers::getCurrentRequestMillis); // High value indicates the connector has stalled
+
+      final Client dcpClient = DcpHelper.newClient(config.couchbase(), config.trustStore());
+
+      final SnapshotMarker[] snapshots = new SnapshotMarker[2048]; // sized to accommodate max number of vbuckets
+      initControlHandler(dcpClient, coordinator, snapshots);
+      initDataEventHandler(dcpClient, workers::submit, snapshots);
+
+      try {
+        if (!dcpClient.connect().await(config.couchbase().dcp().connectTimeout().millis(), MILLISECONDS)) {
+          LOGGER.error("Failed to establish initial DCP connection within {} -- shutting down.", config.couchbase().dcp().connectTimeout());
+          System.exit(1);
+        }
+
+        final List<Integer> partitions = chunks(allPartitions(dcpClient), clusterSize).get(memberNumber - 1);
+        if (partitions.isEmpty()) {
+          // need to do this check, because if we started streaming with an empty list, the DCP client would open streams for *all* partitions
+          throw new IllegalArgumentException("There are more workers than Couchbase vbuckets; this worker doesn't have any work to do.");
+        }
+
+        final Set<Integer> partitionSet = new HashSet<>(partitions);
+        checkpointService.init(getCurrentSeqnos(dcpClient, partitionSet));
+
+        dcpClient.initializeState(StreamFrom.BEGINNING, StreamTo.INFINITY).await();
+        initSessionState(dcpClient, checkpointService, partitionSet);
+
+        checkpointExecutor.scheduleWithFixedDelay(checkpointService::save, 10, 10, SECONDS);
+        Runtime.getRuntime().addShutdownHook(new Thread(checkpointService::save));
+
+        LOGGER.debug("Opening DCP streams for partitions: {}", partitions);
+        dcpClient.startStreaming(toBoxedShortArray(partitions)).await();
+
+        fatalError = workers.awaitFatalError();
+        LOGGER.error("Terminating due to fatal error.", fatalError);
+
+      } finally {
+        workers.close();
+        dcpClient.disconnect().await();
+        checkpointExecutor.shutdown();
+        metricReporter.stop();
+      }
+    }
+
+    MILLISECONDS.sleep(500); // give stdout a chance to quiet down so the stack trace on stderr isn't interleaved with stdout.
+    throw fatalError;
+  }
+
+  private static void validateConfig(Version elasticsearchVersion, ElasticsearchConfig config) {
+    // The default/example config is for Elasticsearch 6, and isn't 100% compatible with ES 5.x.
+    // Rather than spamming the log with indexing errors, let's do a preflight check.
+    if (elasticsearchVersion.major() < 6) {
+      for (TypeConfig type : config.types()) {
+        if (type.type().startsWith("_")) {
+          throw new ConfigException(
+              "Elasticsearch versions prior to 6.0 do not allow type names to start with underscores. " +
+                  "Please edit the connector configuration and replace type name '" + type.type() + "' with something else.");
+        }
+      }
+    }
+  }
+}
