@@ -6,7 +6,8 @@ which is available now.
 
 ## Pre-Release Disclaimer
 
-This product has not yet been released. Features, requirements, and supported versions are subject to change.
+This software has not yet been released. Features, requirements, documentation,
+and supported versions may change before release.
 
 
 ## Connector Service Requirements
