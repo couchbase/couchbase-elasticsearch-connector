@@ -1,0 +1,213 @@
+= Advanced Settings
+
+[abstract]
+You can configure the Elasticsearch Transport Plug-in by means of settings in the file `config/elasticsearch.yml`.
+This section provides a comprehensive list of the available options.
+It also explains how to establish appropriate Java security-policy permissions, which are required for interoperation with Elasticsearch 2.1.x.
+
+== Plug-in Settings and their Significance
+
+The following settings are available for the Elasticsearch Transport Plug-in:
+
+* *couchbase.port*: The port on which the plug-in listens.
+The default is `9091`.
+* *couchbase.username*: The username for authentication over basic HTTP.
+The default is `Administrator`.
+* *couchbase.password*: The password for authentication over basic HTTP.
+There is no default.
+* *couchbase.num_vbuckets*: The number of vbuckets that Elasticsearch should index.
+On Mac, the default is `64`; on all other platforms, `1024`.
+This value must match the number of vbuckets on the Couchbase cluster.
+* *couchbase.maxConcurrentRequests*: The number of concurrent requests allowed by the plug-in.
+The default is `1024`.
+This number can be lowered to reduce machine-load.
+* *couchbase.bulkIndexRetries*: The number of retries permitted on non-fatal bulk-indexing errors.
+The default is `10`.
+* *couchbase.bulkIndexRetryWaitMs*: The number of milliseconds permitted to elapse between bulk-index retries.
+The default is `1000`.
+* *couchbase.ignoreFailures*: A value of `true` causes the plug-in to return a success-status to Couchbase Server, even if some documents could not be indexed.
+This prevents XDCR from stalling due to Elasticsearch indexing errors (for example, when a schema-change breaks some of the Elasticsearch type-mappings).
+The default is `false`.
+* *couchbase.ignoreDeletes*: Accepts as a value a list of one or more index-names, specified as a comma- or semicolon-delimited string.
+The plug-in ignores document-deletion and expiration for each named index.
+(This allows information to be indefinitely archived; and may therefore lead to significant growth in index-size.)
+* *couchbase.wrapCounters*: A value of `true` causes the plug-in to store all integer-values provided by Couchbase that are not valid JSON documents in a document whose format is `{＂value＂:<value>}`, and is stored under the Couchbase Server ID originally specified for the value.
+The default is `false`.
+* *couchbase.ignoreDotIndexes*: A value of `true` causes the plug-in to ignore indexes and aliases whose names have a period as their initial character: for `example`, `.kibana`, `.marvel`, `.clover`.
+The default is `true`.
+* *couchbase.includeIndexes*: Accepts as a value a list of one or more index-names, specified as a comma- or semicolon-delimited string.
+The plug-in ignores all indexes not included in the list.
+This prohibits creation of additional indexes for the storing of checkpoint metadata (potentially unnecessary, when the number of replicated indexes is small).
+Note that this setting takes precedence over *ignoreDotIndexes*, and therefore forces use of indexes whose names have a period as their initial character, even if their use has been explicitly prohibited by *ignoreDotIndexes* (see immediately above).
+* *couchbase.typeSelector*: Specifies the type selector class to be used for mapping documents to types.
+The following options are available:
+ ** `org.elasticsearch.transport.couchbase.capi.DefaultTypeSelector`: Maps all documents to the specified type (see immediately below).
+This is the default type selector, and so need not be explicitly specified.
+Type-specification is managed by the following settings:
+  *** *couchbase.typeSelector.defaultDocumentType*: The document type to which the `DefaultTypeSelector` maps all documents.
+The default is `couchbaseDocument`.
+  *** *couchbase.typeSelector.checkpointDocumentType*: The document type to which replication-checkpoint documents are mapped.
+The default is `couchbaseCheckpoint`.
+ ** `org.elasticsearch.transport.couchbase.capi.DelimiterTypeSelector`: If the document ID is in the format `<`_type_`><`_delimiter_`><*>`, documents are mapped to the type specified by `<`_type_`>`.
+Otherwise, the `DefaultTypeSelector` is used: note that this entails use of the default delimiter, which is the colon character (`:`); and in consequence, a document with the ID `user:123` is indexed under the type `user`.
+The delimiter can be set to a different character, by means of the following setting:
+  *** *couchbase.typeSelector.documentTypeDelimiter*: Specifies the delimiter to be used for the `DelimiterTypeSelector`.
+The default is the colon character (`:`).
+ ** `org.elasticsearch.transport.couchbase.capi.GroupRegexTypeSelector`: Maps documents that match the specified regular expression with a capture group named _type_ (see immediately below).
+If the document does not match, or if no capture group named _type_ has been defined, the `DefaultTypeSelector` is used instead.
+  *** *couchbase.typeSelector.documentTypesRegex*: Specifies the regular expression to be used for mapping Couchbase document IDs to Elasticsearch types.
+For example, the expression `^(?<type>\w+::.+$` maps document IDs of the format `<type>::<stuff>` to the type `<type>`; so that the ID `user:123` is indexed under the type `user`.
+ ** `org.elasticsearch.transport.couchbase.capi.RegexTypeSelector`: Maps document IDs that match the specified regular expressions to named types.
+If an ID does not match any specified expression, `DefaultTypeSelector` is used to select the type.
+  *** *couchbase.typeSelector.documentTypesRegex.**: Specifies a regular expression with a named type.
+For example, `couchbase.typeSelector.documentTypesRegex.users: ^user-.+$` maps all document IDs that start with the string `user-` to the type `users`.
+* *couchbase.parentSelector*: The parent-selector class to be used for mapping child-documents to parents.
+(This facility is provided since, due to the nature of XDCR, a child document may be replicated before the parent, leading to unpredictable behavior on the Elasticsearch side.) The value of this setting can be one of the following:
+ ** `org.elasticsearch.transport.couchbase.capi.DefaultParentSelector`: Maps documents to parents according to a predefined map of types to field-names.
+This is specified as follows:
+  *** *couchbase.parentSelector.documentTypeParentFields.**: Specifies which document-field contains the ID of the parent-document for a specified type.
+For example, `couchbase.parentSelector.documenttypeParentFields.order: doc.user_id` sets the parent ID of all documents whose type is `order` to the value of the `user_id` field.
+ ** `org.elasticsearch.transport.couchbase.capi.RegexParentSelector`: Maps documents to parents, acording to a specified regular expression, using the capture group `parent`.
+The format of the parent document-ID can be user-determined.
+The value for this setting can be established as follows:
+  *** *couchbase.parentSelector.documentTypesParentRegex.**: Specifies a named regular expression for matching the parent document-ID.
+For example, `couchbase.documentTypesParentRegex.typeA: ^typeA::(?<parent>.+)` with the document-ID `typeA::123` uses `123` as the parent document-ID.
+  *** *couchbase.parentSelector.documentTypesParentFormat.**: Specifies an optional format for the parent document-ID that is matched by the regular expression described immediately above.
+Uses `<parent>` as the placeholder for the matched ID.
+For example, `couchbase.documentTypesParentFormat.typeA: parentType::<parent>`, used with the previous example, produces the parent document-ID `parentType::123`.
+* *couchbase.documentTypeRoutingFields.**: A mapping of types to custom document routing-paths.
+For example, specifying `couchbase.documentTypeRoutingFields.users: user_id` uses the field `user_id` as the custom routing-path for type `users`.
+* *couchbase.keyFilter*: Specifies the document filter-class to be used for filtering documents on the Elasticseach plug-in side.
+Note that Couchbase sends all documents through XDCR: the document-filter determines whether specific documents be indexed or ignored, according to their ID.
+The value for this setting can be one of the following:
+ ** `org.elasticsearch.transport.couchbase.capi.DefaultKeyFilter`: Allows all documents through.
+This is the default setting, and therefore does not need to be specified.
+ ** `org.elasticsearch.transport.couchbase.capi.RegexKeyFilter`: Allows documents through, or disallows, based on a regular expression that is specified by means of the following settings:
+  *** *couchbase.keyFilter.type*: Specifies whether the filter includes or excludes the matched documents.
+Value can be either `include` or `exclude`.
+If include, only documents with IDs that match one of the regular expressions are indexed.
+If exclude, only documents that _do not match any_ of the regular expressions are indexed.
+  *** *couchbase.keyFilter.keyFiltersRegex.**: Specifies one or more regular expressions to be matched against the document ID, before indexing occurs in Elasticsearch.
+For example, `couchbase.keyFilter.type: exclude + couchbase.keyFilter.keyFiltersRegex.temp: ^temp.*$` causes the plug-in to ignore each document whose ID commences with `temp`.
+
+== Java Security-Policy Permissions
+
+The Elasticsearch Transport Plug-in works with Elasticsearch 2.1.x only if the system’s default `java.policy` file is appropriately edited.
+The file is located in the directory `%JAVA_HOME%/jre/lib/security`.
+The file can be edited either directly, or by means of the `policytool` utility, located in the directory `%JAVA_HOME%/bin`.
+Note that for either procedure, root permissions are required.
+
+[.ui]*Edit Directly*
+
+If editing the policy directly, add the following to the end of the file:
+
+----
+grant codeBase "file:/<path to transport-couchbase plug-in install directory>/*" {
+    permission javax.security.auth.AuthPermission "modifyPrincipals";
+    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+    permission javax.security.auth.AuthPermission "setReadOnly";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.net.SocketPermission "*", "listen,resolve";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+};
+----
+
+Include, as indicated above, the appropriate path for the directory where the plug-in was installed.
+For example, if Elasticsearch was installed as a `deb/rpm` package on Linux, this path would be `file: /usr/share/elasticsearch/plugins/transport-couchbase/*`.
+Note the trailing asterisk, which specifies that the policy applies to all files in the directory.
+
+[.ui]*Edit with Policytool*
+
+If using `policytool`, start it at the command line, specifying the policy file-location as follows:
+
+----
+$JAVA_HOME/bin/policytool -file $JAVA_HOME/jre/lib/security/java.policy
+----
+
+When the applet-window appears, verify that the policy-file displayed in the upper editable text field is the one you intend to edit:
+
+[#policyToolInitial]
+image::policyToolInitial.png[,480]
+
+To add the required security-settings, left-click on the btn:[Add Policy Entry] button.
+The [.ui]*Policy Entry* window now appears:
+
+[#policyToolPolicyEnter01]
+image::policyToolPolicyEnter01.png[,480]
+
+Left-click on the btn:[Add Permission] button.
+The [.ui]*Permissions* dialog appears
+
+[#policyToolFirstEntry]
+image::policyToolFirstEntry.png[,480]
+
+This dialog will now be used to add each of the required permissions.
+Proceed as follows:
+
+[.ui]*AuthPermission; modifyPrincipals*
+
+. Open the [.ui]*Permission* drop-down menu, and select [.ui]*AuthPermission*:
++
+[#policyToolAuthPermission]
+image::policyToolAuthPermission.png[,480]
+
+. Open the [.ui]*Target Name* drop-down menu, and select [.ui]*modifyPrincipals*.
++
+[#policyToolModifyPrincipals]
+image::policyToolModifyPrincipals.png[,480]
+
+. Left-click the btn:[OK] button.
++
+[#policyToolClickOK]
+image::policyToolClickOK.png[,320]
++
+The [.ui]*Policy Entry* dialog now appears as follows:
++
+[#policyToolpolicyEntryFirstEntry]
+image::policyToolpolicyEntryFirstEntry.png[,360]
+
+[.ui]*AuthPermission; modifyPrivateCredentials*
+
+From the [.ui]*Permission* drop-down menu, select [.ui]*AuthPermission*; and from the [.ui]*Target Name*, select [.ui]*modifyPrivateCredentials*.
+Then, left-click the btn:[OK] button.
+
+[.ui]*AuthPermission; setReadOnly*
+
+From the [.ui]*Permission* drop-down menu, select [.ui]*AuthPermission*; and from the [.ui]*Target Name*, select [.ui]*setReadOnly*.
+Then, left-click the btn:[OK] button.
+
+[.ui]*RuntimePermission; setContextClassLoader*
+
+From the [.ui]*Permission* drop-down menu, select [.ui]*RuntimePermission*; and from the [.ui]*Target Name*, select [.ui]*setContextClassLoader*.
+Then, left-click the btn:[OK] button.
+
+[.ui]*SocketPermission; listen, resolve*
+
+From the [.ui]*Permission* drop-down menu, select [.ui]*SocketPermission*.
+Then, in the [.ui]*Target Name* textbox, type and asterisk.
+Then, from the [.ui]*Actions*, drop-down menu, select first [.ui]*listen*; and secondly [.ui]*resolve*.
+The [.ui]*Permissions* dialog now appears as follows:
+
+[#policyToolSocketPermission]
+image::policyToolSocketPermission.png[,480]
+
+Left-click the btn:[OK] button.
+
+[.ui]*ReflectPermission; suppressAccessChecks*
+
+From the [.ui]*Permission* drop-down menu, select [.ui]*ReflectPermission*; and from the [.ui]*Target Name*, select [.ui]*suppressAccessChecks*.
+Then, left-click the btn:[OK] button.
+
+[.ui]*Saving Permissions*
+
+The [.ui]*Policy Tool* and [.ui]*Policy Entry* dialog now appear as follows:
+
+[#policyTooldone]
+image::policyTooldone.png[,480]
+
+== Couchbase Document Expiration
+
+If the Couchbase _document expiration_ feature (whereby documents are set to expire after a specified period) is used on documents to be replicated to Elasticsearch, the corresponding feature must be enabled in the Elasticsearch mapping.
+(The feature is disabled by default, since some cost is associated with its use.)
+
+For details, see https://www.elastic.co/guide/en/elasticsearch/reference/2.0/mapping-ttl-field.html[_ttl field^], in the online Elasticsearch documentation.

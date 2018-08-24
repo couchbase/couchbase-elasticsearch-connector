@@ -1,0 +1,7 @@
+.xref:index.adoc[Elasticsearch Plug-in]
+* xref:getting-started.adoc[Getting Started]
+* xref:working-with-documents.adoc[Working with Documents]
+* xref:advanced-settings.adoc[Advanced Settings]
+* xref:performance-tuning.adoc[Performance Tuning]
+* xref:troubleshooting.adoc[Troubleshooting]
+* xref:release-notes.adoc[Release Notes]
