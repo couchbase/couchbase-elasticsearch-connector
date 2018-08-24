@@ -48,7 +48,7 @@ Type-specification is managed by the following settings:
 The default is `couchbaseDocument`.
   *** *couchbase.typeSelector.checkpointDocumentType*: The document type to which replication-checkpoint documents are mapped.
 The default is `couchbaseCheckpoint`.
- ** `org.elasticsearch.transport.couchbase.capi.DelimiterTypeSelector`: If the document ID is in the format `<`_type_`><`_delimiter_`><*>`, documents are mapped to the type specified by `<`_type_`>`.
+ ** `org.elasticsearch.transport.couchbase.capi.DelimiterTypeSelector`: If the document ID is in the format `<__type__><__delimiter__><*>`, documents are mapped to the type specified by `<__type__>`.
 Otherwise, the `DefaultTypeSelector` is used: note that this entails use of the default delimiter, which is the colon character (`:`); and in consequence, a document with the ID `user:123` is indexed under the type `user`.
 The delimiter can be set to a different character, by means of the following setting:
   *** *couchbase.typeSelector.documentTypeDelimiter*: Specifies the delimiter to be used for the `DelimiterTypeSelector`.
