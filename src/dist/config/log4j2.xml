@@ -4,13 +4,48 @@
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{1.} - %msg%n"/>
         </Console>
-        <File name="Metrics" fileName="${env:APP_HOME}/logs/cbes-metrics.log" immediateFlush="false" append="false">
+
+        <RollingFile name="General"
+                     fileName="${env:APP_HOME}/logs/cbes.log"
+                     filePattern="${env:APP_HOME}/logs/cbes.%d{yyy-MM-dd}.%i.log.gz"
+                     ignoreExceptions="false">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{1.} - %msg%n"/>
+            <Policies>
+                <OnStartupTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="250 MB"/>
+                <TimeBasedTriggeringPolicy/>
+            </Policies>
+            <DefaultRolloverStrategy>
+                <Delete basePath="${env:APP_HOME}/logs/">
+                    <IfFileName glob="cbes.*.log.gz"/>
+                    <IfLastModified age="14d"/>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+
+        <RollingFile name="Metrics"
+                     fileName="${env:APP_HOME}/logs/cbes-metrics.log"
+                     filePattern="${env:APP_HOME}/logs/cbes-metrics.%d{yyy-MM-dd}.%i.log.gz"
+                     ignoreExceptions="false">
             <PatternLayout pattern="%d{yyy-MM-dd HH:mm:ss.SSS} %msg%n"/>
-        </File>
+            <Policies>
+                <OnStartupTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="250 MB"/>
+                <TimeBasedTriggeringPolicy/>
+            </Policies>
+            <DefaultRolloverStrategy>
+                <Delete basePath="${env:APP_HOME}/logs/">
+                    <IfFileName glob="cbes-metrics.*.log.gz"/>
+                    <IfLastModified age="10d"/>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
     </Appenders>
+
     <Loggers>
         <Root level="info">
             <AppenderRef ref="Console"/>
+            <AppenderRef ref="General"/>
         </Root>
         <Logger name="com.couchbase.client.core" level="warn"/>
         <Logger name="cbes.metrics" level="info" additivity="false">
