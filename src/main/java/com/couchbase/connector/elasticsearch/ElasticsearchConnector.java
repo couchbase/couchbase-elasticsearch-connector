@@ -24,6 +24,7 @@ import com.couchbase.client.dcp.StreamTo;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.util.features.Version;
+import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.Coordinator;
 import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.cluster.StaticCoordinator;
@@ -172,6 +173,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
       final CouchbaseCluster cluster = CouchbaseHelper.createCluster(config.couchbase(), config.trustStore());
 
+      Metrics.gauge("connectorVersion", () -> VersionHelper::getVersionString);
       ElasticsearchHelper.registerElasticsearchVersionGauge(esClient);
       CouchbaseHelper.registerCouchbaseVersionGauge(cluster);
 
