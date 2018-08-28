@@ -52,10 +52,4 @@ public interface CouchbaseConfig {
         .dcp(DcpConfig.from(config.getTableOrEmpty("dcp")))
         .build();
   }
-
-  public static void main(String[] args) {
-    System.out.println("hello");
-
-
-  }
 }
