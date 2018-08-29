@@ -25,14 +25,9 @@ import com.couchbase.connector.testcontainers.CouchbaseContainer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.pilato.elasticsearch.containers.ElasticsearchContainer;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -44,11 +39,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
 import static com.couchbase.connector.testcontainers.Poller.poll;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 
-public class IntegrationTest {
+public class BasicReplicationTest {
   private static final String COUCHBASE_DOCKER_IMAGE = "couchbase/server:5.5.0";
 
   private static CouchbaseContainer couchbase;
@@ -79,7 +75,7 @@ public class IntegrationTest {
   }
 
   @Test
-  public void foo() throws Throwable {
+  public void canReplicateTravelSample() throws Throwable {
     couchbase.loadSampleBucket("travel-sample");
 
     final ImmutableConnectorConfig defaultConfig = loadConfig();
@@ -112,8 +108,8 @@ public class IntegrationTest {
 
     connectorThread.start();
 
-    try {
-      RestClient restClient = newElasticsearchClient().getLowLevelClient();
+    try (RestClient restClient = newElasticsearchClient(testConfig.elasticsearch(), testConfig.trustStore())
+        .getLowLevelClient()) {
 
       final int expectedAirlineCount = 187;
       final int expectedAirportCount = 1968;
@@ -157,14 +153,5 @@ public class IntegrationTest {
     try (InputStream is = response.getEntity().getContent()) {
       return new ObjectMapper().readTree(is);
     }
-  }
-
-  private static RestHighLevelClient newElasticsearchClient() {
-    final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-    credentialsProvider.setCredentials(AuthScope.ANY,
-        new UsernamePasswordCredentials("elastic", "changeme"));
-
-    return new RestHighLevelClient(RestClient.builder(elasticsearch.getHost())
-        .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider)));
   }
 }

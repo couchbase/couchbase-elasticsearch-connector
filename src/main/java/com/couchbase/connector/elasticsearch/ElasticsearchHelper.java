@@ -19,21 +19,39 @@ package com.couchbase.connector.elasticsearch;
 import com.codahale.metrics.Gauge;
 import com.couchbase.client.core.logging.RedactableArgument;
 import com.couchbase.client.java.util.features.Version;
+import com.couchbase.connector.config.common.TrustStoreConfig;
+import com.couchbase.connector.config.es.ElasticsearchConfig;
 import com.couchbase.connector.util.ThrowableHelper;
+import com.google.common.collect.Iterables;
 import org.apache.http.ConnectionClosedException;
+import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.main.MainResponse;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -118,4 +136,36 @@ public class ElasticsearchHelper {
       }
     }
   }
+
+  public static RestHighLevelClient newElasticsearchClient(ElasticsearchConfig elasticsearchConfig, TrustStoreConfig trustStoreConfig) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
+    return newElasticsearchClient(
+        elasticsearchConfig.hosts(),
+        elasticsearchConfig.username(),
+        elasticsearchConfig.password(),
+        elasticsearchConfig.secureConnection(),
+        trustStoreConfig);
+  }
+
+  public static RestHighLevelClient newElasticsearchClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
+    final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+    credentialsProvider.setCredentials(AuthScope.ANY,
+        new UsernamePasswordCredentials(username, password));
+
+    final SSLContext sslContext = !secureConnection ? null :
+        SSLContexts.custom().loadTrustMaterial(trustStore.get(), null).build();
+
+    final RestClientBuilder builder = RestClient.builder(Iterables.toArray(hosts, HttpHost.class))
+        .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+            .setSSLContext(sslContext)
+            .setDefaultCredentialsProvider(credentialsProvider))
+        .setFailureListener(new RestClient.FailureListener() {
+          @Override
+          public void onFailure(HttpHost host) {
+            Metrics.elasticsearchHostOffline().mark();
+          }
+        });
+
+    return new RestHighLevelClient(builder);
+  }
+
 }

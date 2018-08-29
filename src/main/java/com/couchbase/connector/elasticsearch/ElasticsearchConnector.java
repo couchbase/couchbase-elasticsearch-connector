@@ -77,6 +77,7 @@ import static com.couchbase.connector.dcp.DcpHelper.initControlHandler;
 import static com.couchbase.connector.dcp.DcpHelper.initDataEventHandler;
 import static com.couchbase.connector.dcp.DcpHelper.initSessionState;
 import static com.couchbase.connector.dcp.DcpHelper.toBoxedShortArray;
+import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
 import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.waitForElasticsearchAndRequireVersion;
 import static com.couchbase.connector.util.ListHelper.chunks;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -107,28 +108,6 @@ public class ElasticsearchConnector extends AbstractCliCommand {
     return reporter;
   }
 
-  private static RestHighLevelClient newElasticsearchClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
-    final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-    credentialsProvider.setCredentials(AuthScope.ANY,
-        new UsernamePasswordCredentials(username, password));
-
-    final SSLContext sslContext = !secureConnection ? null :
-        SSLContexts.custom().loadTrustMaterial(trustStore.get(), null).build();
-
-    final RestClientBuilder builder = RestClient.builder(Iterables.toArray(hosts, HttpHost.class))
-        .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
-            .setSSLContext(sslContext)
-            .setDefaultCredentialsProvider(credentialsProvider))
-        .setFailureListener(new RestClient.FailureListener() {
-          @Override
-          public void onFailure(HttpHost host) {
-            Metrics.elasticsearchHostOffline().mark();
-          }
-        });
-
-    return new RestHighLevelClient(builder);
-  }
-
   public static void main(String... args) throws Throwable {
     LOGGER.info("Couchbase Elasticsearch Connector version {}", getVersionString());
 
@@ -157,12 +136,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
     try (Slf4jReporter metricReporter = newSlf4jReporter(config.metrics().logInterval());
          HttpServer httpServer = new HttpServer(config.metrics().httpPort());
-         RestHighLevelClient esClient = newElasticsearchClient(
-             config.elasticsearch().hosts(),
-             config.elasticsearch().username(),
-             config.elasticsearch().password(),
-             config.elasticsearch().secureConnection(),
-             config.trustStore())) {
+         RestHighLevelClient esClient = newElasticsearchClient(config.elasticsearch(), config.trustStore())) {
 
       httpServer.start();
       if (config.metrics().httpPort() >= 0) {
