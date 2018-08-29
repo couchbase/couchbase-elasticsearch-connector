@@ -20,6 +20,7 @@ import com.codahale.metrics.Gauge;
 import com.couchbase.client.core.config.CouchbaseBucketConfig;
 import com.couchbase.client.core.message.cluster.GetClusterConfigRequest;
 import com.couchbase.client.core.message.cluster.GetClusterConfigResponse;
+import com.couchbase.client.core.utils.ConnectionString;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.cluster.ClusterInfo;
@@ -34,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.ConnectException;
+import java.net.InetSocketAddress;
 import java.security.KeyStore;
 import java.util.Iterator;
 import java.util.Optional;
@@ -59,6 +61,18 @@ public class CouchbaseHelper {
           .sslEnabled(true)
           .sslTruststore(keystore.get());
     }
+
+    // Dirty kludge to allow non-standard bootstrap port for containerized Couchbase
+    final ConnectionString c = ConnectionString.fromHostnames(config.hosts());
+    for (InetSocketAddress host : c.hosts()) {
+      final int port = host.getPort();
+      if (port != 0) {
+        LOGGER.debug("Using bootstrap port {}", port);
+        envBuilder.bootstrapHttpDirectPort(port);
+        break;
+      }
+    }
+
     final CouchbaseEnvironment couchbaseEnvironment = envBuilder.build();
     final CouchbaseCluster cluster = CouchbaseCluster.create(couchbaseEnvironment, config.hosts());
     cluster.authenticate(config.username(), config.password());

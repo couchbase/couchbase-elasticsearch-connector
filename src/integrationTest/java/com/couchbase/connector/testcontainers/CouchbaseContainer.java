@@ -19,68 +19,113 @@ package com.couchbase.connector.testcontainers;
 
 import com.couchbase.client.dcp.util.Version;
 import com.couchbase.connector.testcontainers.ExecUtils.ExecResultWithExitCode;
+import com.google.common.collect.Iterables;
 import com.jayway.jsonpath.JsonPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.ContainerLaunchException;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.Network;
+import org.testcontainers.images.builder.ImageFromDockerfile;
+import org.testcontainers.images.builder.dockerfile.DockerfileBuilder;
 import org.testcontainers.shaded.com.google.common.base.Stopwatch;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
+import static com.couchbase.connector.testcontainers.CouchbaseContainer.CouchbaseService.CONFIG;
 import static com.couchbase.connector.testcontainers.ExecUtils.exec;
 import static com.couchbase.connector.testcontainers.ExecUtils.execOrDie;
 import static com.couchbase.connector.testcontainers.Poller.poll;
+import static java.util.Collections.singleton;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+/**
+ * Stopgap until the "official" CouchbaseContainer from the TestContainers project is available.
+ */
 public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
   private static final Logger log = LoggerFactory.getLogger(CouchbaseContainer.class);
+  /**
+   * Represents the initialized container, ever incrementing.
+   * <p>
+   * Used to properly space out the exposed ports as well.
+   */
+  private static final AtomicInteger CONTAINER_ID = new AtomicInteger();
+  private final Config config;
 
-  private static final int CONTAINTER_WEB_UI_PORT = 8091;
+
   private static final int CLUSTER_RAM_MB = 1024;
 
   private final String username;
   private final String password;
   private final String hostname;
-  private final String dockerImageName;
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   private volatile Optional<Version> version;
 
-  private CouchbaseContainer(String dockerImageName, String hostname, String username, String password, int hostUiPort) {
-    super(dockerImageName);
-    this.dockerImageName = requireNonNull(dockerImageName);
+  private CouchbaseContainer(Config config, String dockerImageName, String hostname, String username, String password) {
+    super(new ImageFromDockerfile().withDockerfileFromBuilder(buildDockerFile(dockerImageName, config)));
+    this.config = config;
     this.username = requireNonNull(username);
     this.password = requireNonNull(password);
     this.hostname = requireNonNull(hostname);
 
     withNetworkAliases(hostname);
     withCreateContainerCmdModifier(cmd -> cmd.withHostName(hostname));
+  }
 
-    withExposedPorts(CONTAINTER_WEB_UI_PORT);
-    if (hostUiPort != 0) {
-      addFixedExposedPort(hostUiPort, CONTAINTER_WEB_UI_PORT);
+
+  private static Consumer<DockerfileBuilder> buildDockerFile(final String dockerImageName, final Config config) {
+    return builder -> {
+      builder = builder.from(dockerImageName);
+
+      for (Map.Entry<CouchbaseService, Integer> mapping : config.portMappings().entrySet()) {
+        builder = builder.run("echo '{" + mapping.getKey().configFormat() + ", " + mapping.getValue() + "}.' >> /opt/couchbase/etc/couchbase/static_config");
+      }
+
+      //builder = builder.run("sudo /etc/init.d/couchbase-server stop");
+      //builder = builder.run("sudo rm /opt/couchbase/var/lib/couchbase/config/config.dat");
+      //builder = builder.run("sudo /etc/init.d/couchbase-server start");
+
+      builder.build();
+    };
+  }
+
+  @Override
+  protected void configure() {
+    Collection<Integer> values = config.portMappings().values();
+    withExposedPorts(Iterables.toArray(values, Integer.class));
+    for (int port : config.portMappings().values()) {
+      addFixedExposedPort(port, port);
     }
   }
 
-  public static CouchbaseContainer newCluster(String dockerImageName, Network network, String hostname, int hostUiPort) {
+  @Override
+  public Set<Integer> getLivenessCheckPortNumbers() {
+    // TODO: a real check for liveness of the server
+    return singleton(managementPort());
+  }
+
+  public static CouchbaseContainer newCluster(String dockerImageName) {
     final String username = "Administrator";
     final String password = "password";
 
     log.info("Username: " + username);
     log.info("Password: " + password);
 
-    final CouchbaseContainer couchbase = new CouchbaseContainer(dockerImageName, hostname, username, password, hostUiPort)
-        .withNetwork(network);
+    final CouchbaseContainer couchbase = new CouchbaseContainer(new Config(), dockerImageName, "localhost", username, password);
 
     couchbase.start();
     couchbase.assignHostname();
@@ -92,7 +137,7 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
 
   private void initCluster() {
     execOrDie(this, "couchbase-cli cluster-init" +
-        " --cluster " + getHostname() +
+        " --cluster " + getHostname() + ":" + managementPort() +
         " --cluster-username=" + username +
         " --cluster-password=" + password +
 //                " --services=data,query,index" +
@@ -103,47 +148,9 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
 
   private static final AtomicLong nodeCounter = new AtomicLong(2);
 
-  public CouchbaseContainer addNode() {
-    return addNode("kv" + nodeCounter.getAndIncrement() + ".couchbase.host");
-  }
 
-  public CouchbaseContainer addNode(String hostname) {
-    final CouchbaseContainer newNode = new CouchbaseContainer(dockerImageName, hostname, username, password, 0)
-        .withNetwork(getNetwork())
-        .withExposedPorts(getExposedPorts().toArray(new Integer[0]));
-
-    newNode.start();
-    serverAdd(newNode);
-
-    return newNode;
-  }
-
-  public void killMemcached() {
-    execOrDie(this, "pkill -9 memcached");
-  }
-
-  private void serverAdd(CouchbaseContainer newNode) {
-    execOrDie(this, "couchbase-cli server-add" +
-        " --cluster " + getHostname() +
-        " --user=" + username +
-        " --password=" + password +
-        " --server-add=" + newNode.hostname +
-        " --server-add-username=" + username +
-        " --server-add-password=" + password);
-  }
-
-  public void stopPersistence(String bucket) {
-    execOrDie(this, "cbepctl localhost stop" +
-        " -u " + username +
-        " -p " + password +
-        " -b " + bucket);
-  }
-
-  public void startPersistence(String bucket) {
-    execOrDie(this, "cbepctl localhost start" +
-        " -u " + username +
-        " -p " + password +
-        " -b " + bucket);
+  public int managementPort() {
+    return config.portMappings().get(CONFIG);
   }
 
   public void restart() {
@@ -168,7 +175,7 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
   }
 
   private String curl(String path) {
-    return execOrDie(this, "curl -sS http://localhost:8091/" + path + " -u " + username + ":" + password)
+    return execOrDie(this, "curl -sS http://localhost:" + managementPort() + "/" + path + " -u " + username + ":" + password)
         .getStdout();
   }
 
@@ -180,7 +187,7 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
     Stopwatch timer = Stopwatch.createStarted();
 
     ExecResultWithExitCode result = exec(this, "cbdocloader" +
-        " --cluster " + getHostname() + // + ":8091" +
+        " --cluster " + getHostname() + ":" + managementPort() +
         " --username " + username +
         " --password " + password +
         " --bucket " + bucketName +
@@ -240,27 +247,13 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
     log.info("Deleting bucket took " + timer);
   }
 
+  @SuppressWarnings("OptionalAssignedToNull")
   public Optional<Version> getVersion() {
     if (this.version == null) {
       throw new IllegalStateException("Must start container before getting version.");
     }
 
     return this.version;
-  }
-
-  public void rebalance() {
-    execOrDie(this, "couchbase-cli rebalance" +
-        " -c " + hostname +
-        " -u " + username +
-        " -p " + password);
-  }
-
-  public void failover() {
-    execOrDie(this, "couchbase-cli failover" +
-        " --cluster " + getHostname() + ":8091" +
-        " --username " + username +
-        " --password " + password +
-        " --server-failover " + getHostname() + ":8091");
   }
 
   private String getHostname() {
@@ -282,7 +275,7 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
       this.version = VersionUtils.getVersion(this);
       Version serverVersion = getVersion().orElse(null);
       log.info("Couchbase Server (version {}) {} running at http://localhost:{}",
-          serverVersion, hostname, getMappedPort(CONTAINTER_WEB_UI_PORT));
+          serverVersion, hostname, getMappedPort(managementPort()));
     } catch (Exception e) {
       stop();
       throw new RuntimeException(e);
@@ -301,6 +294,55 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
    */
   private void assignHostname() {
     execOrDie(this, "curl --silent --user " + username + ":" + password +
-        " http://127.0.0.1:8091/node/controller/rename --data hostname=" + hostname);
+        " http://127.0.0.1:" + managementPort() + "/node/controller/rename --data hostname=" + hostname);
+  }
+
+  static class Config {
+    private final int containerId = CONTAINER_ID.incrementAndGet();
+
+    private final Map<CouchbaseService, Integer> mappings = new HashMap<>();
+
+    public Config() {
+      final String portBase = String.format("3%02d", containerId);
+      mappings.put(CONFIG, Integer.parseInt(portBase + "01"));
+      mappings.put(CouchbaseService.VIEW, Integer.parseInt(portBase + "02"));
+      mappings.put(CouchbaseService.QUERY, Integer.parseInt(portBase + "03"));
+      mappings.put(CouchbaseService.FTS, Integer.parseInt(portBase + "04"));
+      mappings.put(CouchbaseService.DATA, Integer.parseInt(portBase + "06"));
+      mappings.put(CouchbaseService.DATA_SSL, Integer.parseInt(portBase + "07"));
+      mappings.put(CouchbaseService.MOXI, Integer.parseInt(portBase + "08"));
+      mappings.put(CouchbaseService.CONFIG_SSL, Integer.parseInt(portBase + "09"));
+      mappings.put(CouchbaseService.VIEW_SSL, Integer.parseInt(portBase + "10"));
+      mappings.put(CouchbaseService.QUERY_SSL, Integer.parseInt(portBase + "11"));
+      mappings.put(CouchbaseService.FTS_SSL, Integer.parseInt(portBase + "12"));
+    }
+
+    public Map<CouchbaseService, Integer> portMappings() {
+      return mappings;
+    }
+  }
+
+  enum CouchbaseService {
+    CONFIG("rest_port"),
+    CONFIG_SSL("ssl_rest_port"),
+    VIEW("capi_port"),
+    VIEW_SSL("ssl_capi_port"),
+    QUERY("query_port"),
+    QUERY_SSL("ssl_query_port"),
+    FTS("fts_http_port"),
+    FTS_SSL("fts_ssl_port"),
+    DATA("memcached_port"),
+    DATA_SSL("memcached_ssl_port"),
+    MOXI("moxi_port");
+
+    private final String configFormat;
+
+    CouchbaseService(String configFormat) {
+      this.configFormat = configFormat;
+    }
+
+    public String configFormat() {
+      return configFormat;
+    }
   }
 }

@@ -8,16 +8,10 @@
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger - %msg%n"/>
         </Console>
-        <File name="Metrics" fileName="cbes-metrics.log" immediateFlush="false" append="false">
-            <PatternLayout pattern="%d{yyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
-        </File>
     </Appenders>
     <Loggers>
         <Root level="info">
             <AppenderRef ref="Console"/>
         </Root>
-        <Logger name="cbes.metrics" level="info"> <!-- additivity="false"> -->
-            <AppenderRef ref="Metrics"/>
-        </Logger>
     </Loggers>
 </Configuration>

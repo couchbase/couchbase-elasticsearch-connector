@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.dcp;
 
+import com.couchbase.client.core.utils.ConnectionString;
 import com.couchbase.client.dcp.Client;
 import com.couchbase.client.dcp.StreamFrom;
 import com.couchbase.client.dcp.StreamTo;
@@ -42,6 +43,7 @@ import rx.CompletableSubscriber;
 import rx.Subscription;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
@@ -81,8 +83,28 @@ public class DcpHelper {
     buffer.release();
   }
 
+  // Dirty kludge to allow non-standard bootstrap port for containerized Couchbase.
+  private static Client.Builder newClientBuilderWithSupportForCustomBootstrapPort() {
+    return new Client.Builder() {
+      @Override
+      public Client.Builder hostnames(final List<String> hostnames) {
+        try {
+          final ConnectionString connectionString = ConnectionString.fromHostnames(hostnames);
+          final Field clusterAt = Client.Builder.class.getDeclaredField("clusterAt");
+          clusterAt.setAccessible(true);
+          clusterAt.set(this, connectionString.hosts());
+        } catch (Exception e) {
+          LOGGER.warn("Custom DCP bootstrapping failed", e);
+          super.hostnames(hostnames);
+        }
+        return this;
+      }
+    };
+  }
+
   public static Client newClient(CouchbaseConfig config, Supplier<KeyStore> keystore) {
-    final Client.Builder builder = Client.configure()
+    //final Client.Builder builder = Client.configure()
+    final Client.Builder builder = newClientBuilderWithSupportForCustomBootstrapPort()
         .connectTimeout(config.dcp().connectTimeout().millis())
         .hostnames(config.hosts())
         .bucket(config.bucket())

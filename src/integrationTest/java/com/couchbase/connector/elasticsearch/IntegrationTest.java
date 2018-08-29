@@ -16,39 +16,49 @@
 
 package com.couchbase.connector.elasticsearch;
 
+import com.couchbase.connector.config.common.ImmutableCouchbaseConfig;
+import com.couchbase.connector.config.common.ImmutableMetricsConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableElasticsearchConfig;
 import com.couchbase.connector.testcontainers.CouchbaseContainer;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.pilato.elasticsearch.containers.ElasticsearchContainer;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.ResponseException;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.unit.TimeValue;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.Network;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static com.couchbase.connector.testcontainers.Poller.poll;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.Assert.assertEquals;
 
 public class IntegrationTest {
   private static final String COUCHBASE_DOCKER_IMAGE = "couchbase/server:5.5.0";
-
-  // Use dynamic ports in CI environment to avoid port conflicts
-  private static final boolean DYNAMIC_PORTS = System.getenv("JENKINS_URL") != null;
-
-  // Supply a non-zero value to use a fixed port for Couchbase web UI.
-  private static final int HOST_COUCHBASE_UI_PORT = DYNAMIC_PORTS ? 0 : 8891;
 
   private static CouchbaseContainer couchbase;
   private static ElasticsearchContainer elasticsearch;
 
   @BeforeClass
   public static void setup() throws Exception {
-    final Network network = Network.builder().id("dcp-test-network").build();
-    couchbase = CouchbaseContainer.newCluster(COUCHBASE_DOCKER_IMAGE, network, "kv1.couchbase.host", HOST_COUCHBASE_UI_PORT);
+    couchbase = CouchbaseContainer.newCluster(COUCHBASE_DOCKER_IMAGE);
 
-    elasticsearch = new ElasticsearchContainer().withVersion("6.3.2");
+    elasticsearch = new ElasticsearchContainer().withVersion("6.4.0");
     elasticsearch.start();
   }
 
@@ -68,7 +78,6 @@ public class IntegrationTest {
     }
   }
 
-
   @Test
   public void foo() throws Throwable {
     couchbase.loadSampleBucket("travel-sample");
@@ -77,17 +86,85 @@ public class IntegrationTest {
 
     // Do I love this or hate this? Maybe a bit of both.
     final ImmutableConnectorConfig testConfig = defaultConfig
+        .withMetrics(ImmutableMetricsConfig.builder()
+            .httpPort(-1)
+            .logInterval(TimeValue.ZERO)
+            .build())
         .withElasticsearch(
             ImmutableElasticsearchConfig.copyOf(defaultConfig.elasticsearch())
-                .withHosts(elasticsearch.getHost()));
+                .withHosts(elasticsearch.getHost()))
+        .withCouchbase(
+            ImmutableCouchbaseConfig.copyOf(defaultConfig.couchbase())
+                .withHosts("localhost:" + couchbase.managementPort())
+        )
+        //
+        ;
 
-    ElasticsearchConnector.run(testConfig);
-    throw new RuntimeException("hahaha oops");
+    final AtomicReference<Throwable> connectorException = new AtomicReference<>();
+
+    final Thread connectorThread = new Thread(() -> {
+      try {
+        ElasticsearchConnector.run(testConfig);
+      } catch (Throwable t) {
+        connectorException.set(t);
+      }
+    });
+
+    connectorThread.start();
+
+    try {
+      RestClient restClient = newElasticsearchClient().getLowLevelClient();
+
+      final int expectedAirlineCount = 187;
+      final int expectedAirportCount = 1968;
+      poll().until(() -> getDocumentCount(restClient, "airlines") >= expectedAirlineCount);
+      poll().until(() -> getDocumentCount(restClient, "airports") >= expectedAirportCount);
+
+      SECONDS.sleep(3); // quiet period, make sure no more documents appear in the index
+
+      assertEquals(expectedAirlineCount, getDocumentCount(restClient, "airlines"));
+      assertEquals(expectedAirportCount, getDocumentCount(restClient, "airports"));
+
+      connectorThread.interrupt();
+      connectorThread.join(SECONDS.toMillis(30));
+      assertEquals(connectorException.get().getClass(), InterruptedException.class);
+
+    } catch (Throwable t) {
+      connectorThread.interrupt();
+      throw t;
+    }
   }
 
   private ImmutableConnectorConfig loadConfig() throws IOException {
     try (InputStream is = new FileInputStream("src/dist/config/example-connector.toml")) {
       return ConnectorConfig.from(is);
     }
+  }
+
+  private static long getDocumentCount(RestClient client, String index) {
+    try {
+      JsonNode response = doGet(client, index + "/_doc/_count");
+      return response.get("count").longValue();
+    } catch (ResponseException e) {
+      return -1;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static JsonNode doGet(RestClient client, String endpoint) throws IOException {
+    final Response response = client.performRequest("GET", endpoint);
+    try (InputStream is = response.getEntity().getContent()) {
+      return new ObjectMapper().readTree(is);
+    }
+  }
+
+  private static RestHighLevelClient newElasticsearchClient() {
+    final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+    credentialsProvider.setCredentials(AuthScope.ANY,
+        new UsernamePasswordCredentials("elastic", "changeme"));
+
+    return new RestHighLevelClient(RestClient.builder(elasticsearch.getHost())
+        .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider)));
   }
 }
