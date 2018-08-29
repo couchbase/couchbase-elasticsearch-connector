@@ -213,6 +213,8 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       initControlHandler(dcpClient, coordinator, snapshots);
       initDataEventHandler(dcpClient, workers::submit, snapshots);
 
+      final Thread saveCheckpoints = new Thread(checkpointService::save);
+
       try {
         if (!dcpClient.connect().await(config.couchbase().dcp().connectTimeout().millis(), MILLISECONDS)) {
           LOGGER.error("Failed to establish initial DCP connection within {} -- shutting down.", config.couchbase().dcp().connectTimeout());
@@ -232,7 +234,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         initSessionState(dcpClient, checkpointService, partitionSet);
 
         checkpointExecutor.scheduleWithFixedDelay(checkpointService::save, 10, 10, SECONDS);
-        Runtime.getRuntime().addShutdownHook(new Thread(checkpointService::save));
+        Runtime.getRuntime().addShutdownHook(saveCheckpoints);
 
         LOGGER.debug("Opening DCP streams for partitions: {}", partitions);
         dcpClient.startStreaming(toBoxedShortArray(partitions)).await();
@@ -241,10 +243,16 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         LOGGER.error("Terminating due to fatal error.", fatalError);
 
       } finally {
-        workers.close();
-        dcpClient.disconnect().await();
+        // This code path represents an disorderly shutdown due to some exception,
+        // or running in an integration test. In those cases, the shutdown hook is counterproductive.
+        Runtime.getRuntime().removeShutdownHook(saveCheckpoints);
+
         checkpointExecutor.shutdown();
         metricReporter.stop();
+        workers.close();
+        dcpClient.disconnect().await();
+        checkpointExecutor.awaitTermination(10, SECONDS);
+        cluster.disconnect();
       }
     }
 
