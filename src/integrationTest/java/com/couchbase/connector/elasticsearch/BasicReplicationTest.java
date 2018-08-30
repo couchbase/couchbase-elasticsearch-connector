@@ -29,13 +29,8 @@ import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.testcontainers.CouchbaseContainer;
 import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Throwables;
 import com.google.common.io.CharStreams;
 import org.elasticsearch.Version;
-import org.elasticsearch.client.Response;
-import org.elasticsearch.client.ResponseException;
-import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -43,23 +38,13 @@ import org.junit.Test;
 import org.testcontainers.containers.GenericContainer;
 
 import java.io.ByteArrayInputStream;
-import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.util.Optional;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
-import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
 import static com.couchbase.connector.testcontainers.Poller.poll;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -93,7 +78,7 @@ public class BasicReplicationTest {
     stop(couchbase, elasticsearch);
   }
 
-  protected static void stop(GenericContainer first, GenericContainer... others) {
+  private static void stop(GenericContainer first, GenericContainer... others) {
     if (first != null) {
       first.stop();
     }
@@ -121,28 +106,7 @@ public class BasicReplicationTest {
         );
   }
 
-  private static class TempBucket implements Closeable {
-    private final CouchbaseContainer couchbase;
-    private final String bucketName;
-    private static final AtomicInteger counter = new AtomicInteger();
-
-    public TempBucket(CouchbaseContainer couchbase) {
-      this.couchbase = couchbase;
-      this.bucketName = "temp-" + counter.getAndIncrement();
-      couchbase.createBucket(bucketName);
-    }
-
-    @Override
-    public void close() {
-      couchbase.deleteBucket(bucketName);
-    }
-
-    public String name() {
-      return bucketName;
-    }
-  }
-
-  public ImmutableConnectorConfig withBucketName(ImmutableConnectorConfig config, String bucketName) {
+  private static ImmutableConnectorConfig withBucketName(ImmutableConnectorConfig config, String bucketName) {
     return config.withCouchbase(
         ImmutableCouchbaseConfig.copyOf(config.couchbase())
             .withBucket(bucketName));
@@ -158,7 +122,7 @@ public class BasicReplicationTest {
     final CouchbaseCluster cluster = createTestCluster(commonConfig);
 
     try (TempBucket tempBucket = new TempBucket(couchbase)) {
-      ImmutableConnectorConfig config = withBucketName(commonConfig, tempBucket.bucketName);
+      ImmutableConnectorConfig config = withBucketName(commonConfig, tempBucket.name());
 
       try (TestEsClient es = new TestEsClient(config);
            TestConnector connector = new TestConnector(config).start()) {
@@ -166,6 +130,7 @@ public class BasicReplicationTest {
         final Bucket bucket = cluster.openBucket(tempBucket.name());
 
         // Create two documents in the same vbucket to make sure we're not conflating seqno and revision number.
+        // This first one has a seqno and revision number that are the same... not useful for the test.
         final String firstKeyInVbucket = forceKeyToPartition("createdFirst", 0, 1024).get();
         bucket.upsert(JsonDocument.create(firstKeyInVbucket, JsonObject.create()));
 
@@ -186,8 +151,8 @@ public class BasicReplicationTest {
         assertTrue(meta.path("expiration").isIntegralNumber());
         assertEquals(0, meta.path("expiration").longValue());
         assertThat(meta.path("rev").textValue()).startsWith(expectedDocumentRevision + "-");
-        assertEquals(doc.cas(), meta.path("cas").longValue());
         assertTrue(meta.path("flags").isIntegralNumber());
+        assertEquals(doc.cas(), meta.path("cas").longValue());
         assertEquals(doc.mutationToken().sequenceNumber(), meta.path("seqno").longValue());
         assertEquals(doc.mutationToken().vbucketID(), meta.path("vbucket").longValue());
         assertEquals(doc.mutationToken().vbucketUUID(), meta.path("vbuuid").longValue());
@@ -199,13 +164,14 @@ public class BasicReplicationTest {
         es.waitForDeletion("etc", blueKey);
 
         // Create an incompatible document (different type for "hex" field, Object instead of String)
-        bucket.upsert(JsonDocument.create("color:red", JsonObject.create()
+        final String redKey = "color:red";
+        bucket.upsert(JsonDocument.create(redKey, JsonObject.create()
             .put("hex", JsonObject.create()
                 .put("red", "ff")
                 .put("green", "00")
                 .put("blue", "00")
             )));
-        assertDocumentRejected(es, "etc", "color:red", "mapper_parsing_exception");
+        assertDocumentRejected(es, "etc", redKey, "mapper_parsing_exception");
 
       } finally {
         cluster.disconnect();
@@ -223,114 +189,6 @@ public class BasicReplicationTest {
     assertEquals("doc", content.path("type").textValue());
     assertEquals("INDEX", content.path("action").textValue());
     assertThat(content.path("error").textValue()).contains(reason);
-  }
-
-  private static class TestConnector implements AutoCloseable {
-    final Thread thread;
-    AtomicReference<Throwable> connectorException = new AtomicReference<>();
-
-    public TestConnector(ConnectorConfig config) {
-      thread = new Thread(() -> {
-        try {
-          ElasticsearchConnector.run(config);
-        } catch (Throwable t) {
-          if (!(t instanceof InterruptedException)) {
-            t.printStackTrace();
-          }
-          connectorException.set(t);
-        }
-      });
-    }
-
-    public TestConnector start() {
-      thread.start();
-      return this;
-    }
-
-    public void stop() throws Throwable {
-      thread.interrupt();
-      thread.join(SECONDS.toMillis(30));
-      if (thread.isAlive()) {
-        throw new TimeoutException("Connector didn't exit in allotted time");
-      }
-      Throwable t = connectorException.get();
-      if (t == null) {
-        throw new IllegalStateException("Connector didn't exit by throwing exception");
-      }
-      if (!(t instanceof InterruptedException)) {
-        // The connector failed before we asked it to exit!
-        throw t;
-      }
-    }
-
-    @Override
-    public void close() throws Exception {
-      try {
-        stop();
-      } catch (Throwable t) {
-        Throwables.propagateIfPossible(t, Exception.class);
-        throw new RuntimeException(t);
-      }
-    }
-  }
-
-  private static class TestEsClient implements AutoCloseable {
-    private final RestHighLevelClient client;
-
-    public TestEsClient(ConnectorConfig config) throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
-      this.client = newElasticsearchClient(config.elasticsearch(), config.trustStore());
-    }
-
-    @Override
-    public void close() throws Exception {
-      client.close();
-    }
-
-    private JsonNode doGet(String endpoint) throws IOException {
-      final Response response = client.getLowLevelClient().performRequest("GET", endpoint);
-      try (InputStream is = response.getEntity().getContent()) {
-        return new ObjectMapper().readTree(is);
-      }
-    }
-
-    private long getDocumentCount(String index) {
-      try {
-        JsonNode response = doGet(index + "/doc/_count");
-        return response.get("count").longValue();
-      } catch (ResponseException e) {
-        return -1;
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    private Optional<JsonNode> getDocument(String index, String id) {
-      try {
-        return Optional.of(doGet(index + "/doc/" + encodeUriPathComponent(id)));
-
-      } catch (ResponseException e) {
-        return Optional.empty();
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    public JsonNode waitForDocument(String index, String id) throws TimeoutException, InterruptedException {
-      poll().until(() -> getDocument(index, id).isPresent());
-      return getDocument(index, id).get().get("_source");
-    }
-
-    public void waitForDeletion(String index, String id) throws TimeoutException, InterruptedException {
-      poll().until(() -> !getDocument(index, id).isPresent());
-    }
-  }
-
-  private static String encodeUriPathComponent(String s) {
-    try {
-      return URLEncoder.encode(s, "UTF-8").replace("+", "%20");
-    } catch (UnsupportedEncodingException e) {
-      throw new AssertionError("UTF-8 not supported???", e);
-    }
   }
 
   @Test
