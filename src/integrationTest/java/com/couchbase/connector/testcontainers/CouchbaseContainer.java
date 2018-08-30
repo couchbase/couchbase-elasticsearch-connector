@@ -39,8 +39,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static com.couchbase.connector.testcontainers.CouchbaseContainer.CouchbaseService.CONFIG;
@@ -70,7 +70,6 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
 
   private final String username;
   private final String password;
-  private final String hostname;
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   private volatile Optional<Version> version;
@@ -80,10 +79,6 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
     this.config = config;
     this.username = requireNonNull(username);
     this.password = requireNonNull(password);
-    this.hostname = requireNonNull(hostname);
-
-    withNetworkAliases(hostname);
-    withCreateContainerCmdModifier(cmd -> cmd.withHostName(hostname));
   }
 
 
@@ -118,7 +113,7 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
     return singleton(managementPort());
   }
 
-  public static CouchbaseContainer newCluster(String dockerImageName) {
+  public static CouchbaseContainer newCluster(String dockerImageName) throws TimeoutException, InterruptedException {
     final String username = "Administrator";
     final String password = "password";
 
@@ -128,7 +123,6 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
     final CouchbaseContainer couchbase = new CouchbaseContainer(new Config(), dockerImageName, "localhost", username, password);
 
     couchbase.start();
-    couchbase.assignHostname();
     couchbase.initCluster();
     couchbase.waitForReadyState();
 
@@ -146,19 +140,16 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
   }
 
 
-  private static final AtomicLong nodeCounter = new AtomicLong(2);
-
-
   public int managementPort() {
     return config.portMappings().get(CONFIG);
   }
 
-  public void restart() {
+  public void restart() throws TimeoutException, InterruptedException {
     execOrDie(this, "sv restart couchbase-server");
     waitForReadyState();
   }
 
-  public void waitForReadyState() {
+  public void waitForReadyState() throws TimeoutException, InterruptedException {
     poll().atInterval(3, SECONDS)
         .withTimeout(2, MINUTES)
         .until(this::allNodesHealthy);
@@ -257,7 +248,7 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
   }
 
   private String getHostname() {
-    return hostname;
+    return "localhost";
   }
 
   @Override
@@ -274,8 +265,8 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
     try {
       this.version = VersionUtils.getVersion(this);
       Version serverVersion = getVersion().orElse(null);
-      log.info("Couchbase Server (version {}) {} running at http://localhost:{}",
-          serverVersion, hostname, getMappedPort(managementPort()));
+      log.info("Couchbase Server (version {}) running at http://localhost:{}",
+          serverVersion, getMappedPort(managementPort()));
     } catch (Exception e) {
       stop();
       throw new RuntimeException(e);
@@ -286,15 +277,6 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
     StringWriter w = new StringWriter();
     t.printStackTrace(new PrintWriter(w));
     return w.toString();
-  }
-
-  /**
-   * Ensures the node refers to itself by hostname instead of IP address.
-   * Doesn't really matter, but it's nice to see consistent names in the web UI's server list.
-   */
-  private void assignHostname() {
-    execOrDie(this, "curl --silent --user " + username + ":" + password +
-        " http://127.0.0.1:" + managementPort() + "/node/controller/rename --data hostname=" + hostname);
   }
 
   static class Config {

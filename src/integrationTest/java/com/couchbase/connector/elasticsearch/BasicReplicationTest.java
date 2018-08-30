@@ -22,9 +22,11 @@ import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableElasticsearchConfig;
 import com.couchbase.connector.testcontainers.CouchbaseContainer;
+import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fr.pilato.elasticsearch.containers.ElasticsearchContainer;
+import com.google.common.io.CharStreams;
+import org.elasticsearch.Version;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
@@ -34,18 +36,22 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.testcontainers.containers.GenericContainer;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
 import static com.couchbase.connector.testcontainers.Poller.poll;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 
 public class BasicReplicationTest {
   private static final String COUCHBASE_DOCKER_IMAGE = "couchbase/server:5.5.0";
+  private static final Version ELASTICSEARCH_VERSION = Version.fromString("6.4.0");
 
   private static CouchbaseContainer couchbase;
   private static ElasticsearchContainer elasticsearch;
@@ -53,9 +59,11 @@ public class BasicReplicationTest {
   @BeforeClass
   public static void setup() throws Exception {
     couchbase = CouchbaseContainer.newCluster(COUCHBASE_DOCKER_IMAGE);
+    System.out.println("Couchbase listening at http://localhost:" + couchbase.managementPort());
 
-    elasticsearch = new ElasticsearchContainer().withVersion("6.4.0");
+    elasticsearch = new ElasticsearchContainer(ELASTICSEARCH_VERSION);
     elasticsearch.start();
+    System.out.println("Elasticsearch listening on " + elasticsearch.getHost());
   }
 
   @AfterClass
@@ -102,6 +110,9 @@ public class BasicReplicationTest {
       try {
         ElasticsearchConnector.run(testConfig);
       } catch (Throwable t) {
+        if (!(t instanceof InterruptedException)) {
+          t.printStackTrace();
+        }
         connectorException.set(t);
       }
     });
@@ -113,6 +124,7 @@ public class BasicReplicationTest {
 
       final int expectedAirlineCount = 187;
       final int expectedAirportCount = 1968;
+
       poll().until(() -> getDocumentCount(restClient, "airlines") >= expectedAirlineCount);
       poll().until(() -> getDocumentCount(restClient, "airports") >= expectedAirportCount);
 
@@ -133,13 +145,17 @@ public class BasicReplicationTest {
 
   private ImmutableConnectorConfig loadConfig() throws IOException {
     try (InputStream is = new FileInputStream("src/dist/config/example-connector.toml")) {
-      return ConnectorConfig.from(is);
+      // rewrite the document type config for compatibility with ES 5.x
+      StringBuilder sb = new StringBuilder();
+      CharStreams.copy(new InputStreamReader(is, UTF_8), sb);
+      String config = sb.toString().replace("'_doc'", "'doc'");
+      return ConnectorConfig.from(new ByteArrayInputStream(config.getBytes(UTF_8)));
     }
   }
 
   private static long getDocumentCount(RestClient client, String index) {
     try {
-      JsonNode response = doGet(client, index + "/_doc/_count");
+      JsonNode response = doGet(client, index + "/doc/_count");
       return response.get("count").longValue();
     } catch (ResponseException e) {
       return -1;

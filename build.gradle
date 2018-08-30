@@ -9,7 +9,7 @@ apply plugin: 'java'
 apply plugin: 'application'
 
 repositories {
-   // mavenLocal()
+    // mavenLocal()
     jcenter() // hmmm cava-toml isn't in maven central -- is that a problem?
 }
 
@@ -42,7 +42,6 @@ dependencies {
     testCompile 'junit:junit:4.12'
     integrationTestCompile 'org.testcontainers:testcontainers:1.8.3'
     integrationTestCompile 'com.jayway.jsonpath:json-path:2.3.0'
-    integrationTestCompile 'fr.pilato.elasticsearch.testcontainers:testcontainers-elasticsearch:0.1'
 
     compileOnly 'org.immutables:value:2.6.3'
     annotationProcessor 'org.immutables:value:2.6.3'
@@ -58,7 +57,6 @@ sourceSets.main.java.srcDirs += generatedFilesDir
 clean {
     delete generatedFilesDir
 }
-
 
 // Patch the start scripts to export the APP_HOME environment variable
 // so we can read log4j config and write log files in usual location.

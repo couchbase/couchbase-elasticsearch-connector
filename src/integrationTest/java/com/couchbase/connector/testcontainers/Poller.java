@@ -17,6 +17,7 @@
 package com.couchbase.connector.testcontainers;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
@@ -53,34 +54,25 @@ public class Poller {
     return this;
   }
 
-  public void untilTimeExpiresOr(Supplier<Boolean> condition) {
+  public void untilTimeExpiresOr(Supplier<Boolean> condition) throws TimeoutException, InterruptedException {
     timeoutIsFatal = false;
     until(condition);
   }
 
-  public void until(Supplier<Boolean> condition) {
+  public void until(Supplier<Boolean> condition) throws TimeoutException, InterruptedException {
     final long deadline = System.nanoTime() + timeoutUnit.toNanos(timeout);
 
     do {
       if (System.nanoTime() > deadline) {
         if (timeoutIsFatal) {
-          throw new RuntimeException("timed out");
+          throw new TimeoutException();
         }
         return;
       }
 
-      sleep();
+      intervalUnit.sleep(interval);
 
     } while (!condition.get());
-  }
-
-  private void sleep() {
-    try {
-      intervalUnit.sleep(interval);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
-    }
   }
 }
 
