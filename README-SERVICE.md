@@ -1,14 +1,12 @@
->This document describes the **Connector Service** flavor of the Couchbase Elasticsearch Connector,
-which will be available as a Developer Preview on August 31st, 2018.
->
->You may also be interested in the [**Elasticsearch Plugin**](README-PLUGIN.md) flavor
-which is available now. 
+>This document shows how to get started with the **Connector Service** flavor of the Couchbase Elasticsearch Connector.
 
 ## Pre-Release Disclaimer
 
 This software has not yet been released. Features, requirements, documentation,
 and supported versions may change before release.
 
+Please [file an issue](https://github.com/couchbaselabs/couchbase-elasticsearch-connector/issues)
+if you run into a problem or have an idea for a feature request. Thanks!
 
 ## Connector Service Requirements
 
@@ -21,7 +19,7 @@ Google Chrome so you can easily see the documents in Elasticsearch.
 
 ## Installation
 
-Starting August 31st, Connector Service distributions will be available from the [Releases](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases) page.
+Connector Service distributions are available from the [Releases](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases) page.
 Download the latest `couchbase-elasticsearch-connector-<version>.zip`. (Ignore the `elasticsearch-transport-couchbase` files; those are for the plugin flavor.) 
 
 Unzip the archive. These instructions refer to the unzipped directory as `$CBES_HOME`.

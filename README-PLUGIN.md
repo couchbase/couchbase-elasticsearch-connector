@@ -1,4 +1,5 @@
-> This document describes the **Elasticsearch Plugin** flavor of the Couchbase Elasticsearch Connector.
+> This document is an overview of the **Elasticsearch Plugin** flavor of the Couchbase Elasticsearch Connector.
+> Visit the Couchbase web site for a [detailed instruction manual](https://developer.couchbase.com/documentation/server/current/connectors/elasticsearch/overview.html).
 >
 > You may also be interested in the [**Connector Service**](README-SERVICE.md) flavor
 which supports Elasticsearch 6.x and secure connections. 
