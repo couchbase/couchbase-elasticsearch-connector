@@ -40,6 +40,7 @@ import java.security.KeyStore;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static com.couchbase.connector.elasticsearch.io.MoreBackoffPolicies.truncatedExponentialBackoff;
@@ -54,13 +55,16 @@ public class CouchbaseHelper {
     throw new AssertionError("not instantiable");
   }
 
-  public static CouchbaseCluster createCluster(CouchbaseConfig config, Supplier<KeyStore> keystore) {
+  public static CouchbaseCluster createCluster(CouchbaseConfig config, Supplier<KeyStore> keystore,
+                                               Consumer<DefaultCouchbaseEnvironment.Builder> envCustomizer) {
     final DefaultCouchbaseEnvironment.Builder envBuilder = DefaultCouchbaseEnvironment.builder();
     if (config.secureConnection()) {
       envBuilder
           .sslEnabled(true)
           .sslTruststore(keystore.get());
     }
+
+    envCustomizer.accept(envBuilder);
 
     // Dirty kludge to allow non-standard bootstrap port for containerized Couchbase
     final ConnectionString c = ConnectionString.fromHostnames(config.hosts());
@@ -77,6 +81,11 @@ public class CouchbaseHelper {
     final CouchbaseCluster cluster = CouchbaseCluster.create(couchbaseEnvironment, config.hosts());
     cluster.authenticate(config.username(), config.password());
     return cluster;
+  }
+
+  public static CouchbaseCluster createCluster(CouchbaseConfig config, Supplier<KeyStore> keystore) {
+    return createCluster(config, keystore, env -> {
+    });
   }
 
   public static Bucket openBucket(CouchbaseConfig config, Supplier<KeyStore> keystore) {

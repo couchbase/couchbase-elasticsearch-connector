@@ -39,6 +39,7 @@ dependencies {
   compile 'net.sf.jopt-simple:jopt-simple:5.0.4'
 
   testCompile 'junit:junit:4.12'
+  testCompile("org.assertj:assertj-core:3.11.1")
   integrationTestCompile 'org.testcontainers:testcontainers:1.8.3'
   integrationTestCompile 'com.jayway.jsonpath:json-path:2.3.0'
 

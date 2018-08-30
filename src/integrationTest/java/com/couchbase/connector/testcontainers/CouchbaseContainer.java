@@ -131,7 +131,7 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
 
   private void initCluster() {
     execOrDie(this, "couchbase-cli cluster-init" +
-        " --cluster " + getHostname() + ":" + managementPort() +
+        " --cluster " + hostAndPort() +
         " --cluster-username=" + username +
         " --cluster-password=" + password +
 //                " --services=data,query,index" +
@@ -178,7 +178,7 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
     Stopwatch timer = Stopwatch.createStarted();
 
     ExecResultWithExitCode result = exec(this, "cbdocloader" +
-        " --cluster " + getHostname() + ":" + managementPort() +
+        " --cluster " + hostAndPort() +
         " --username " + username +
         " --password " + password +
         " --bucket " + bucketName +
@@ -196,7 +196,7 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
 //        Stopwatch timer = Stopwatch.createStarted();
 //        createBucket(bucketName, bucketQuotaMb);
 //        exec(this, "cbimport2 json " +
-//                " --cluster couchbase://" + getHostname() +
+//                " --cluster couchbase://" + hostAndPort()
 //                " --username " + username +
 //                " --password " + password +
 //                " --bucket " + bucketName +
@@ -214,7 +214,7 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
     Stopwatch timer = Stopwatch.createStarted();
 
     execOrDie(this, "couchbase-cli bucket-create" +
-        " --cluster " + getHostname() +
+        " --cluster " + hostAndPort() +
         " --username " + username +
         " --password " + password +
         " --bucket " + bucketName +
@@ -230,12 +230,16 @@ public class CouchbaseContainer extends GenericContainer<CouchbaseContainer> {
     Stopwatch timer = Stopwatch.createStarted();
 
     execOrDie(this, "couchbase-cli bucket-delete" +
-        " --cluster " + getHostname() +
+        " --cluster " + hostAndPort() +
         " --username " + username +
         " --password " + password +
         " --bucket " + bucketName);
 
     log.info("Deleting bucket took " + timer);
+  }
+
+  private String hostAndPort() {
+    return getHostname() + ":" + managementPort();
   }
 
   @SuppressWarnings("OptionalAssignedToNull")
