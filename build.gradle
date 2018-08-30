@@ -9,8 +9,7 @@ apply plugin: 'java'
 apply plugin: 'application'
 
 repositories {
-  // mavenLocal()
-  jcenter() // hmmm cava-toml isn't in maven central -- is that a problem?
+  mavenCentral()
 }
 
 sourceCompatibility = 1.8
@@ -36,7 +35,7 @@ dependencies {
   compile 'io.dropwizard.metrics:metrics-jvm:4.0.3'
 
   compile 'com.google.guava:guava:26.0-jre'
-  compile 'net.consensys.cava:cava-toml:0.3.0'
+  compile 'net.consensys.cava:cava-toml:0.3.1'
   compile 'net.sf.jopt-simple:jopt-simple:5.0.4'
 
   testCompile 'junit:junit:4.12'
