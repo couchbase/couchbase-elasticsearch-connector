@@ -121,9 +121,29 @@ current state of the bucket:
 
 # Migrating from the Plugin
 
+### Document structure and metadata
+
 By default, Elasticsearch documents created by the Connector Service have the same
 structure and metadata as those created by the plugin, with the addition
 of new metadata fields that can be used to build a Couchbase Mutation Token.
+
+##### Metadata Fields
+
+|  Name      | Datatype | New   
+------------:|:---------|:-----:
+| vbucket    | integer  | ✓ 
+| vbuuid     | long     | ✓
+| seqno      | long     | ✓ 
+| revSeqno   | long     | ✓
+| cas        | long     | ✓
+| lockTime   | integer  | ✓
+| rev        | string   | 
+| flags      | integer  | 
+| expiration | integer  | 
+| id         | string   | 
+
+
+### Replication state
 
 The Connector Service stores its replication state in a way that is incompatible
 with the plugin. If re-streaming all of the documents from Couchbase is not
