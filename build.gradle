@@ -58,6 +58,10 @@ clean {
   delete generatedFilesDir
 }
 
+tasks.withType(Tar) {
+  compression = Compression.GZIP
+}
+
 // Patch the start scripts to export the APP_HOME environment variable
 // so we can read log4j config and write log files in usual location.
 // See https://discuss.gradle.org/t/linux-launcher-script-should-export-app-home-before-starting-the-application/3570
