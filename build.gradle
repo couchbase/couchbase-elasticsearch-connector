@@ -15,7 +15,7 @@ repositories {
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-version = "4.0.0-dp.1"
+version = "4.0.0-dp.2-SNAPSHOT"
 
 testSets {
   integrationTest
