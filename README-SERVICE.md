@@ -119,6 +119,20 @@ current state of the bucket:
     cbes-checkpoint-clear --catch-up
 
 
+# Migrating from the Plugin
+
+By default, Elasticsearch documents created by the Connector Service have the same
+structure and metadata as those created by the plugin, with the addition
+of new metadata fields that can be used to build a Couchbase Mutation Token.
+
+The Connector Service stores its replication state in a way that is incompatible
+with the plugin. If re-streaming all of the documents from Couchbase is not
+an option, you can use the new checkpoint management tools to create a
+checkpoint from the current state of the bucket (with `cbes-checkpoint-clear --catch-up`).
+Allow the plugin to finish replicating documents up to or past that state,
+then uninstall it and start the Connector Service.
+
+
 # Building the connector from source
 
 The connector distribution may be built from source with the command:
