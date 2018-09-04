@@ -30,6 +30,7 @@ import com.couchbase.connector.elasticsearch.cli.CheckpointClear;
 import com.couchbase.connector.testcontainers.CouchbaseContainer;
 import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
@@ -53,6 +54,7 @@ import java.util.concurrent.TimeoutException;
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
 import static com.couchbase.connector.testcontainers.Poller.poll;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -78,41 +80,51 @@ public class BasicReplicationTest {
   private static ImmutableConnectorConfig commonConfig;
 
   @Parameterized.Parameters(name = "cb={0}, es={1}")
-  public static Iterable<Object[]> data() {
+  public static Iterable<Object[]> versionsToTest() {
+    // Only the first version in each list will be tested, unless this condition is `true`
+    final boolean exhaustive = Boolean.valueOf(System.getProperty("com.couchbase.integrationTest.exhaustive"));
+
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
+        "6.0.0-beta",
         "enterprise-5.5.1",
+        "enterprise-5.5.0",
+        "enterprise-5.1.1",
+        "community-5.1.1",
+        "enterprise-5.1.0",
+        "enterprise-5.0.1",
         "community-5.0.1");
 
     final ImmutableSet<String> elasticsearchVersions = ImmutableSet.of(
         "6.4.0",
-//        "6.3.2",
-//        "6.2.4",
-//        "6.1.4",
-//        "6.0.1",
-//        "5.6.11",
-//        "5.5.3",
-//        "5.4.3",
-//        "5.3.3",
+        "6.3.2",
+        "6.2.4",
+        "6.1.4",
+        "6.0.1",
+        "5.6.11",
+        "5.5.3",
+        "5.4.3",
+        "5.3.3",
         "5.2.1");
 
-
-    return Sets.cartesianProduct(couchbaseVersions, elasticsearchVersions)
-        .stream()
-        .map(strings -> Iterables.toArray(strings, Object.class))
-        .collect(toList());
-
-//    return Arrays.asList(new Object[][]{
-//        {"enterprise-5.5.1", "5.2.1"},
-//        {"community-5.0.1", "6.4.0"},
-//    });
+    if (exhaustive) {
+      return Sets.cartesianProduct(couchbaseVersions, elasticsearchVersions)
+          .stream()
+          .map(strings -> Iterables.toArray(strings, Object.class))
+          .collect(toList());
+    } else {
+      // just test the most recent versions
+      return ImmutableList.of(new Object[]{
+          Iterables.get(couchbaseVersions, 0),
+          Iterables.get(elasticsearchVersions, 0)});
+    }
   }
 
   private final String couchbaseVersion;
   private final String elasticsearchVersion;
 
   public BasicReplicationTest(String couchbaseVersion, String elasticsearchVersion) {
-    this.couchbaseVersion = couchbaseVersion;
-    this.elasticsearchVersion = elasticsearchVersion;
+    this.couchbaseVersion = requireNonNull(couchbaseVersion);
+    this.elasticsearchVersion = requireNonNull(elasticsearchVersion);
   }
 
   @Before

@@ -18,8 +18,22 @@ targetCompatibility = 1.8
 
 version = "4.0.0-dp.2-SNAPSHOT"
 
+// https://github.com/unbroken-dome/gradle-testsets-plugin
 testSets {
   integrationTest
+}
+
+integrationTest.dependsOn(test)
+
+// https://github.com/radarsh/gradle-test-logger-plugin
+testlogger {
+  theme 'mocha'
+}
+
+if (project.hasProperty("exhaustive")) {
+  tasks.withType(Test) {
+    systemProperty 'com.couchbase.integrationTest.exhaustive', 'true'
+  }
 }
 
 dependencies {
@@ -106,6 +120,7 @@ applicationDistribution.into("bin") {
 }
 
 applicationDistribution.into("notices") {
+  // https://github.com/jk1/Gradle-License-Report
   from(generateLicenseReport)
 }
 
