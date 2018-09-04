@@ -30,11 +30,14 @@ testlogger {
   theme 'mocha'
 }
 
-if (project.hasProperty("exhaustive")) {
-  tasks.withType(Test) {
-    systemProperty 'com.couchbase.integrationTest.exhaustive', 'true'
+task exhaustiveTest(group: "Verification", description: "Runs the integration tests against *all* supported server versions") {
+  doLast {
+    tasks.withType(Test) {
+      systemProperty 'com.couchbase.integrationTest.exhaustive', 'true'
+    }
   }
 }
+exhaustiveTest.finalizedBy(integrationTest)
 
 dependencies {
   compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.11.0'
