@@ -1,6 +1,7 @@
 plugins {
   id "com.github.jk1.dependency-license-report" version "1.2"
   id 'org.unbroken-dome.test-sets' version '1.5.1'
+  id 'com.adarshr.test-logger' version '1.4.0'
 }
 
 import org.apache.tools.ant.filters.ReplaceTokens

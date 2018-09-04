@@ -29,12 +29,17 @@ import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.testcontainers.CouchbaseContainer;
 import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.unit.TimeValue;
 import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.testcontainers.containers.GenericContainer;
 
 import java.io.ByteArrayInputStream;
@@ -48,27 +53,83 @@ import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
 import static com.couchbase.connector.testcontainers.Poller.poll;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * MUST NOT be run in parallel.
+ */
+@RunWith(Parameterized.class)
 public class BasicReplicationTest {
-  private static final String COUCHBASE_DOCKER_IMAGE = "couchbase/server:community-5.0.1";
-  private static final Version ELASTICSEARCH_VERSION = Version.fromString("6.4.0");
+
+  private static String cachedCouchbaseContainerVersion = "";
+  private static String cachedElasticsearchContainerVersion = "";
 
   private static CouchbaseContainer couchbase;
   private static ElasticsearchContainer elasticsearch;
   private static ImmutableConnectorConfig commonConfig;
 
-  @BeforeClass
-  public static void setup() throws Exception {
-    couchbase = CouchbaseContainer.newCluster(COUCHBASE_DOCKER_IMAGE);
-    System.out.println("Couchbase listening at http://localhost:" + couchbase.managementPort());
+  @Parameterized.Parameters(name = "cb={0}, es={1}")
+  public static Iterable<Object[]> data() {
+    final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
+        "enterprise-5.5.1",
+        "community-5.0.1");
 
-    elasticsearch = new ElasticsearchContainer(ELASTICSEARCH_VERSION);
-    elasticsearch.start();
-    System.out.println("Elasticsearch listening on " + elasticsearch.getHost());
+    final ImmutableSet<String> elasticsearchVersions = ImmutableSet.of(
+        "6.4.0",
+//        "6.3.2",
+//        "6.2.4",
+//        "6.1.4",
+//        "6.0.1",
+//        "5.6.11",
+//        "5.5.3",
+//        "5.4.3",
+//        "5.3.3",
+        "5.2.1");
+
+
+    return Sets.cartesianProduct(couchbaseVersions, elasticsearchVersions)
+        .stream()
+        .map(strings -> Iterables.toArray(strings, Object.class))
+        .collect(toList());
+
+//    return Arrays.asList(new Object[][]{
+//        {"enterprise-5.5.1", "5.2.1"},
+//        {"community-5.0.1", "6.4.0"},
+//    });
+  }
+
+  private final String couchbaseVersion;
+  private final String elasticsearchVersion;
+
+  public BasicReplicationTest(String couchbaseVersion, String elasticsearchVersion) {
+    this.couchbaseVersion = couchbaseVersion;
+    this.elasticsearchVersion = elasticsearchVersion;
+  }
+
+  @Before
+  public void setup() throws Exception {
+    if (couchbaseVersion.equals(cachedCouchbaseContainerVersion)) {
+      System.out.println("Using cached Couchbase container.");
+    } else {
+      stop(couchbase);
+      couchbase = CouchbaseContainer.newCluster("couchbase/server:" + couchbaseVersion);
+      System.out.println("Couchbase listening at http://localhost:" + couchbase.managementPort());
+      cachedCouchbaseContainerVersion = couchbaseVersion;
+    }
+
+    if (elasticsearchVersion.equals(cachedElasticsearchContainerVersion)) {
+      System.out.println("Using cached Elasticsearch container.");
+    } else {
+      stop(elasticsearch);
+      elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion));
+      elasticsearch.start();
+      System.out.println("Elasticsearch listening on " + elasticsearch.getHost());
+      cachedElasticsearchContainerVersion = elasticsearchVersion;
+    }
 
     commonConfig = patchConfigForTesting(loadConfig(), couchbase, elasticsearch);
   }
