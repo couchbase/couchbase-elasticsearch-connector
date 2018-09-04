@@ -26,6 +26,7 @@ import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableElasticsearchConfig;
 import com.couchbase.connector.dcp.CouchbaseHelper;
+import com.couchbase.connector.elasticsearch.cli.CheckpointClear;
 import com.couchbase.connector.testcontainers.CouchbaseContainer;
 import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -65,8 +66,12 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Parameterized.class)
 public class BasicReplicationTest {
 
-  private static String cachedCouchbaseContainerVersion = "";
-  private static String cachedElasticsearchContainerVersion = "";
+//  static {
+//    ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
+//  }
+
+  private static String cachedCouchbaseContainerVersion;
+  private static String cachedElasticsearchContainerVersion;
 
   private static CouchbaseContainer couchbase;
   private static ElasticsearchContainer elasticsearch;
@@ -119,6 +124,7 @@ public class BasicReplicationTest {
       couchbase = CouchbaseContainer.newCluster("couchbase/server:" + couchbaseVersion);
       System.out.println("Couchbase listening at http://localhost:" + couchbase.managementPort());
       cachedCouchbaseContainerVersion = couchbaseVersion;
+      couchbase.loadSampleBucket("travel-sample");
     }
 
     if (elasticsearchVersion.equals(cachedElasticsearchContainerVersion)) {
@@ -132,6 +138,7 @@ public class BasicReplicationTest {
     }
 
     commonConfig = patchConfigForTesting(loadConfig(), couchbase, elasticsearch);
+    CheckpointClear.clear(commonConfig);
   }
 
   @AfterClass
@@ -254,8 +261,6 @@ public class BasicReplicationTest {
 
   @Test
   public void canReplicateTravelSample() throws Throwable {
-    couchbase.loadSampleBucket("travel-sample");
-
     try (TestEsClient es = new TestEsClient(commonConfig);
          TestConnector connector = new TestConnector(commonConfig).start()) {
 

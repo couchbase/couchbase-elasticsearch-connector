@@ -21,11 +21,11 @@ import com.couchbase.client.dcp.Client;
 import com.couchbase.client.dcp.state.PartitionState;
 import com.couchbase.client.dcp.state.SessionState;
 import com.couchbase.client.java.Bucket;
+import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.dcp.Checkpoint;
 import com.couchbase.connector.dcp.CheckpointDao;
 import com.couchbase.connector.dcp.CouchbaseCheckpointDao;
-import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.dcp.DcpHelper;
 import com.couchbase.connector.dcp.SnapshotMarker;
 import joptsimple.OptionSet;
@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 
+import static com.couchbase.connector.dcp.CouchbaseHelper.createCluster;
 import static com.couchbase.connector.dcp.CouchbaseHelper.getBucketConfig;
 import static com.couchbase.connector.dcp.DcpHelper.allPartitions;
 import static java.util.stream.Collectors.toSet;
@@ -60,22 +61,39 @@ public class CheckpointClear extends AbstractCliCommand {
     System.out.println("Reading connector configuration from " + configFile.getAbsoluteFile());
     final ConnectorConfig config = ConnectorConfig.from(configFile);
 
-    final Bucket bucket = CouchbaseHelper.openBucket(config.couchbase(), config.trustStore());
-    final CouchbaseBucketConfig bucketConfig = getBucketConfig(bucket);
+    run(config, options.has(parser.catchUp));
+  }
 
-    final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(bucket, config.group().name());
+  public static void clear(ConnectorConfig config) throws IOException {
+    run(config, false);
+  }
 
-    if (options.has(parser.catchUp)) {
-      setCheckpointToNow(config, checkpointDao);
-      System.out.println("Set checkpoint for connector '" + config.group().name() + "' to match current state of Couchbase bucket.");
+  public static void catchUp(ConnectorConfig config) throws IOException {
+    run(config, true);
+  }
 
-    } else {
-      final int numVbuckets = bucketConfig.numberOfPartitions();
-      final Set<Integer> vbuckets = IntStream.range(0, numVbuckets).boxed().collect(toSet());
+  private static void run(ConnectorConfig config, boolean catchUp) throws IOException {
+    final CouchbaseCluster cluster = createCluster(config.couchbase(), config.trustStore());
+    try {
+      final Bucket bucket = cluster.openBucket(config.couchbase().bucket());
+      final CouchbaseBucketConfig bucketConfig = getBucketConfig(bucket);
 
-      checkpointDao.clear(bucketConfig.uuid(), vbuckets);
+      final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(bucket, config.group().name());
 
-      System.out.println("Cleared checkpoint for connector '" + config.group().name() + "'.");
+      if (catchUp) {
+        setCheckpointToNow(config, checkpointDao);
+        System.out.println("Set checkpoint for connector '" + config.group().name() + "' to match current state of Couchbase bucket.");
+
+      } else {
+        final int numVbuckets = bucketConfig.numberOfPartitions();
+        final Set<Integer> vbuckets = IntStream.range(0, numVbuckets).boxed().collect(toSet());
+
+        checkpointDao.clear(bucketConfig.uuid(), vbuckets);
+
+        System.out.println("Cleared checkpoint for connector '" + config.group().name() + "'.");
+      }
+    } finally {
+      cluster.disconnect();
     }
   }
 
