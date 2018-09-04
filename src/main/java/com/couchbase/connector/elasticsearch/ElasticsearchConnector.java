@@ -152,7 +152,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       CouchbaseHelper.registerCouchbaseVersionGauge(cluster);
 
       final Version elasticsearchVersion = waitForElasticsearchAndRequireVersion(
-          esClient, new Version(5, 0, 0), new Version(5, 2, 1));
+          esClient, new Version(2, 0, 0), new Version(5, 2, 1));
       LOGGER.info("Elasticsearch version {}", elasticsearchVersion);
 
       validateConfig(elasticsearchVersion, config.elasticsearch());
