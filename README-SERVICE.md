@@ -129,7 +129,7 @@ of new metadata fields that can be used to build a Couchbase Mutation Token.
 
 ##### Metadata Fields
 
-|  Name      | Datatype | New   
+|  Name      | Datatype | New in 4.0  
 ------------:|:---------|:-----:
 | vbucket    | integer  | ✓ 
 | vbuuid     | long     | ✓
