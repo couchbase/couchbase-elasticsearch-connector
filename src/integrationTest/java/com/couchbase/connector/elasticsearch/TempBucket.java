@@ -16,7 +16,7 @@
 
 package com.couchbase.connector.elasticsearch;
 
-import com.couchbase.connector.testcontainers.CouchbaseContainer;
+import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
 
 import java.io.Closeable;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,10 +24,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 class TempBucket implements Closeable {
   private static final AtomicInteger counter = new AtomicInteger();
 
-  private final CouchbaseContainer couchbase;
+  private final CustomCouchbaseContainer couchbase;
   private final String bucketName;
 
-  public TempBucket(CouchbaseContainer couchbase) {
+  public TempBucket(CustomCouchbaseContainer couchbase) {
     this.couchbase = couchbase;
     this.bucketName = "temp-" + counter.getAndIncrement();
     couchbase.createBucket(bucketName);

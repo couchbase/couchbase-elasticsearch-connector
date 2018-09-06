@@ -27,7 +27,7 @@ import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableElasticsearchConfig;
 import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.elasticsearch.cli.CheckpointClear;
-import com.couchbase.connector.testcontainers.CouchbaseContainer;
+import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
 import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
@@ -52,6 +52,7 @@ import java.io.InputStreamReader;
 import java.util.concurrent.TimeoutException;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
+import static com.couchbase.connector.testcontainers.CustomCouchbaseContainer.newCouchbaseCluster;
 import static com.couchbase.connector.testcontainers.Poller.poll;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
@@ -75,7 +76,7 @@ public class BasicReplicationTest {
   private static String cachedCouchbaseContainerVersion;
   private static String cachedElasticsearchContainerVersion;
 
-  private static CouchbaseContainer couchbase;
+  private static CustomCouchbaseContainer couchbase;
   private static ElasticsearchContainer elasticsearch;
   private static ImmutableConnectorConfig commonConfig;
 
@@ -130,22 +131,27 @@ public class BasicReplicationTest {
   @Before
   public void setup() throws Exception {
     if (couchbaseVersion.equals(cachedCouchbaseContainerVersion)) {
-      System.out.println("Using cached Couchbase container.");
+      System.out.println("Using cached Couchbase container: " + couchbase.getDockerImageName() +
+          " listening at http://localhost:" + couchbase.getMappedPort(8091));
     } else {
       stop(couchbase);
-      couchbase = CouchbaseContainer.newCluster("couchbase/server:" + couchbaseVersion);
-      System.out.println("Couchbase listening at http://localhost:" + couchbase.managementPort());
+      couchbase = newCouchbaseCluster("couchbase/server:" + couchbaseVersion);
+
+      System.out.println("Couchbase " + couchbase.getVersionString() +
+          " listening at http://localhost:" + couchbase.getMappedPort(8091));
+
       cachedCouchbaseContainerVersion = couchbaseVersion;
-      couchbase.loadSampleBucket("travel-sample");
+      couchbase.loadSampleBucket("travel-sample", 100);
     }
 
     if (elasticsearchVersion.equals(cachedElasticsearchContainerVersion)) {
-      System.out.println("Using cached Elasticsearch container.");
+      System.out.println("Using cached Elasticsearch container " + elasticsearch.getDockerImageName() +
+          " listening at " + elasticsearch.getHost());
     } else {
       stop(elasticsearch);
       elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion));
       elasticsearch.start();
-      System.out.println("Elasticsearch listening on " + elasticsearch.getHost());
+      System.out.println("Elasticsearch listening at " + elasticsearch.getHost());
       cachedElasticsearchContainerVersion = elasticsearchVersion;
     }
 
@@ -170,7 +176,7 @@ public class BasicReplicationTest {
   }
 
   private static ImmutableConnectorConfig patchConfigForTesting(ImmutableConnectorConfig config,
-                                                                CouchbaseContainer couchbase,
+                                                                CustomCouchbaseContainer couchbase,
                                                                 ElasticsearchContainer elasticsearch) {
     return config
         .withMetrics(ImmutableMetricsConfig.builder()
@@ -182,7 +188,7 @@ public class BasicReplicationTest {
                 .withHosts(elasticsearch.getHost()))
         .withCouchbase(
             ImmutableCouchbaseConfig.copyOf(config.couchbase())
-                .withHosts("localhost:" + couchbase.managementPort())
+                .withHosts("localhost:" + couchbase.getMappedPort(8091))
         );
   }
 
