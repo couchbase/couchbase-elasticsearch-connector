@@ -28,7 +28,7 @@ integrationTest.dependsOn(test)
 
 // https://github.com/radarsh/gradle-test-logger-plugin
 testlogger {
-  theme 'mocha'
+  theme System.getenv("JENKINS_URL") != null ? 'plain' : 'mocha'
 }
 
 task exhaustiveTest(group: "Verification", description: "Runs the integration tests against *all* supported server versions") {
