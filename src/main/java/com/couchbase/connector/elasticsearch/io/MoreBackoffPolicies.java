@@ -16,7 +16,6 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.common.unit.TimeValue;
@@ -26,11 +25,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.elasticsearch.common.unit.TimeValue.timeValueMillis;
-import static org.elasticsearch.common.unit.TimeValue.timeValueMinutes;
-import static org.elasticsearch.common.unit.TimeValue.timeValueNanos;
-import static org.elasticsearch.common.unit.TimeValue.timeValueSeconds;
 
 public class MoreBackoffPolicies {
   private MoreBackoffPolicies() {
@@ -143,39 +138,5 @@ public class MoreBackoffPolicies {
         return Iterators.limit(wrapped.iterator(), maxRetries);
       }
     };
-  }
-
-  public static void main(String[] args) throws InterruptedException {
-    for (int i = 0; i < 10; i++) {
-      BackoffPolicy policy = BackoffPolicyBuilder.truncatedExponentialBackoff(timeValueMillis(50), timeValueMinutes(5))
-          .fullJitter()
-          .timeout(timeValueSeconds(2))
-          .limit(10)
-          .build();
-
-
-//          limit(10,
-//              withTimeout(timeValueMillis(1500),
-//                  withFullJitter(
-//                      truncatedExponentialBackoff(timeValueMillis(50), timeValueMinutes(5)))));
-
-      System.out.println(policy);
-
-      long start = System.nanoTime();
-      for (TimeValue delay : Iterables.limit(policy, 100)) {
-        System.out.println("Sleeping for " + delay);
-        MILLISECONDS.sleep(delay.millis());
-      }
-      System.out.println("Done in " + timeValueNanos(System.nanoTime() - start));
-
-      System.out.println(Iterables.toString(policy));
-
-    }
-
-
-//    System.out.println(Iterables.toString(Iterables.limit(policy, 100)));
-//    System.out.println(Iterables.toString(Iterables.limit(policy, 100)));
-//    System.out.println(Iterables.toString(Iterables.limit(policy, 100)));
-//    System.out.println(Iterables.toString(Iterables.limit(policy, 100)));
   }
 }
