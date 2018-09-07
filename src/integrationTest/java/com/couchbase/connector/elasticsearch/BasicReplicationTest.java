@@ -33,7 +33,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.unit.TimeValue;
@@ -49,6 +48,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
@@ -57,7 +58,6 @@ import static com.couchbase.connector.testcontainers.Poller.poll;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -107,17 +107,26 @@ public class BasicReplicationTest {
         "5.3.3",
         "5.2.1");
 
-    if (exhaustive) {
-      return Sets.cartesianProduct(couchbaseVersions, elasticsearchVersions)
-          .stream()
-          .map(strings -> Iterables.toArray(strings, Object.class))
-          .collect(toList());
-    } else {
+    if (!exhaustive) {
       // just test the most recent versions
       return ImmutableList.of(new Object[]{
           Iterables.get(couchbaseVersions, 0),
           Iterables.get(elasticsearchVersions, 0)});
     }
+
+    // Full cartesian product is overkill; just test every supported version
+    // at least once in some combination.
+    final List<Object[]> combinations = new ArrayList<>();
+
+    final String newestCb = Iterables.get(couchbaseVersions, 0);
+    final Iterable<String> olderCouchbaseVersions = Iterables.skip(couchbaseVersions, 1);
+    final String newestEs = Iterables.get(elasticsearchVersions, 0);
+
+    // Prefer repeating Couchbase versions, since the CB container is more expensive to set up than ES.
+    elasticsearchVersions.forEach(es -> combinations.add(new Object[]{newestCb, es}));
+    olderCouchbaseVersions.forEach(cb -> combinations.add(new Object[]{cb, newestEs}));
+
+    return combinations;
   }
 
   private final String couchbaseVersion;
@@ -157,6 +166,10 @@ public class BasicReplicationTest {
 
     commonConfig = patchConfigForTesting(loadConfig(), couchbase, elasticsearch);
     CheckpointClear.clear(commonConfig);
+
+    try (TestEsClient es = new TestEsClient(commonConfig)) {
+      es.deleteAllIndexes();
+    }
   }
 
   @AfterClass

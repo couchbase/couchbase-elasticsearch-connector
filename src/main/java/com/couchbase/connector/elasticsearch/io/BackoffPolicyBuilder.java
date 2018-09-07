@@ -19,6 +19,8 @@ package com.couchbase.connector.elasticsearch.io;
 import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.common.unit.TimeValue;
 
+import java.util.concurrent.TimeUnit;
+
 import static java.util.Objects.requireNonNull;
 
 public class BackoffPolicyBuilder {
@@ -26,6 +28,10 @@ public class BackoffPolicyBuilder {
 
   public static BackoffPolicyBuilder truncatedExponentialBackoff(TimeValue seed, TimeValue cap) {
     return new BackoffPolicyBuilder(MoreBackoffPolicies.truncatedExponentialBackoff(seed, cap));
+  }
+
+  public static BackoffPolicyBuilder constantBackoff(long duration, TimeUnit unit) {
+    return constantBackoff(new TimeValue(duration, unit));
   }
 
   public static BackoffPolicyBuilder constantBackoff(TimeValue delay) {
@@ -39,6 +45,10 @@ public class BackoffPolicyBuilder {
   public BackoffPolicyBuilder fullJitter() {
     policy = MoreBackoffPolicies.withFullJitter(policy);
     return this;
+  }
+
+  public BackoffPolicyBuilder timeout(long duration, TimeUnit unit) {
+    return timeout(new TimeValue(duration, unit));
   }
 
   public BackoffPolicyBuilder timeout(TimeValue timeout) {

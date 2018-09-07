@@ -19,9 +19,12 @@ package com.couchbase.connector.elasticsearch;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
+import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.unit.TimeValue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,17 +34,72 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 
 import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
+import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.constantBackoff;
 import static com.couchbase.connector.testcontainers.Poller.poll;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 class TestEsClient implements AutoCloseable {
   private final RestHighLevelClient client;
 
   public TestEsClient(ConnectorConfig config) throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
     this.client = newElasticsearchClient(config.elasticsearch(), config.trustStore());
+  }
+
+  private static <T> T retryUntilSuccess(BackoffPolicy backoffPolicy, Callable<T> lambda) {
+    Iterator<TimeValue> delays = backoffPolicy.iterator();
+    while (true) {
+      try {
+        return lambda.call();
+      } catch (Exception e) {
+        e.printStackTrace();
+
+        if (delays.hasNext()) {
+          try {
+            MILLISECONDS.sleep(delays.next().millis());
+          } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(interrupted);
+          }
+        } else {
+          throw new RuntimeException(new TimeoutException());
+        }
+      }
+    }
+  }
+
+  public void deleteAllIndexes() {
+    try {
+      // retry for intermittent auth failure immediately after container startup :-p
+      final BackoffPolicy backoffPolicy = constantBackoff(1, SECONDS).limit(10).build();
+
+      for (String index : retryUntilSuccess(backoffPolicy, this::indexNames)) {
+        if (index.startsWith(".")) {
+          // ES 5.x complains if we try to delete these.
+          continue;
+        }
+        JsonNode deletionResponse = doDelete(index);
+        System.out.println("Deleted index '" + index + "' : " + deletionResponse);
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public List<String> indexNames() {
+    try {
+      final JsonNode response = doGet("_stats");
+      return ImmutableList.copyOf(response.path("indices").fieldNames());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
@@ -82,6 +140,13 @@ class TestEsClient implements AutoCloseable {
 
   private JsonNode doGet(String endpoint) throws IOException {
     final Response response = client.getLowLevelClient().performRequest("GET", endpoint);
+    try (InputStream is = response.getEntity().getContent()) {
+      return new ObjectMapper().readTree(is);
+    }
+  }
+
+  private JsonNode doDelete(String endpoint) throws IOException {
+    final Response response = client.getLowLevelClient().performRequest("DELETE", endpoint);
     try (InputStream is = response.getEntity().getContent()) {
       return new ObjectMapper().readTree(is);
     }

@@ -102,9 +102,9 @@ public class CustomCouchbaseContainer extends CouchbaseContainer {
     Stopwatch timer = Stopwatch.createStarted();
 
     execOrDie(this, "couchbase-cli bucket-delete" +
-        " --cluster localhost:8091"+
-        " --username Administrator"+
-        " --password password"+
+        " --cluster localhost:8091" +
+        " --username Administrator" +
+        " --password password" +
         " --bucket " + bucketName);
 
     log.info("Deleting bucket took " + timer);
@@ -114,6 +114,14 @@ public class CustomCouchbaseContainer extends CouchbaseContainer {
     poll().atInterval(3, SECONDS)
         .withTimeout(2, MINUTES)
         .until(this::allNodesHealthy);
+  }
+
+  @Override
+  public void stop() {
+    // workaround for bug that causes re-initialization and failed shutdown
+    getCouchbaseEnvironment();
+
+    super.stop();
   }
 
   private boolean allNodesHealthy() {
