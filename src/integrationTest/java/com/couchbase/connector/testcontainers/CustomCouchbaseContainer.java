@@ -116,14 +116,6 @@ public class CustomCouchbaseContainer extends CouchbaseContainer {
         .until(this::allNodesHealthy);
   }
 
-  @Override
-  public void stop() {
-    // workaround for bug that causes re-initialization and failed shutdown
-    getCouchbaseEnvironment();
-
-    super.stop();
-  }
-
   private boolean allNodesHealthy() {
     try {
       final String poolInfo = curl("pools/default");

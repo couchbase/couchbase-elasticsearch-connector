@@ -11,7 +11,8 @@ apply plugin: 'application'
 
 repositories {
   mavenCentral()
-  maven { url 'https://jitpack.io' } // for testcontainers snapshot
+  jcenter() // for testcontainers release candidate
+  //maven { url 'https://jitpack.io' } // for testcontainers snapshot
 }
 
 sourceCompatibility = 1.8
@@ -61,10 +62,12 @@ dependencies {
   testCompile("org.assertj:assertj-core:3.11.1")
   integrationTestCompile 'com.jayway.jsonpath:json-path:2.3.0'
 
-  //integrationTestCompile 'org.testcontainers:testcontainers:1.8.3'
-  def testcontainersCommit = 'ac05988143e8d433d' // avoid port conflicts between multiple Couchbase containers on same host
-  integrationTestCompile "com.github.testcontainers.testcontainers-java:testcontainers:${testcontainersCommit}"
-  integrationTestCompile "com.github.testcontainers.testcontainers-java:couchbase:${testcontainersCommit}"
+  def testcontainersVersion = '1.9.0-rc1'
+  integrationTestCompile "org.testcontainers:testcontainers:${testcontainersVersion}"
+  integrationTestCompile "org.testcontainers:couchbase:${testcontainersVersion}"
+  //def testcontainersCommit = 'ac05988143e8d433d' // avoid port conflicts between multiple Couchbase containers on same host
+  //integrationTestCompile "com.github.testcontainers.testcontainers-java:testcontainers:${testcontainersCommit}"
+  //integrationTestCompile "com.github.testcontainers.testcontainers-java:couchbase:${testcontainersCommit}"
 
   compileOnly 'org.immutables:value:2.6.3'
   annotationProcessor 'org.immutables:value:2.6.3'
