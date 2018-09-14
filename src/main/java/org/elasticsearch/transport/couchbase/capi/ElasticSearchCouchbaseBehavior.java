@@ -16,6 +16,7 @@ package org.elasticsearch.transport.couchbase.capi;
 import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.couchbase.capi.CouchbaseBehavior;
 import com.google.common.cache.Cache;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequestBuilder;
@@ -35,6 +36,7 @@ import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.rest.RestStatus;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -187,12 +189,20 @@ public class ElasticSearchCouchbaseBehavior implements CouchbaseBehavior {
         builder.setSource(toBeIndexed);
         builder.setOpType(IndexRequest.OpType.CREATE);
 
-        IndexResponse response;
-        ActionFuture<IndexResponse> laf = builder.execute();
-        if (laf != null) {
-            response = laf.actionGet();
+        try {
+            IndexResponse response = builder.execute().actionGet();
             if (!isCreated(response)) {
-                logger.error("did not succeed creating uuid");
+                logger.error("Failed to create UUID; response={}", response);
+            } else {
+                logger.debug("Created UUID");
+            }
+        } catch (Exception e) {
+            if (e instanceof ElasticsearchException
+                    && ((ElasticsearchException) e).status() == RestStatus.CONFLICT) {
+                // This is fine, someone else already created the UUID document.
+                logger.debug("UUID already created", e);
+            } else {
+                logger.error("Failed to create UUID", e);
             }
         }
     }
