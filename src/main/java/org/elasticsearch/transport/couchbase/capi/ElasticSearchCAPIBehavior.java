@@ -51,10 +51,10 @@ import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.google.common.io.BaseEncoding.base64;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static javax.xml.bind.DatatypeConverter.parseBase64Binary;
 import static org.elasticsearch.transport.couchbase.capi.CompatibilityHelper.isCreated;
 import static org.elasticsearch.transport.couchbase.capi.CompatibilityHelper.setPipeline;
 
@@ -357,7 +357,7 @@ public class ElasticSearchCAPIBehavior implements CAPIBehavior {
                 } else if (json == null && base64 != null) {
                     // no plain json, let's try parsing the base64 data
                     try {
-                        byte[] decodedData = parseBase64Binary(base64);
+                        byte[] decodedData = base64().decode(base64);
                         try {
                             // now try to parse the decoded data as json
                             json = (Map<String, Object>) mapper.readValue(decodedData, Map.class);
