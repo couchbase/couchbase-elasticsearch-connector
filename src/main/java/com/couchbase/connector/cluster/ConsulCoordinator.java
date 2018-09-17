@@ -61,7 +61,7 @@ public class ConsulCoordinator implements Coordinator {
 
     shutdownHook = new Thread(() -> {
       try {
-        consul.agentClient().fail(serviceId, "Connector process terminated.");
+        consul.agentClient().fail(this.serviceId, "Connector process terminated.");
       } catch (Exception e) {
         System.err.println("Failed to report termination to Consul agent.");
         e.printStackTrace();
