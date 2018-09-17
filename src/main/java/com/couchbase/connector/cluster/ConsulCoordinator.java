@@ -54,16 +54,17 @@ public class ConsulCoordinator implements Coordinator {
     this.serviceId = defaultIfNull(serviceId, serviceName);
 
     consul = Consul.builder().build(); // todo configure with credentials / access token
-    final List<String> tags = singletonList("cbes");// emptyList();
+    final List<String> tags = singletonList("couchbase-elasticsearch-connector");// emptyList();
     final Map<String, String> meta = singletonMap("uuid", serviceUuid);
 
     consul.agentClient().register(0, 30L, this.serviceName, this.serviceId, tags, meta);
 
     shutdownHook = new Thread(() -> {
       try {
-        consul.agentClient().fail("Connector process terminated.");
-      } catch (NotRegisteredException e) {
-        LOGGER.warn("Failed to report termination to Consul agent", e);
+        consul.agentClient().fail(serviceId, "Connector process terminated.");
+      } catch (Exception e) {
+        System.err.println("Failed to report termination to Consul agent.");
+        e.printStackTrace();
       }
     });
 
@@ -73,7 +74,7 @@ public class ConsulCoordinator implements Coordinator {
   public static void main(String[] args) throws CoordinatorException, InterruptedException {
 
     String serviceName = "hoopy-froods";
-    String serviceId = "again";
+    String serviceId = null; //"again";
 
     ConsulCoordinator coordinator = new ConsulCoordinator(serviceName, serviceId);
 
@@ -114,8 +115,10 @@ public class ConsulCoordinator implements Coordinator {
 
   private static String serviceKey(ServiceHealth health) {
     final Service service = health.getService();
-    return " key: " + String.join(":",
-        health.getNode().getAddress(), service.getId(), service.getMeta().get("uuid"));
+    return String.join("/",
+        health.getNode().getAddress(),
+        service.getId(),
+        service.getMeta().get("uuid"));
   }
 
   @Override
@@ -153,7 +156,8 @@ public class ConsulCoordinator implements Coordinator {
       i++;
     }
 
-    throw new ClusterMembershipException("We're not in the list of healthy services.");
+    throw new ClusterMembershipException("We're not in the list of healthy services." +
+        " Was another connector worker started on this node without specifying a unique service ID?");
   }
 
   @Override
@@ -166,7 +170,7 @@ public class ConsulCoordinator implements Coordinator {
         consul.agentClient().fail(serviceId, formatMessageWithStackTrace(message, t));
 
       } catch (Exception e) {
-        LOGGER.warn("Failed to report panic to Consul agent", e);
+        LOGGER.error("Failed to report panic to Consul agent.", e);
       }
 
       try {
