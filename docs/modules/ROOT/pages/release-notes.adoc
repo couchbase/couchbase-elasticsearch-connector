@@ -12,7 +12,39 @@ In a given release, the plug-in's filename is of the form *+elasticsearch-transp
 It is imperative to use the file where *ES_VERSION* matches your Elasticsearch cluster version.
 For example, to use the 3.0.0 version of the plug-in with Elasticsearch 5.6.4, you will need to download *elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip*.
 
-== Elasticsearch Plug-in 3.0
+== Elasticsearch Plug-in 3.0.2
+
+Maintenance release for improved compatibility and stability.
+
+=== Bug Fixes
+
+* https://issues.couchbase.com/browse/CBES-82[CBES-82]: NoClassDefFoundError under Java 9.
+* https://issues.couchbase.com/browse/CBES-83[CBES-83]: VersionConflictEngineException in storeUUID if document already exists.
+(Causes XDCR replication to be removed.)
+
+== Elasticsearch Plug-in 3.0.1
+
+The `birch` development line has been retired.
+The `cypress` line now supports all 5.x versions of Elasticsearch.
+
+`RegexParentSelector` now reads the parent ID format from the correct config property (`couchbase.parentSelector.documentTypesParentFormat.<type>`).
+If you previously put the parent ID format in the `documentTypeParentFields` property as a workaround, please update your configuration.
+
+The connector can now delete child documents and other documents that have custom routing.
+If you're using `RegexParentSelector` then this feature has no additional overhead.
+Otherwise, for each document whose routing cannot be derived from the document ID, the connector creates a separate signpost document to record the routing.
+Be aware that child documents created by previous versions of the connector are not eligible for deletion, since they don't have signposts (you'll see "missing signpost" warnings in the log when the connector tries to delete those documents).
+
+The signposts have a document type of `couchbaseSignpost`.
+The mapping for this type must store the contents of the `meta` field.
+This is already the case if you're using the default mapping template included in the plugin distribution.
+
+=== Bug Fixes
+
+* https://issues.couchbase.com/browse/CBES-49[CBES-49]: RegexParentSelector reads parent ID format from wrong config property.
+* https://issues.couchbase.com/browse/CBES-50[CBES-50]: RoutingMissingException when deleting child documents.
+
+== Elasticsearch Plug-in 3.0.0
 
 With https://github.com/couchbaselabs/couchbase-elasticsearch-connector/releases/tag/3.0.0-cypress[this release], the Couchbase plug-in for Elasticsearch moves to a new versioning and branch management strategy that allows for simultaneous releases across ES versions (see <<Version Compatibility>>).
 All the versions are expected to work and are supported.
