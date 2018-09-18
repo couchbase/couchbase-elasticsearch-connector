@@ -8,7 +8,7 @@ defaultTasks 'clean', 'buildAll'
 
 apply plugin: 'java'
 
-def baseVersion = '3.0.2'
+def baseVersion = '3.0.3'
 
 def branch = 'alder'
 
