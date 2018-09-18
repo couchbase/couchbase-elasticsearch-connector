@@ -3,7 +3,7 @@ Couchbase Elasticsearch Connector
 
 [**Download**](https://github.com/couchbaselabs/couchbase-elasticsearch-connector/releases)
 | [**Connector Service Documentation**](README-SERVICE.md)
-| [**Plugin Documentation**](https://developer.couchbase.com/documentation/server/current/connectors/elasticsearch/overview.html)
+| [**Plugin Documentation**](https://docs.couchbase.com/elasticsearch-connector/3.0/index.html)
 
 The Couchbase Elasticsearch Connector streams documents from Couchbase into Elasticsearch.
 It comes in two flavors: a Connector Service, and an Elasticsearch plugin.
