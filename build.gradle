@@ -9,7 +9,6 @@ defaultTasks 'clean', 'buildAll'
 apply plugin: 'java'
 
 def baseVersion = '3.0.2'
-def snapshot = true
 
 def branch = 'alder'
 
@@ -38,7 +37,7 @@ if (!project.hasProperty("elasticsearchVersion")) {
 }
 
 group = 'com.couchbase'
-version = baseVersion + "-" + branch + "-es" + ext.elasticsearchVersion + (snapshot ? "-SNAPSHOT" : "")
+version = baseVersion + "-" + branch + "-es" + ext.elasticsearchVersion
 
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
