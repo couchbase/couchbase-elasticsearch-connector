@@ -123,12 +123,10 @@ public class ElasticsearchConnector extends AbstractCliCommand {
   public static void run(ConnectorConfig config) throws Throwable {
     final Throwable fatalError;
 
-    final Membership staticMembership = config.group().staticMembership();
-    final int memberNumber = staticMembership.getMemberNumber();
-    final int clusterSize = staticMembership.getClusterSize();
-    Metrics.gauge("groupMembership", () -> staticMembership::toString);
+    final Membership membership = config.group().staticMembership();
+    Metrics.gauge("groupMembership", () -> membership::toString);
 
-    final Coordinator coordinator = new StaticCoordinator(staticMembership);
+    final Coordinator coordinator = new StaticCoordinator(membership);
 
     LOGGER.info("Read configuration: {}", RedactableArgument.system(config));
 
@@ -195,17 +193,15 @@ public class ElasticsearchConnector extends AbstractCliCommand {
           System.exit(1);
         }
 
-        final List<Integer> partitions = chunks(allPartitions(dcpClient), clusterSize).get(memberNumber - 1);
+        final Set<Integer> partitions = membership.getPartitions(dcpClient.numPartitions());
         if (partitions.isEmpty()) {
           // need to do this check, because if we started streaming with an empty list, the DCP client would open streams for *all* partitions
           throw new IllegalArgumentException("There are more workers than Couchbase vbuckets; this worker doesn't have any work to do.");
         }
-
-        final Set<Integer> partitionSet = new HashSet<>(partitions);
-        checkpointService.init(getCurrentSeqnos(dcpClient, partitionSet));
+        checkpointService.init(getCurrentSeqnos(dcpClient, partitions));
 
         dcpClient.initializeState(StreamFrom.BEGINNING, StreamTo.INFINITY).await();
-        initSessionState(dcpClient, checkpointService, partitionSet);
+        initSessionState(dcpClient, checkpointService, partitions);
 
         checkpointExecutor.scheduleWithFixedDelay(checkpointService::save, 10, 10, SECONDS);
         Runtime.getRuntime().addShutdownHook(saveCheckpoints);

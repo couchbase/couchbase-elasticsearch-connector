@@ -16,6 +16,12 @@
 
 package com.couchbase.connector.cluster;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
+import static com.couchbase.connector.dcp.DcpHelper.allPartitions;
+import static com.couchbase.connector.util.ListHelper.chunks;
+
 public class Membership {
   private final int memberNumber; // valid rage = from 1 to clusterSize, inclusive
   private final int clusterSize;
@@ -38,6 +44,10 @@ public class Membership {
 
   public int getClusterSize() {
     return clusterSize;
+  }
+
+  public Set<Integer> getPartitions(int numPartitions) {
+    return new LinkedHashSet<>(chunks(allPartitions(numPartitions), clusterSize).get(memberNumber - 1));
   }
 
   @Override
