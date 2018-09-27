@@ -60,8 +60,9 @@ class RetryReporter {
       final List<String> events = errorMessageToEvents.get(errorMessage);
       String message = "Retrying " + events.get(0);
       if (events.size() > 1) {
-        message += " (and " + (events.size() - 1) + " others) due to: " + errorMessage;
+        message += " (and " + (events.size() - 1) + " others)";
       }
+      message += " due to: " + errorMessage;
 
       logger.info(message);
     }
