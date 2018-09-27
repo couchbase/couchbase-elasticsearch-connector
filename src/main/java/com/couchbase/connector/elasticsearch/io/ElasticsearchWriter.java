@@ -41,11 +41,14 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 import static com.couchbase.connector.dcp.DcpHelper.isMetadata;
@@ -403,10 +406,14 @@ public class ElasticsearchWriter {
     bufferBytes = 0;
   }
 
+  private static final Set<RestStatus> fatalStatuses = Collections.unmodifiableSet(
+      EnumSet.of(
+          RestStatus.BAD_REQUEST, // indexing failed due to field mapping issues; not transient
+          RestStatus.NOT_FOUND // index does not exist (auto-creation disabled, or deleting from non-existent index)
+      ));
+
   private static boolean isRetryable(BulkItemResponse.Failure f) {
-    // ES returns BAD_REQUEST when indexing failed due to field mapping issues.
-    // This is not a transient error, so don't waste time retrying.
-    return f.getStatus() != RestStatus.BAD_REQUEST;
+    return !fatalStatuses.contains(f.getStatus());
     // todo Auth failures are also permanent. Need to see how they're surfaced, and decide how to handle.
   }
 
