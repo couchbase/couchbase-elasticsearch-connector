@@ -30,10 +30,19 @@ public class ThrowableHelper {
   }
 
   /**
-   * Returns true if the given Throwable's causal chain includes an instance of the given type.
+   * Returns true if the given Throwable's causal chain includes an instance of any of the given types.
    */
-  public static <T extends Throwable> boolean hasCause(Throwable t, Class<T> type) {
-    return findCause(t, type).isPresent();
+  @SafeVarargs
+  public static boolean hasCause(Throwable t, Class<? extends Throwable> type, Class<? extends Throwable>... otherTypes) {
+    if (findCause(t, type).isPresent()) {
+      return true;
+    }
+    for (Class<? extends Throwable> other : otherTypes) {
+      if (findCause(t, other).isPresent()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static <T extends Throwable> void propagateIfPresent(Optional<T> t) throws T {

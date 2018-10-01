@@ -17,6 +17,7 @@
 package com.couchbase.connector.dcp;
 
 import com.codahale.metrics.Gauge;
+import com.couchbase.client.core.RequestCancelledException;
 import com.couchbase.client.core.config.CouchbaseBucketConfig;
 import com.couchbase.client.core.message.cluster.GetClusterConfigRequest;
 import com.couchbase.client.core.message.cluster.GetClusterConfigResponse;
@@ -26,6 +27,7 @@ import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.cluster.ClusterInfo;
 import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
+import com.couchbase.client.java.error.TemporaryFailureException;
 import com.couchbase.client.java.util.features.Version;
 import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.couchbase.connector.elasticsearch.Metrics;
@@ -110,7 +112,8 @@ public class CouchbaseHelper {
       try {
         return cluster.openBucket(bucket);
       } catch (Exception e) {
-        if (!ThrowableHelper.hasCause(e, ConnectException.class)) {
+        if (!ThrowableHelper.hasCause(e,
+            ConnectException.class, RequestCancelledException.class, TemporaryFailureException.class)) {
           LOGGER.warn("Failed to open bucket", e);
           throw e;
         }
