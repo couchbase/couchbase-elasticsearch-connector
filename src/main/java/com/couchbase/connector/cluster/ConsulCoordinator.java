@@ -22,6 +22,7 @@ import com.orbitz.consul.NotRegisteredException;
 import com.orbitz.consul.cache.ServiceHealthCache;
 import com.orbitz.consul.model.health.Service;
 import com.orbitz.consul.model.health.ServiceHealth;
+import com.orbitz.consul.model.session.ImmutableSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,13 +46,15 @@ public class ConsulCoordinator implements Coordinator {
   private final String serviceName;
   private final String serviceId;
   private final String serviceUuid = UUID.randomUUID().toString();
+  private final String sessionId;
   private final Thread shutdownHook;
 
   private volatile boolean panic;
 
   public ConsulCoordinator(String serviceName, String serviceId) {
     this.serviceName = serviceName;
-    this.serviceId = defaultIfNull(serviceId, serviceName);
+    serviceId = defaultIfNull(serviceId, serviceName);
+    this.serviceId = serviceId;
 
     consul = Consul.builder().build(); // todo configure with credentials / access token
     final List<String> tags = singletonList("couchbase-elasticsearch-connector");// emptyList();
@@ -61,7 +64,7 @@ public class ConsulCoordinator implements Coordinator {
 
     shutdownHook = new Thread(() -> {
       try {
-        consul.agentClient().fail(this.serviceId, "Connector process terminated.");
+        consul.agentClient().fail(this.serviceId, "(" + this.serviceId + ") Connector process terminated.");
       } catch (Exception e) {
         System.err.println("Failed to report termination to Consul agent.");
         e.printStackTrace();
@@ -69,48 +72,27 @@ public class ConsulCoordinator implements Coordinator {
     });
 
     Runtime.getRuntime().addShutdownHook(shutdownHook);
-  }
 
-  public static void main(String[] args) throws CoordinatorException, InterruptedException {
-
-    String serviceName = "hoopy-froods";
-    String serviceId = null; //"again";
-
-    ConsulCoordinator coordinator = new ConsulCoordinator(serviceName, serviceId);
-
-    Consul consul = Consul.builder().build();
-    consul.agentClient().deregister("cbes-hoopy-froods");
-
-    //consul.agentClient().ping();
-
-    // consul.agentClient().getServices()
-
-    System.out.println(consul.agentClient().getMembers());
-
-    ServiceHealthCache svHealth = ServiceHealthCache.newCache(consul.healthClient(), serviceName);
-
-    svHealth.addListener(newValues -> {
-      try {
-        coordinator.heartbeat();
-      } catch (ClusterMembershipException e) {
-        e.printStackTrace();
-      }
-      //System.out.println("here in listener");
-      //System.out.println(newValues);
-      // do Something with updated server map
-    });
-    svHealth.start();
-
-
-    while (true) {
-      System.out.println(coordinator.heartbeat());
-      SECONDS.sleep(3);
+    // pass the health check so a session can be created
+    try {
+      heartbeat();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
 
+    this.sessionId = consul.sessionClient().createSession(ImmutableSession.builder()
+        .name("couchbase:cbes:" + this.serviceId)
+        .behavior("delete")
+        .lockDelay("15s")
+        .addChecks("service:" + this.serviceId)
+        .build()
+    ).getId();
 
-//    agentClient.deregister("2");
-//    agentClient.deregister("cbes");
-
+    // acquire some locks
+    for (int i = 0; i < 1; i++) {
+      boolean acquired = consul.keyValueClient().acquireLock("couchbase:cbes:" + serviceName + ":vbucket:" + i, sessionId);
+      System.out.println(acquired);
+    }
   }
 
   private static String serviceKey(ServiceHealth health) {
@@ -121,8 +103,7 @@ public class ConsulCoordinator implements Coordinator {
         service.getMeta().get("uuid"));
   }
 
-  @Override
-  public synchronized Membership heartbeat() throws ClusterMembershipException {
+  public synchronized void heartbeat() throws ClusterMembershipException {
     if (panic) {
       throw new ClusterMembershipException("Already permanently failed a health check.");
     }
@@ -137,6 +118,12 @@ public class ConsulCoordinator implements Coordinator {
         throw new ClusterMembershipException("Lost connection to Consul agent.", e);
       }
       throw new ClusterMembershipException("Consul doesn't think we're registered.", e);
+    }
+  }
+
+  public synchronized Membership updateGroupMembership() throws ClusterMembershipException {
+    if (panic) {
+      throw new ClusterMembershipException("Already permanently failed a health check.");
     }
 
     final List<ServiceHealth> healthyServices = consul.healthClient().getHealthyServiceInstances(serviceName).getResponse();
@@ -184,5 +171,47 @@ public class ConsulCoordinator implements Coordinator {
 
     // todo think a little harder and exit in a more graceful way
     System.exit(1);
+  }
+
+  public static void main(String[] args) throws CoordinatorException, InterruptedException {
+    String serviceName = "hoopy-froods";
+    String serviceId = null;
+    //String serviceId ="again";
+
+    Consul consul = Consul.builder().build();
+    //consul.agentClient().deregister(defaultIfNull(serviceId, serviceName));
+
+    ConsulCoordinator coordinator = new ConsulCoordinator(serviceName, serviceId);
+
+    //consul.agentClient().ping();
+
+    // consul.agentClient().getServices()
+
+    System.out.println(consul.agentClient().getMembers());
+
+    ServiceHealthCache svHealth = ServiceHealthCache.newCache(consul.healthClient(), serviceName);
+
+    svHealth.addListener(newValues -> {
+      try {
+        // System.out.println(consul.agentClient().getMembers());
+
+        System.out.println("new health values: " + coordinator.updateGroupMembership());
+
+
+      } catch (ClusterMembershipException e) {
+        e.printStackTrace();
+      }
+      //System.out.println("here in listener");
+      //System.out.println(newValues);
+      // do Something with updated server map
+    });
+    svHealth.start();
+
+    while (true) {
+      SECONDS.sleep(3);
+      coordinator.heartbeat();
+      // System.out.println(coordinator.updateGroupMembership());
+
+    }
   }
 }

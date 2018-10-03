@@ -126,7 +126,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
     final Membership membership = config.group().staticMembership();
     Metrics.gauge("groupMembership", () -> membership::toString);
 
-    final Coordinator coordinator = new StaticCoordinator(membership);
+    final Coordinator coordinator = new StaticCoordinator();
 
     LOGGER.info("Read configuration: {}", RedactableArgument.system(config));
 

@@ -17,10 +17,5 @@
 package com.couchbase.connector.cluster;
 
 public interface Coordinator {
-  /**
-   * Renew cluster membership and return info about rank in cluster.
-   */
-  Membership heartbeat() throws CoordinatorException;
-
   void panic(String message, Throwable t);
 }

@@ -19,21 +19,8 @@ package com.couchbase.connector.cluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static java.util.Objects.requireNonNull;
-
 public class StaticCoordinator implements Coordinator {
   private static final Logger LOGGER = LoggerFactory.getLogger(StaticCoordinator.class);
-
-  private final Membership membership;
-
-  public StaticCoordinator(Membership membership) {
-    this.membership = requireNonNull(membership);
-  }
-
-  @Override
-  public Membership heartbeat() throws CoordinatorException {
-    return membership;
-  }
 
   @Override
   public void panic(String message, Throwable t) {
