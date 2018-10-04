@@ -132,6 +132,12 @@
   index = 'airports'
 
 [[elasticsearch.type]]
+  # Index can be inferred from document ID by including a capturing group named "index".
+  # This example matches IDs that start with one or more characters followed by "::".
+  # It directs "user::alice" to index "user", and "foo::bar::123" to index "foo".
+  regex = '(?<index>.+?)::.*'
+
+[[elasticsearch.type]]
   prefix = '' # Empty prefix matches any document ID.
   index = 'etc'
 

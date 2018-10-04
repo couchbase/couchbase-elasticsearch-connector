@@ -24,6 +24,7 @@ import com.couchbase.connector.dcp.Event;
 import com.couchbase.connector.elasticsearch.Metrics;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.common.Nullable;
+import org.immutables.value.Value;
 
 import java.io.IOException;
 import java.util.List;
@@ -63,36 +64,47 @@ public class RequestFactory {
     // Want to hear some good news? Elasticsearch document IDs are limited to 512 bytes,
     // but Couchbase IDs are never longer than 250 bytes.
 
-    final TypeConfig type = getType(e);
-    if (type == null || type.ignore()) {
+    final MatchResult matchResult = match(e);
+    if (matchResult == null || matchResult.typeConfig().ignore()) {
       return null; // skip it!
     }
     if (e.isMutation()) {
-      return newIndexRequest(e, type);
+      return newIndexRequest(e, matchResult);
     }
-    return type.ignoreDeletes() ? null : newDeleteRequest(e, type);
+    return matchResult.typeConfig().ignoreDeletes() ? null : newDeleteRequest(e, matchResult);
   }
 
   @Nullable
-  private EventDeleteRequest newDeleteRequest(final Event event, final TypeConfig type) {
-    return new EventDeleteRequest(type.index(), type.type(), event);
+  private EventDeleteRequest newDeleteRequest(final Event event, final MatchResult matchResult) {
+    return new EventDeleteRequest(matchResult.index(), matchResult.typeConfig().type(), event);
   }
 
   @Nullable
-  private EventIndexRequest newIndexRequest(final Event event, final TypeConfig type) throws IOException {
+  private EventIndexRequest newIndexRequest(final Event event, final MatchResult matchResult) throws IOException {
     final Timer.Context timerContext = newIndexRequestTimer.time();
-    EventIndexRequest request = new EventIndexRequest(type.index(), type.type(), event);
-    request.setPipeline(type.pipeline());
+    EventIndexRequest request = new EventIndexRequest(matchResult.index(), matchResult.typeConfig().type(), event);
+    request.setPipeline(matchResult.typeConfig().pipeline());
     documentTransformer.setSourceFromEventContent(request, event);
 
     timerContext.stop();
     return request.source() == null ? null : request;
   }
 
-  private TypeConfig getType(final Event event) {
+  @Value.Immutable
+  public interface MatchResult {
+    TypeConfig typeConfig();
+    String index();
+  }
+
+  @Nullable // null means no match
+  private MatchResult match(final Event event) {
     for (TypeConfig type : types) {
-      if (type.matcher().test(event)) {
-        return type;
+      String index = type.matcher().getIndexIfMatches(event);
+      if (index != null) {
+        return ImmutableMatchResult.builder()
+            .typeConfig(type)
+            .index(index)
+            .build();
       }
     }
     return null;

@@ -24,7 +24,7 @@ import net.consensys.cava.toml.TomlTable;
 import org.immutables.value.Value;
 
 import javax.annotation.Nullable;
-import java.util.function.Predicate;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -45,7 +45,7 @@ public interface TypeConfig {
 
   boolean ignoreDeletes();
 
-  Predicate<Event> matcher();
+  IndexMatcher matcher();
 
   @Value.Auxiliary
   @Nullable
@@ -53,18 +53,19 @@ public interface TypeConfig {
 
   @Value.Check
   default void check() {
-    if (index() == null && !ignore()) {
-      throw new ConfigException("Missing 'index' for type at " + position());
+    if (!ignore() && index() == null && !(matcher() instanceof IdRegexInferredIndexMatcher)) {
+      throw new ConfigException("Missing 'index' (or 'regex' with capturing group named 'index') for config at " + position());
     }
   }
 
   static ImmutableTypeConfig from(TomlTable config, TomlPosition position, TypeConfig defaults) {
     expectOnly(config, "typeName", "index", "pipeline", "ignore", "ignoreDeletes", "prefix", "regex");
 
+    final String index = Strings.emptyToNull(config.getString("index", defaults::index));
     ImmutableTypeConfig.Builder builder = ImmutableTypeConfig.builder()
         .position(position)
         .type(config.getString("typeName", defaults::type))
-        .index(Strings.emptyToNull(config.getString("index", defaults::index)))
+        .index(index)
         .pipeline(Strings.emptyToNull(config.getString("pipeline", defaults::pipeline)))
         .ignoreDeletes(config.getBoolean("ignoreDeletes", defaults::ignoreDeletes))
         .ignore(config.getBoolean("ignore", defaults::ignore));
@@ -78,10 +79,17 @@ public interface TypeConfig {
       throw new ConfigException("Type at " + position + " must have 'prefix' or 'regex'.");
     }
     if (idPrefix != null) {
-      builder.matcher(new IdPrefixMatcher(idPrefix));
+      builder.matcher(new IdPrefixMatcher(index, idPrefix));
     } else {
       try {
-        builder.matcher(new IdRegexMatcher(idRegex));
+        if (idRegex.contains("(?<index>")) {
+          if (config.getString("index") != null) {
+            throw new ConfigException("Type at " + position + " must not have 'index' because it's inferred from named capturing group in 'regex'.");
+          }
+          builder.matcher(new IdRegexInferredIndexMatcher(idRegex));
+        } else {
+          builder.matcher(new IdRegexMatcher(index, idRegex));
+        }
       } catch (PatternSyntaxException e) {
         throw new ConfigException("Invalid regex '" + idRegex + "' at " + config.inputPositionOf("regex") + " -- " + e.getMessage());
       }
@@ -90,16 +98,22 @@ public interface TypeConfig {
     return builder.build();
   }
 
-  class IdPrefixMatcher implements Predicate<Event> {
-    private final String prefix;
+  interface IndexMatcher {
+    String getIndexIfMatches(Event event);
+  }
 
-    public IdPrefixMatcher(String prefix) {
+  class IdPrefixMatcher implements IndexMatcher {
+    private final String prefix;
+    private final String index;
+
+    public IdPrefixMatcher(String index, String prefix) {
+      this.index = index;
       this.prefix = requireNonNull(prefix);
     }
 
     @Override
-    public boolean test(Event event) {
-      return event.getKey().startsWith(prefix);
+    public String getIndexIfMatches(Event event) {
+      return event.getKey().startsWith(prefix) ? index : null;
     }
 
     @Override
@@ -108,16 +122,37 @@ public interface TypeConfig {
     }
   }
 
-  class IdRegexMatcher implements Predicate<Event> {
+  class IdRegexMatcher implements IndexMatcher {
+    private final String index;
     private final Pattern pattern;
 
-    public IdRegexMatcher(String pattern) {
+    public IdRegexMatcher(String index, String pattern) {
+      this.index = index;
       this.pattern = Pattern.compile(pattern);
     }
 
     @Override
-    public boolean test(Event event) {
-      return pattern.matcher(event.getKey()).matches();
+    public String getIndexIfMatches(Event event) {
+      return pattern.matcher(event.getKey()).matches() ? index : null;
+    }
+
+    @Override
+    public String toString() {
+      return "regex='" + pattern + "'";
+    }
+  }
+
+  class IdRegexInferredIndexMatcher implements IndexMatcher {
+    private final Pattern pattern;
+
+    public IdRegexInferredIndexMatcher(String pattern) {
+      this.pattern = Pattern.compile(pattern);
+    }
+
+    @Override
+    public String getIndexIfMatches(Event event) {
+      Matcher m = pattern.matcher(event.getKey());
+      return m.matches() ? m.group("index") : null;
     }
 
     @Override

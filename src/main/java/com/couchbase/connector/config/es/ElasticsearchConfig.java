@@ -79,7 +79,7 @@ public interface ElasticsearchConfig {
         .pipeline(typeDefaults.getString("pipeline"))
         .ignore(typeDefaults.getBoolean("ignore", () -> false))
         .ignoreDeletes(typeDefaults.getBoolean("ignoreDeletes", () -> false))
-        .matcher(s -> true)
+        .matcher(s -> null)
         .build();
 
     ImmutableList.Builder<TypeConfig> typeConfigs = ImmutableList.builder();
