@@ -1,5 +1,5 @@
 name: elasticsearch-connector
-title: Elasticsearch Transport Plug-in
+title: Elasticsearch Connector
 version: '4.0'
 nav:
 - modules/ROOT/nav.adoc

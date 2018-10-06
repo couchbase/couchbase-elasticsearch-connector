@@ -1,0 +1,8 @@
+= Introduction
+
+[abstract]
+Couchbase Server has built-in support for Full Text Search (FTS), but if Elasticsearch remains an important part of your system architecture, we've got you covered.
+
+The Couchbase Elasticsearch Connector replicates your documents from Couchbase Server to Elasticsearch in real time.
+The connector service uses the high-performance Database Change Protocol (DCP) to receive notifications when documents change in Couchbase.
+When a Couchbase change is saved to disk, the connector propagates the change to your Elasticsearch cluster.

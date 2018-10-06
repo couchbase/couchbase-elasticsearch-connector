@@ -1,0 +1,37 @@
+= Migration Considerations
+
+[abstract]
+Prior to version 4, the Couchbase Elasticsearch connector was implemented as an Elasticsearch plugin.
+Here's what you need to know if you're migrating from the plugin to the standalone service.
+
+== Parent-Child Relationships
+
+Elasticsearch 6 no longer supports parent-child relationships.
+Because the connector is primarily focused on Elasticsearch 6 and beyond, parent-child relationships are no longer supported by the connector.
+
+== Document structure and metadata
+
+By default, Elasticsearch documents created by the Connector Service have the same structure and metadata as those created by the plugin, with the addition of new metadata fields that can be used to build a Couchbase Mutation Token.
+
+.Metadata Fields
+|===
+| Name       | Datatype | New in 4.0?
+
+| vbucket    | integer  | ✓
+| vbuuid     | long     | ✓
+| seqno      | long     | ✓
+| revSeqno   | long     | ✓
+| cas        | long     | ✓
+| lockTime   | integer  | ✓
+| rev        | string   | ✗
+| flags      | integer  | ✗
+| expiration | integer  | ✗
+| id         | string   | ✗
+|===
+
+
+== Replication state
+
+The Connector Service stores its replication state in a way that is incompatible with the plugin.
+If re-streaming all of the documents from Couchbase is not an option, you can use the new checkpoint management tools to create a checkpoint from the current state of the bucket (with `cbes-checkpoint-clear --catch-up`).
+Allow the plugin to finish replicating documents up to or past that state, then uninstall it and start the Connector Service.
