@@ -1,0 +1,45 @@
+= Setting Up Secure Connections
+
+[abstract]
+Configuring the connector to encrypt data in transit.
+
+By default, the connector talks to Couchbase and Elasticsearch over unencrypted socket connections.
+If security considerations or regulatory requirements mandate the use of encryption, you can configure the connector to use TLS/SSL.
+
+[overview]
+== Overview
+
+Couchbase Server and Elasticsearch both use a root certificate to generate a certificate for each node in the respective cluster.
+
+This guide shows how to obtain the root certificates, and how to tell the connector it should trust them when establishing secure connections.
+
+
+[prerequisitres]
+== Prerequisites
+
+The Enterprise Edition of Couchbase Server is required in order to connect to Couchbase over an encrypted connection.
+Enterprise Edition is available free of charge for unlimited pre-production development and testing.
+A commercial license is required for production use.
+
+Similarly, Elasticsearch requires an X-Pack license in order to accept secure connections.
+A trial license can be activated by modifying a configuration setting, which we'll talk about in a moment.
+
+During the setup process you'll need access to the Java `keytool` command.
+This command is included in standard Java distributions under `$JAVA_HOME/bin`.
+
+
+== Couchbase Cluster Certificate
+
+
+
+Couchbase Cluster Certificate
+
+
+
+[trust-store]
+== Trust Store
+
+The connector's trust store is a Java keystore file containing the certificates the connector should trust.
+We'll use the Java `keytool` command to create a keystore and populate it with the root certificates for Couchbase and/or Elasticsearch.
+
+=== Creating the trust store

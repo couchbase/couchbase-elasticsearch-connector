@@ -35,7 +35,10 @@ Verify the Elasticsearch cluster is up and running (the default port is `9200`).
 [source,console]
 ----
 $ curl localhost:9200
-
+----
+Expected result is something like:
+[source,console]
+----
 {
   "name" : "K3RqW4F",
   "cluster_name" : "elasticsearch",
@@ -56,7 +59,10 @@ Verify that Couchbase Server is running.
 [source,console]
 ----
 $ curl localhost:8092
-
+----
+Expected result is something like:
+[source,console]
+----
 {"couchdb":"Welcome","version":"v4.5.1-60-g3cf258d","couchbase":"5.0.2-5506-community"}
 ----
 
