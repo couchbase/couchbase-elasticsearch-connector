@@ -37,7 +37,7 @@ A gauge is a single value that represents the current state of something.
 
 `cbes.esWaitMs`::
 Perhaps the most important metric for implementing a health check, this gauge reports the duration in milliseconds of the current in-flight Elasticsearch bulk request.
-This includes the time it takes to retry the request if necessary.
+This includes the time it takes to retry the request, if necessary.
 An exceptionally long duration might indicate the connector is stalled in a retry loop.
 
 `cbes.backfill`::
