@@ -1,4 +1,5 @@
-# Introduction to TOML config file format: https://npf.io/2014/08/intro-to-toml/
+# Introduction to TOML config file format:
+#   https://npf.io/2014/08/intro-to-toml/
 
 # The work of replicating a Couchbase bucket may be distributed between
 # several connector worker processes, known collectively as a "group".
@@ -44,8 +45,8 @@
   hosts = ['localhost']
   bucket = 'travel-sample'
 
-  # At a minimum, the Couchbase user must have the "Data Reader", "Data Writer",
-  # and "Data DCP Reader" roles for the bucket.
+  # At a minimum, the Couchbase user must have the "Data Reader",
+  # "Data Writer", and "Data DCP Reader" roles for the bucket.
   username = 'Administrator'
 
   # Path to a separate TOML file with a single 'password' key.
@@ -57,7 +58,7 @@
   # [truststore] section to be configured.
   secureConnection = false
 
-# Options for the Database Change Protocol used to receive events from Couchbase.
+# Options for the Couchbase Database Change Protocol (DCP).
 [couchbase.dcp]
   compression = true
   flowControlBuffer = '128mb'
@@ -103,17 +104,30 @@
 
 # The values in this section may be overridden by specific type definitions.
 [elasticsearch.typeDefaults]
-  index = ''            # Write matching documents to this index (empty string means "no default").
-  pipeline = ''         # Send matching documents though this pipeline (empty string means "no pipeline").
-  typeName = '_doc'     # Assign this type to matching documents. For ES 5.x remove leading underscore!
-  ignore = false        # if true, ignore matching documents entirely (implies 'ignoreDeletes').
-  ignoreDeletes = false # If true, never delete matching documents from Elasticsearch.
+  # Write matching documents to this index.
+  # Empty string means "no default".
+  index = ''
+
+  # Send matching documents though this pipeline.
+  # Empty string means "no pipeline".
+  pipeline = ''
+
+  # Assign this type to matching documents.
+  # For ES 5.x remove leading underscore!
+  typeName = '_doc'
+
+  # If true, ignore matching documents entirely (implies 'ignoreDeletes').
+  ignore = false
+
+  # If true, never delete matching documents from Elasticsearch.
+  ignoreDeletes = false
 
 # Sample document type definitions for the travel-sample bucket.
 # Replace these to match your own data model.
 #
-# At a minimum, each type must specify a 'regex' (Java regular expression) or 'prefix' property.
-# The type config matches any Couchbase document whose IDs matches the regex or prefix.
+# At a minimum, each type must specify a 'regex' (Java regular expression)
+# or 'prefix' property. The type config matches any Couchbase document
+# whose IDs matches the regex or prefix.
 #
 # The order of type definitions is significant. If a document ID matches
 # more than one type, the assigned type will be the one that occurs first
@@ -128,13 +142,15 @@
   pipeline = ''
 
 [[elasticsearch.type]]
-  regex = '.*port_.*' # Regex just for example. Matches prefixes "airport_", "seaport_", etc.
+  # Regex just for example. Matches prefixes "airport_", "seaport_", etc.
+  regex = '.*port_.*'
   index = 'airports'
 
 [[elasticsearch.type]]
-  # Index can be inferred from document ID by including a capturing group named "index".
-  # This example matches IDs that start with one or more characters followed by "::".
-  # It directs "user::alice" to index "user", and "foo::bar::123" to index "foo".
+  # Index can be inferred from document ID by including a capturing group
+  # named "index". This example matches IDs that start with one or more
+  # characters followed by "::". It directs "user::alice" to index "user",
+  # and "foo::bar::123" to index "foo".
   regex = '(?<index>.+?)::.*'
 
 [[elasticsearch.type]]

@@ -1,0 +1,12 @@
+:sourceDir: ../../../../src
+
+== Configuration
+
+[abstract]
+A sample configuration file.
+
+// it's actually TOML, not Ruby, but the syntax highlighting seems to be compatible?
+[source,ruby]
+----
+include::{sourcedir}/dist/config/example-connector.toml[]
+----
