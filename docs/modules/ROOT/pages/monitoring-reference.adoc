@@ -10,12 +10,12 @@ Metrics are exposed at `http://localhost:31415/metrics?pretty`.
 TIP: Omit the `?pretty` for a more compact response.
 
 A simple health check might fetch that URL and assert the response has an HTTP status code of 200 (OK).
-A more sophisticated check should parse the JSON response and inspecting the values of whichever metrics you consider important.
+A more sophisticated check should parse the JSON response and inspect the values of whichever metrics you consider important.
 
 === HTTP Server Configuration
 
 To disable the embedded HTTP server or to use an alternate port, edit the connector config and search for the `httpPort` property in the `[metrics]` section.
-Setting the value to `-1` will disable the HTTP server.
+Setting the port to `-1` will disable the HTTP server.
 
 === Logging Configuration
 
@@ -24,7 +24,7 @@ In addition to exposing metrics over HTTP, by default the connector periodically
 In the `[metrics]` section of the connector config file you can configure the interval at which metrics written to the log by modifying the `logInterval` property.
 Metrics logging can be disabled by setting the interval to `'0m'`.
 
-The location of the metrics log file may be configured by editing `$CBES_HOME/config/log4j2.xml`.
+The location of the metrics log file is configurable in `$CBES_HOME/config/log4j2.xml`.
 
 == Types of Metrics
 
@@ -38,10 +38,10 @@ A gauge is a single value that represents the current state of something.
 `cbes.esWaitMs`::
 Perhaps the most important metric for implementing a health check, this gauge reports the duration in milliseconds of the current in-flight Elasticsearch bulk request.
 This includes the time it takes to retry the request if necessary.
-An exceptionally long duration may indicate the connector is stalled in a retry loop for some reason.
+An exceptionally long duration might indicate the connector is stalled in a retry loop.
 
 `cbes.backfill`::
-The number of Couchbase documents not yet replicated to Elasticsearch at the time the connector started.
+This is the number of Couchbase documents not yet replicated to Elasticsearch at the time the connector started.
 The value reported by this gauge never changes.
 
 `cbes.backfillRemaining`::
@@ -52,7 +52,7 @@ The value only decreases, and never goes below zero.
 A rough estimate of the time it will take for the connector to finish processing the remaining backfill.
 
 `cbes.writeQueue`::
-Reports the number of document change events currently buffered in memory. (The write queue is implicitly bounded by the `flowControlBuffer` config property which determines the buffer size.)
+Reports the number of document events currently buffered in memory. (The write queue is implicitly bounded by the `flowControlBuffer` config property which determines the buffer size.)
 
 === Meters
 
@@ -83,11 +83,11 @@ Recorded when the connector fails to persist a replication checkpoint document t
 
 === Timers
 
-A timer combines a meter with a histogram of event duration, providing insight into the percentiles.
+A timer combines a meter with a histogram of event durations, providing insight into the percentiles.
 The histogram is backed by an exponentially decaying reservoir, representing roughly the past 5 minutes of data.
 
 `cbes.latency`::
-The time between when the connector is notified of a database change event and when the change is written to Elasticsearch.
+The time between when the connector is notified of a database change and when the change is written to Elasticsearch.
 Bear in mind the connector will not receive the event until there is room in its flow control buffer.
 Although this metric is not an absolute measurement of end-to-end latency, it is still useful as an indicator of connector performance.
 
@@ -99,6 +99,6 @@ Time spent waiting after a temporary indexing failure before the request is retr
 
 == Undocumented Metrics
 
-The connector exposes several other metrics that may be useful for troubleshooting.
+The connector exposes several other metrics that are useful for troubleshooting.
 However, only the metrics described in this document are considered part of the connector's public API.
-Undocumented metrics should be considered "uncommitted", meaning they  may be modified or removed in a patch release without advance notice.
+Undocumented metrics should be considered "uncommitted", meaning they may be modified or removed in a patch release without advance notice.
