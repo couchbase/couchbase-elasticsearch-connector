@@ -95,7 +95,7 @@ Go ahead and https://developer.couchbase.com/documentation/server/current/settin
 [#controlling]
 == Controlling the Connector Service
 
-The command-line tools in `$CBES_HOME/bin` are used to start the connector and manipulate replication checkpoints.
+The command-line tools in `$CBES_HOME/bin` are used to start the connector and manage replication checkpoints.
 
 [#starting]
 === Starting the connector
