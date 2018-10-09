@@ -77,7 +77,7 @@ public class ElasticsearchWorkerGroup implements Closeable {
   }
 
   /**
-   * Returns the duration in nanoseconds of the active request that started the longest time ago,
+   * Returns the duration in milliseconds of the active request that started the longest time ago,
    * or zero if there are no active requests.
    */
   public long getCurrentRequestMillis() {
