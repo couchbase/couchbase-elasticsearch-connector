@@ -23,10 +23,10 @@ By default, Elasticsearch documents created by the Connector Service have the sa
 | revSeqno   | long     | ✓
 | cas        | long     | ✓
 | lockTime   | integer  | ✓
-| rev        | string   | ✗
-| flags      | integer  | ✗
-| expiration | integer  | ✗
-| id         | string   | ✗
+| rev        | string   |
+| flags      | integer  |
+| expiration | integer  |
+| id         | string   |
 |===
 
 
