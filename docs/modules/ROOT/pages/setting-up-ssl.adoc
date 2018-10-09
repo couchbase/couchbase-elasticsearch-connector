@@ -11,7 +11,7 @@ If encryption is required, you can configure the connector to use TLS/SSL.
 
 Couchbase Server and Elasticsearch both use a root certificate to generate a certificate for each node in the respective cluster.
 
-This guide shows how to obtain the root certificates, and how to tell the connector it should trust them when establishing secure connections.
+This guide shows how to obtain the root certificates, and how to tell the connector it should trust these certificates when establishing secure connections.
 
 
 [prerequisitres]
@@ -87,12 +87,12 @@ Run the `keytool` command again, replacing `couchbase.crt` with the path to the 
 
 You're almost done. Now that you have a keystore file containing the CA certificates used by Couchbase and Elasticsearch, you need to tell the connector where to find it.
 
-In your connector installation directory, edit the file `secrets/truststore-password.toml` and update it with the password you chose.
-
-Next, edit your connector configuration file and search for the `[truststore]` section. Change the associated `path` property to match the path to the keystore file.
+Edit your connector configuration file and search for the `[truststore]` section. Change the associated `path` property to match the path to the keystore file.
 
 NOTE: A relative path will be resolved using the connector installation directory as the base.
 This means you can put the `truststore.jks` file into the connector installation's `config` subdirectory, and set the `path` property to `'config/truststore.jks'`.
 
-Finally, search for the `[couchbase]` section and set the `secureConnection` property to `true`.
+Next, search for the `[couchbase]` section and set the `secureConnection` property to `true`.
 Do the same thing in the `[elasticsearch]` section.
+
+Finally, in your connector installation directory, edit the file `secrets/truststore-password.toml` and update it with the password you chose.
