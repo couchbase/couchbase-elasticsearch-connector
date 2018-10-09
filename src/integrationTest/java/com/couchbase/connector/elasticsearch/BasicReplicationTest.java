@@ -228,6 +228,8 @@ public class BasicReplicationTest {
 
         final Bucket bucket = cluster.openBucket(tempBucket.name());
 
+        assertIndexInferredFromDocumentId(bucket, es);
+
         // Create two documents in the same vbucket to make sure we're not conflating seqno and revision number.
         // This first one has a seqno and revision number that are the same... not useful for the test.
         final String firstKeyInVbucket = forceKeyToPartition("createdFirst", 0, 1024).get();
@@ -276,6 +278,16 @@ public class BasicReplicationTest {
         cluster.disconnect();
       }
     }
+  }
+
+  /**
+   * Verify the type definition that infers index from ID is working as expected.
+   */
+  private void assertIndexInferredFromDocumentId(Bucket bucket, TestEsClient es) throws Exception {
+    bucket.upsert(JsonDocument.create("widget::123", JsonObject.create()));
+    bucket.upsert(JsonDocument.create("widget::foo::bar", JsonObject.create()));
+    es.waitForDocument("widget", "widget::123");
+    es.waitForDocument("widget", "widget::foo::bar");
   }
 
   private static void assertDocumentRejected(TestEsClient es, String index, String id, String reason) throws TimeoutException, InterruptedException {
