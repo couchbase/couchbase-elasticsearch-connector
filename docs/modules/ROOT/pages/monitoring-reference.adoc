@@ -92,7 +92,7 @@ Bear in mind the connector will not receive the event until there is room in its
 Although this metric is not an absolute measurement of end-to-end latency, it is still useful as an indicator of connector performance.
 
 `cbes.bulkIndexPerDoc`::
-The duration of each Elasticsearch bulk request (including retries), divided by the number of items in the bulk request.
+The duration of a Elasticsearch bulk request (including retries), divided by the number of items in the bulk request.
 
 `cbes.retryDelay`::
 Time spent waiting after a temporary indexing failure before the request is retried.
