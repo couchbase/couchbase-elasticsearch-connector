@@ -51,7 +51,7 @@ Elasticsearch must first be configured to require TLS/SSL.
 Please refer to the Elasticsearch documentation, specifically https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html[Encrypting communications in Elasticsearch].
 Make sure you also follow the steps for https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html#tls-http[Encrypting HTTP Client Communications].
 
-WARNING: Enabling X-Pack on an Elasticsearch cluster starts a trial period.
+CAUTION: Enabling X-Pack on an Elasticsearch cluster starts a trial period.
 When the trial period expires, functionality is degraded unless a license is purchased from Elastic.
 See https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-security.html[Configuring security in Elasticsearch] for details.
 
@@ -89,7 +89,7 @@ You're almost done. Now that you have a keystore file containing the CA certific
 
 Edit your connector configuration file and search for the `[truststore]` section. Change the associated `path` property to match the path to the keystore file.
 
-NOTE: A relative path will be resolved using the connector installation directory as the base.
+TIP: A relative path will be resolved using the connector installation directory as the base.
 This means you can put the `truststore.jks` file into the connector installation's `config` subdirectory, and set the `path` property to `'config/truststore.jks'`.
 
 Next, search for the `[couchbase]` section and set the `secureConnection` property to `true`.
