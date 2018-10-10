@@ -1,12 +1,12 @@
-:sourceDir: ../../../../src
+// Antora overrides the examples directory; including it here just to help IntelliJ
+:examplesdir: ../examples/
 
 == Configuration
 
 [abstract]
-A sample configuration file.
+A sample connector configuration file.
 
-// it's actually TOML, not Ruby, but the syntax highlighting seems to be compatible?
-[source,ruby]
+[source,toml]
 ----
-include::{sourcedir}/dist/config/example-connector.toml[]
+include::{examplesdir}/example-connector.toml[]
 ----
