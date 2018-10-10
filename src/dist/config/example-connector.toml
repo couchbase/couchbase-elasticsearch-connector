@@ -16,7 +16,7 @@
 
 # The simplest way to deploy the connector is "static" mode. In this mode,
 # each worker process is independent of the others, and must be manually
-# configured to know which partitions it is reponsible for.
+# configured to know which partitions it is responsible for.
 [group.static]
   # Each member in a static group must have a unique member number.
   memberNumber = 1 # A value from 1 to 'totalMembers', inclusive.
