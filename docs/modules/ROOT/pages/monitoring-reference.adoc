@@ -12,12 +12,14 @@ TIP: Omit the `?pretty` for a more compact response.
 A simple health check might fetch that URL and assert the response has an HTTP status code of 200 (OK).
 A more sophisticated check should parse the JSON response and inspect the values of whichever metrics you consider important.
 
-=== HTTP Server Configuration
+[http-server-config]
+== HTTP Server Configuration
 
 To disable the embedded HTTP server or to use an alternate port, edit the connector config and search for the `httpPort` property in the `[metrics]` section.
 Setting the port to `-1` will disable the HTTP server.
 
-=== Logging Configuration
+[logging]
+== Logging Configuration
 
 In addition to exposing metrics over HTTP, by default the connector periodically logs the metrics to `$CBES_HOME/logs/cbes-metrics.log`.
 
@@ -26,10 +28,11 @@ Metrics logging can be disabled by setting the interval to `'0m'`.
 
 The location of the metrics log file is configurable in `$CBES_HOME/config/log4j2.xml`.
 
-== Types of Metrics
+[metrics]
+== Metrics Reference
 
 The connector uses the Dropwizard Metrics library to capture and report performance information.
-This section describes the different kinds of metrics and how to interpret them.
+This section describes the metrics exposed by the connector and how to interpret them.
 
 === Gauges
 
