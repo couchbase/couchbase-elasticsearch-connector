@@ -8,5 +8,5 @@ A sample connector configuration file.
 
 [source,toml]
 ----
-include::{examplesdir}/example-connector.toml[]
+include::{examplesdir}/symlink-to-example-connector.toml[]
 ----
