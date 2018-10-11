@@ -6,7 +6,7 @@ Configure the connector to encrypt data in transit.
 By default, the connector talks to Couchbase and Elasticsearch over unencrypted socket connections.
 If encryption is required, you can configure the connector to use TLS/SSL.
 
-[overview]
+[#overview]
 == Overview
 
 Couchbase Server and Elasticsearch both use a root certificate to generate a certificate for each node in the respective cluster.
@@ -14,7 +14,7 @@ Couchbase Server and Elasticsearch both use a root certificate to generate a cer
 This guide shows how to obtain the root certificates, and how to tell the connector it should trust these certificates when establishing secure connections.
 
 
-[prerequisitres]
+[#prerequisitres]
 == Prerequisites
 
 During the setup process you'll need access to the Java `keytool` command.
@@ -28,7 +28,7 @@ Similarly, Elasticsearch requires an *X-Pack license* in order to accept secure 
 A trial license can be activated by modifying a configuration setting, as explained in the Elasticsearch documentation linked below.
 
 
-[get-couchbase-cert]
+[#get-couchbase-cert]
 == Get the Couchbase CA Certificate
 
 Open the Couchbase Admin Console web UI and click on *Security* in the navigation sidebar.
@@ -44,7 +44,7 @@ Copy the certificate into a plain text file. The filename does not matter, but l
 //If you wish to use a different root certificate, you can
 //https://docs.couchbase.com/server/5.5/security/security-x509certsintro.html
 
-[get-elasticsearch-cert]
+[#get-elasticsearch-cert]
 == Get the Elasticsearch CA Certificate
 
 Elasticsearch must first be configured to require TLS/SSL.
@@ -63,7 +63,7 @@ Verify Elasticsearch requires secure connections by opening `https://localhost:9
 You should be prompted for your Elasticsearch credentials, which default to username `elastic` with password `changeme`.
 
 
-[trust-store]
+[#trust-store]
 == Add Certificates to the Trust Store
 
 The connector's trust store is a Java keystore file containing the certificates the connector should trust.
@@ -82,7 +82,7 @@ If the information is correct, enter `y` to confirm.
 Run the `keytool` command again, replacing `couchbase.crt` with the path to the Elasticsearch root certificate.
 
 
-[configure-connector]
+[#configure-connector]
 == Configure the Connector
 
 You're almost done. Now that you have a keystore file containing the CA certificates used by Couchbase and Elasticsearch, you need to tell the connector where to find it.

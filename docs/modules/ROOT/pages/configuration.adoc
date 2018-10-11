@@ -1,12 +1,193 @@
-// Antora overrides the examples directory; including it here just to help IntelliJ
-:examplesdir: ../examples/
-
-== Configuration
+= Configuration
 
 [abstract]
-A sample connector configuration file.
+The connector ships with a sample config file, `$CBES_HOME/config/example-connector-config.toml`.
+Let's take a deeper look at the sections of that file, and the properties defined in each section.
+
+TIP: If this is your first time working with the TOML config file format, check out Nate Finch's excellent https://npf.io/2014/08/intro-to-toml/[Intro to TOML], or the https://github.com/toml-lang/toml[official specification].
+
+== Group Membership
+
+First, let's define some terminology:
+
+connector instance::
+A single connector process.
+When you run the `cbes` command, you are starting an instance of the connector.
+Sometimes referred to as a "connector worker", or simply an "instance."
+
+connector group::
+A set of one or more _connector instances_ configured to share the task of replicating from the same bucket.
+
+The first section of the config file tells the connector instance which group it belongs to.
+A connector group is defined by configuring one or more connector instances to use the same group name.
 
 [source,toml]
 ----
-include::{examplesdir}/symlink-to-example-connector.toml[]
+[group]
+  name = 'example-group' <1>
 ----
+<1> Each connector group must be assigned a unique name (in order to keep its replication checkpoints separate).
+The group name is required even if there is only one connector instance in the group.
+
+TIP: Renaming a group invalidates its replication status checkpoint.
+To preserve the checkpoint, run the `cbes-checkpoint-backup` command before renaming, and `cbes-checkpoint-restore` afterwards.
+
+=== Sharing the load
+
+A group with more than once instance is called "distributed".
+Each instance in a distributed group must be told which part of the workload it is responsible for.
+
+The default configuration is not distributed, since it specifies a group with only one member.
+
+[source,toml]
+----
+[group.static] <1>
+  memberNumber = 1 <2>
+  totalMembers = 1 <3>
+----
+<1> This config section is named "static" because the group membership is predetermined.
+A future release is expected to introduce a "coordinated" mode that will allow instances to dynamically join and leave the group.
+<2> A value from 1 to 'totalMembers', inclusive.
+Each member in the group must be assigned a unique member number.
+<3> The total number of workers in the group.
+
+TIP: To safely add or remove workers from a static group, first stop all running workers, then reconfigure them with the new 'totalMembers' value, and finally start all the workers again.
+
+== Metrics
+
+Performance metrics may be written to a log file and/or exposed via HTTP to enable external monitoring.
+
+[source,toml]
+----
+[metrics]
+  httpPort = 31415 <1>
+  logInterval = '1m' <2>
+----
+<1> Set the port number to `-1` to disable the embedded HTTP server.
+<2> "One minute." A value of '0m' disables metrics logging.
+
+The metrics log file location defaults to `CBES_HOME/logs/cbes-metrics.log`.
+The location and retention policy can be changed by editing `$CBES_HOME/config/log4j2.xml` (consult the https://logging.apache.org/log4j/2.x/manual/configuration.html[Log4j2 Configuration Manual] for details).
+
+[#truststore]
+== Trust Store for Secure Connections
+
+This is where you tell the connector how to access the keystore containing the certificates to trust when establishing TLS/SSL connections.
+For more details, see xref:secure-connections.adoc[Setting Up Secure Connections].
+If you decide not to enable secure connections, you can ignore this section.
+
+[source,toml]
+----
+[truststore]
+  path = 'path/to/truststore' <1>
+  pathToPassword = 'secrets/truststore-password.toml' <2>
+----
+<1> The filesystem path to the keystore containing the CA certificates for the Couchbase and/or Elasticsearch clusters.
+The base for a relative path is the connector installation directory.
+<2> Path to a separate TOML file with a single 'password' key.
+The base for a relative path is the connector installation directory.
+
+
+== Couchbase
+
+Here's where the Couchbase connection parameters and credentials are specified.
+
+[source,toml]
+----
+[couchbase]
+  hosts = ['localhost'] <1>
+  bucket = 'travel-sample' <2>
+  username = 'Administrator' <3>
+  pathToPassword = 'secrets/couchbase-password.toml' <4>
+  secureConnection = false <5>
+----
+<1> A list of bootstrap nodes for the Couchbase cluster.
+Multiple nodes can be specified like `['host1','host2']`.
+<2> The bucket to replicate from.
+<3> At a minimum, the Couchbase user must have the "Data Reader", "Data Writer", and "Data DCP Reader" roles for the bucket.
+<4> Path to a separate TOML file with a single 'password' key.
+The base for a relative path is the connector installation directory.
+<5> If you have configured the <<truststore,Trust Store>> section, set this to `true` to encrypt the Couchbase connections.
+
+TIP: If you want to replicate from multiple buckets, you can run a separate connector group for each bucket.
+
+=== DCP
+Options for the Couchbase Database Change Protocol (DCP).
+
+[source,toml]
+----
+[couchbase.dcp]
+  compression = true <1>
+  flowControlBuffer = '128mb' <2>
+  persistencePollingInterval = '100ms' <3>
+----
+<1> Disabling compression uses more network bandwidth and makes Couchbase work harder.
+Enabling compression makes the connector work harder.
+<2> Couchbase will only send this much data until the connector acknowledges it has been written to Elasticsearch.
+<3> Longer intervals reduce network traffic at the cost of increased end-to-end latency.
+Set this to `'0s'` to disable persistence polling.
+
+Persistence polling is a form of _rollback mitigation_ that prevents documents from being sent to Elasticsearch until Couchbase has written them to disk on all replicas.
+This reduces the likelihood that the failure of a Couchbase node will result in document changes being present in Elasticsearch even though Couchbase rolled them back.
+
+CAUTION: When replicating from an ephemeral bucket, always disable persistence polling (since documents are never persisted).
+
+
+== Elasticsearch
+
+[source,toml]
+----
+[elasticsearch]
+  hosts = ['localhost'] <1>
+  username = 'elastic' <2>
+  pathToPassword = 'secrets/elasticsearch-password.toml' <3>
+  secureConnection = false <4>
+----
+
+<1> A list of bootstrap nodes for the Elasticsearch cluster.
+Multiple nodes can be specified like `['host1','host2']`.
+Specify a custom port like `['host:19002']`.
+<2> Elasticsearch user to authenticate as.
+Username and password are only required if Elasticsearch is set up to require authentication.
+<3> Path to a separate TOML file with a single 'password' key.
+The base for a relative path is the connector installation directory.
+<4> If your Elasticsearch cluster requires secure connections, configure the <<truststore,Trust Store>> section and then set this to `true` to encrypt the Elasticsearch connections.
+
+
+=== Bulk Request Limits
+
+The Elasticsearch documentation offers these https://www.elastic.co/guide/en/elasticsearch/guide/current/indexing-performance.html#_using_and_sizing_bulk_requests[guidelines for sizing bulk requests].
+Experiment with these parameters to see what yields the best performance with your data and cluster configuration.
+
+[source,toml]
+----
+[elasticsearch.bulkRequestLimits]
+  bytes = '10mb' <1>
+  actions = 1000 <2>
+  timeout = '1m' <3>
+  concurrentRequests = 2 <4>
+----
+
+<1> Limits the size in bytes of a single bulk request.
+<2> Limits the number of actions (index or delete) in single bulk request.
+<3> A bulk request will be retried if it takes longer than this duration.
+<4> Limits the number of simultaneous bulk requests the connector will make.
+Setting this to `1` will reduce the load on your Elasticsearch cluster.
+
+CAUTION: Actual bulk request size may exceed this `bytes` limit by approximately the size of a single document.
+Make sure the limit configured here is *well under* the Elasticsearch cluster's https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-http.html#_settings_2[`http.max_content_length`] setting.
+
+
+//
+//===========
+//TIP: If you want to replicate multiple buckets, you can run a connector group for each bucket.
+//
+//TIP: If this is your first time working with the TOML config file format, check out Nate Finch's excellent https://npf.io/2014/08/intro-to-toml/[Intro to TOML], or the https://github.com/toml-lang/toml[official specification].
+
+
+
+
+* Some configuration properties refer to filesystem locations.
+If a relative path is provided, it will be resolved against the connector installation directory.
+
+The base for a relative path is the connector installation directory.
