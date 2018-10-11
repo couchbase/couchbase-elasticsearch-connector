@@ -138,7 +138,7 @@ These documents have IDs starting with `_connector:cbes:`
 
 Command line tools are provided to manage the replication checkpoint.
 
-WARNING: You must stop all connector instances in a group before modifying the replication checkpoint, otherwise the changes will not take effect.
+CAUTION: You must stop all connector instances in a group before modifying the replication checkpoint, otherwise the changes will not take effect.
 
 [#save-checkpoint]
 === Saving the current replication state

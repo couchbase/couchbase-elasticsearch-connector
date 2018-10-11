@@ -1,16 +1,47 @@
 = Release Notes
-:description: Elasticsearch plug-in release notes
+:description: Elasticsearch Connector release notes
 
-This section provides a set of Release Notes for successive versions of the Elasticsearch Transport Plug-in, provided by Couchbase.
-Each set of notes provide details of changes and additions that have been made.
+== Standalone Connector vs. Plugin
+
+Starting with version 4.0, the connector is now a standalone service.
+The service distribution archives are named `couchbase-elasticsearch-connector-`.
+
+Prior to version 4.0, the connector was implemented as an Elasticsearch plugin.
+The plugin distributions have archive names starting with `elasticsearch-transport-couchbase-`.
 
 [#version-compatibility]
-== Version Compatibility
+=== Plugin Version Compatibility
 
-The https://github.com/couchbaselabs/couchbase-elasticsearch-connector/releases[GitHub releases] page lists all the plug-in variants.
+The https://github.com/couchbase/couchbase-elasticsearch-connector/releases[GitHub releases] page lists all the plug-in variants.
 In a given release, the plug-in's filename is of the form *+elasticsearch-transport-couchbase-${PLUGIN_VERSION}-alder-es${ES_VERSION}.zip+*.
 It is imperative to use the file where *ES_VERSION* matches your Elasticsearch cluster version.
 For example, to use the 3.0.0 version of the plug-in with Elasticsearch 5.6.4, you will need to download *elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip*.
+
+== Elasticsearch Connector 4.0.0-dp.1
+
+https://github.com/couchbase/couchbase-elasticsearch-connector/releases/tag/4.0.0-dp.1[Download]
+
+=== New in the Developer Preview
+
+* Compatible with Elasticsearch versions 5 and 6.
+
+* Support for secure connections to Couchbase and Elasticsearch.
+
+* Tools for managing replication checkpoints.
+
+* A "rejection log" for documents Elasticsearch permanently refuses to index.
+
+* Configurable document structure (omit metadata if you don't need it).
+
+* The connector is a separate process instead of an Elasticsearch plugin.
+
+==== Things to be aware of
+
+* Parent-child relationships are no longer supported, as this feature
+was removed in ES 6.
+
+* Custom document routing is not implemented. Please let us know
+if this feature is still relevant for your deployment.
 
 == Elasticsearch Plug-in 3.0.2
 
