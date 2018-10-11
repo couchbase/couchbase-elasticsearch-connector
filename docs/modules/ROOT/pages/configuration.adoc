@@ -202,9 +202,22 @@ If you don't care about metadata, you can make the Elasticsearch document identi
 CAUTION: If you set `documentContentAtTopLevel = true`, omit metadata or select a metadata field name that does not conflict with any document fields.
 
 
+[#type-definitions]
+== Type Definitions
+
+[abstract]
+Not to be confused with Elasticsearch types -- these are not those.
+
+A type definition is a rule for matching a document ID, and instructions for what to do with matching documents.
+
+The order of type definitions is significant.
+If a document matches more than one type, the type definition that appears first in the config file takes precedence.
+
 === Type Definition Defaults
 
-The values in this section may be overridden by specific type definitions.
+Here's where you can specify the default values for all type definitions.
+This may be useful, for example, if you want to write all documents to the same index, or send them all through the same pipeline.
+The default values can be overridden by specific type definitions, which we'll look at in just a moment.
 
 [source,toml]
 ----
@@ -221,15 +234,110 @@ Empty string (`''`) means "no default".
 Empty string (`''`) means "no pipeline".
 <3> Assign this Elasticsearch type to matching documents.
 For ES 5.x remove leading underscore!
-<4> If `true`, ignore matching documents entirely (implies `ignoreDeletes'`).
+<4> If `true`, ignore matching documents entirely.
 <5> If `true`, never delete matching documents from Elasticsearch.
+
+==== Document matching rules
+In addition to the fields that can have default values, every type definition must have a rule for matching document IDs.
+The matching rule is specified by exactly one of the following fields:
+
+`prefix`::
+A type definition with a `prefix` field matches any document whose ID starts with the given case-sensitive string.
+
+`regex`::
+A type definition with a `regex` field matches any document whose ID fully matches the given https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html[Java regular expression].
+
+
+TIP: If the regular expression contains a capturing group named "index", the captured value will be used as the destination index.
+We'll see an example of this shortly.
 
 === Sample Type Definitions
 
+The first sample definition we'll look at is one you should include whenever the Couchbase Sync Gateway is present.
+It ignores any Sync Gateway metadata documents based in their ID prefix.
+
+==== Ignore Sync Gateway Metadata
+[source,toml]
+----
+[[elasticsearch.type]]
+  prefix = '_sync:' <1>
+  ignore = true <2>
+----
+<1> This type definition matches any document whose ID begins with the specified case-sensitive string.
+<2> Any matched documents will be ignored completely.
+
+NOTE: Did you notice that unlike the config sections we've looked at so for, the `\[[elasticsearch.type]]` section name is enclosed in *double brackets*?
+This indicates it's a repeated element.
+You can declare any number of these sections, and each one will define an additional type.
+
+==== Prefix Match
+
+Here's another type definition that uses `prefix` matching.
+This time, instead of ignoring the matched documents, the connector will write them to the "airlines" index using the https://www.elastic.co/blog/new-way-to-ingest-part-1[ingestion pipeline] named "audit".
+
+[source,toml]
+----
+[[elasticsearch.type]]
+  prefix = 'airline_'
+  index = 'airlines' <1>
+  pipeline = 'audit' <2>
+----
+<1> Matching documents will be written to this Elasticsearch index.
+<2> A pipeline lets you apply additional processing to a document before it is indexed.
+
+TIP: Specifying the empty string (`''`) as the prefix will match _any_ document.
+
+==== Regular Expression Match
+
+Now let's look at a type definition that matches document IDs using a https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html[Java regular expression] instead of a literal prefix.
+
+[source,toml]
+----
+[[elasticsearch.type]]
+  regex = '.*port_.*' <1>
+  index = 'ports'
+----
+<1> Matches "airport_sfo", "seaport_oakland", etc.
+
+==== Index Inference
+
+Finally, here's the promised example of using a regular expression with a capturing group named "index" to set the index based on document ID.
+
+[source,toml]
+----
+[[elasticsearch.type]]
+  regex = '(?<index>.+?)::.*' <1>
+----
+<1> Matches IDs that start with one or more characters followed by "::".
+It directs "user::alice" to index "user", and "foo::bar::123" to index "foo".
 
 
-//
-//===========
-//TIP: If you want to replicate multiple buckets, you can run a connector group for each bucket.
-//
-//TIP: If this is your first time working with the TOML config file format, check out Nate Finch's excellent https://npf.io/2014/08/intro-to-toml/[Intro to TOML], or the https://github.com/toml-lang/toml[official specification].
+== Rejection Log
+
+When Elasticsearch rejects a document (usually due to a type mapping error) a rejection log entry document is written to Elasticsearch.
+The log entry's document ID is the ID of the rejected Couchbase document.
+
+.Rejection Log Entry Fields
+|===
+|Field Name |Type |Description
+
+|index | string | Name of the index the connector failed to write to
+|type | string | Document type name used for the write attempt
+|action | string | Failed action type ("INDEX" or "DELETE")
+|error | string | Error message received from Elasticsearch
+|===
+
+
+Related configuration properties:
+
+[source,toml]
+----
+[elasticsearch.rejectionLog]
+  index = 'cbes-rejects' <1>
+  typeName = '_doc' <2>
+----
+<1> Rejection log entries are written to this index.
+<2> This Elasticsearch type will be assigned to the documents.
+For ES 5.x remove leading underscore!
+
+TIP: If you're running multiple connector groups, you may wish to use a separate rejection log index for each group.
