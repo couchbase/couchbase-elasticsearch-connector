@@ -314,7 +314,7 @@ It directs "user::alice" to index "user", and "foo::bar::123" to index "foo".
 
 == Rejection Log
 
-When Elasticsearch rejects a document (usually due to a type mapping error) a rejection log entry document is written to Elasticsearch.
+When Elasticsearch rejects a document (usually due to a type mapping error) the connector writes a rejection log entry document to Elasticsearch.
 The log entry's document ID is the ID of the rejected Couchbase document.
 
 .Rejection Log Entry Fields
