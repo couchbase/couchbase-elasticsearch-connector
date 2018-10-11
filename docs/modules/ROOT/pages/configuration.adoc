@@ -177,17 +177,59 @@ Setting this to `1` will reduce the load on your Elasticsearch cluster.
 CAUTION: Actual bulk request size may exceed this `bytes` limit by approximately the size of a single document.
 Make sure the limit configured here is *well under* the Elasticsearch cluster's https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-http.html#_settings_2[`http.max_content_length`] setting.
 
+=== Document Structure
+
+You control whether the Couchbase document is indexed verbatim, or whether it is transformed to include Couchbase metadata.
+If you decide to include metadata, it will be in a top-level field of the Elasticsearch document, with a field name of your choice.
+You also control whether the Couchbase document content is at the top level of the Elasticsearch document, or nested inside field named `doc`.
+
+[source,toml]
+----
+[elasticsearch.docStructure]
+  metadataFieldName = 'meta' <1>
+  documentContentAtTopLevel = false <2>
+  wrapCounters = false <3>
+----
+<1> Name to assign to the metadata field, or empty string (`''`) to omit metadata.
+<2> If `false`, the Elasticsearch document root will have a `doc` field whose value is the Couchbase document.
+If `true`, the Elasticsearch document will be identical to the Couchbase document with the possible addition of the metadata field.
+<3> If `false`, ignore Couchbase counter documents.
+If `true`, replicate them as Object nodes like `{"value":<counter>}`
+
+TIP: The defaults mimic the behavior of version 3.x of the connector.
+If you don't care about metadata, you can make the Elasticsearch document identical to the Couchbase document by setting `documentContentAtTopLevel = true` and `metadataFieldName = ''`.
+
+CAUTION: If you set `documentContentAtTopLevel = true`, omit metadata or select a metadata field name that does not conflict with any document fields.
+
+
+=== Type Definition Defaults
+
+The values in this section may be overridden by specific type definitions.
+
+[source,toml]
+----
+[elasticsearch.typeDefaults]
+  index = '' <1>
+  pipeline = '' <2>
+  typeName = '_doc' <3>
+  ignore = false <4>
+  ignoreDeletes = false <5>
+----
+<1> Write matching documents to this index.
+Empty string (`''`) means "no default".
+<2> Send matching documents though this pipeline.
+Empty string (`''`) means "no pipeline".
+<3> Assign this Elasticsearch type to matching documents.
+For ES 5.x remove leading underscore!
+<4> If `true`, ignore matching documents entirely (implies `ignoreDeletes'`).
+<5> If `true`, never delete matching documents from Elasticsearch.
+
+=== Sample Type Definitions
+
+
 
 //
 //===========
 //TIP: If you want to replicate multiple buckets, you can run a connector group for each bucket.
 //
 //TIP: If this is your first time working with the TOML config file format, check out Nate Finch's excellent https://npf.io/2014/08/intro-to-toml/[Intro to TOML], or the https://github.com/toml-lang/toml[official specification].
-
-
-
-
-* Some configuration properties refer to filesystem locations.
-If a relative path is provided, it will be resolved against the connector installation directory.
-
-The base for a relative path is the connector installation directory.
