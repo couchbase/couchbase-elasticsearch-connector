@@ -1,3 +1,11 @@
+ifdef::env-github[]
+// https://gist.github.com/rxaviers/7360908
+:note-caption: :information_desk_person:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
 = Couchbase Elasticsearch Connector
 
 https://github.com/couchbaselabs/couchbase-elasticsearch-connector/releases[*Download*]
