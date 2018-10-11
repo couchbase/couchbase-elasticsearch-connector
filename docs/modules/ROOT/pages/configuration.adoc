@@ -238,7 +238,7 @@ For ES 5.x remove leading underscore!
 <5> If `true`, never delete matching documents from Elasticsearch.
 
 ==== Document matching rules
-In addition to the fields that can have default values, every type definition must have a rule for matching document IDs.
+Every type definition must have a rule for matching document IDs.
 The matching rule is specified by exactly one of the following fields:
 
 `prefix`::
