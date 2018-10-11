@@ -199,7 +199,7 @@ If `true`, replicate them as Object nodes like `{"value":<counter>}`
 TIP: The defaults mimic the behavior of version 3.x of the connector.
 If you don't care about metadata, you can make the Elasticsearch document identical to the Couchbase document by setting `documentContentAtTopLevel = true` and `metadataFieldName = ''`.
 
-CAUTION: If you set `documentContentAtTopLevel = true`, omit metadata or select a metadata field name that does not conflict with any document fields.
+CAUTION: If you set `documentContentAtTopLevel = true`, be sure to omit metadata or select a metadata field name that does not conflict with any document fields.
 
 
 [#type-definitions]
