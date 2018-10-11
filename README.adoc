@@ -1,11 +1,3 @@
-ifdef::env-github[]
-// https://gist.github.com/rxaviers/7360908
-:note-caption: :information_desk_person:
-:important-caption: :heavy_exclamation_mark:
-:caution-caption: :fire:
-:warning-caption: :warning:
-endif::[]
-
 = Couchbase Elasticsearch Connector
 
 https://github.com/couchbaselabs/couchbase-elasticsearch-connector/releases[*Download*]
@@ -16,6 +8,9 @@ The connector service uses the high-performance Database Change Protocol (DCP) t
 When a Couchbase change is saved to disk, the connector propagates the change to your Elasticsearch cluster.
 
 NOTE: If you're looking for the Elasticsearch Plug-in flavor of the connector, that's in a https://github.com/couchbase/couchbase-elasticsearch-connector/tree/release/cypress[different branch].
+
+[small]_This product is neither affiliated with nor endorsed by Elastic.
+Elasticsearch is a trademark of Elasticsearch BV, registered in the U.S. and in other countries._
 
 == Building the connector from source
 

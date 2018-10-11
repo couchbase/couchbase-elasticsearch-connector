@@ -3,3 +3,6 @@
 The Couchbase Elasticsearch Connector replicates your documents from Couchbase Server to Elasticsearch in real time.
 The connector service uses the high-performance Database Change Protocol (DCP) to receive notifications when documents change in Couchbase.
 When a Couchbase change is saved to disk, the connector propagates the change to your Elasticsearch cluster.
+
+[small]_This product is neither affiliated with nor endorsed by Elastic.
+Elasticsearch is a trademark of Elasticsearch BV, registered in the U.S. and in other countries._
