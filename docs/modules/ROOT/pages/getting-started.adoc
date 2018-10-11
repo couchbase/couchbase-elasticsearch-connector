@@ -80,7 +80,7 @@ Add `$CBES_HOME/bin` to your `PATH`.
 
 Copy `$CBES_HOME/config/example-connector.toml` to `$CBES_HOME/config/default-connector.toml`.
 
-NOTE: The connector commands get their configuration from `$CBES_HOME/config/default-connector.toml` by default.
+TIP: The connector commands get their configuration from `$CBES_HOME/config/default-connector.toml` by default.
 You can tell them to use a different config file with the `--config <file>` command line option.
 
 Take a moment to browse the settings available in `default-connector.toml`.
