@@ -1,4 +1,4 @@
-Couchbase Transport Plugin for Elasticsearch
+Couchbase Transport Plug-in for Elasticsearch
 =========================================
 [**Download**](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases)
 | [**Plug-in Instruction Manual**](https://docs.couchbase.com/elasticsearch-connector)
