@@ -7,10 +7,7 @@ Step-by-step instructions for installing the Couchbase Elasticsearch Connector S
 // todo link to index page for version 3
 //NOTE: These instructions are for version 4 of the Elasticsearch Connector which runs as a standalone service. Documentation for the `elasticsearch-transport-couchbase` plugin for Elasticsearch is over here.
 
-
-
-[#prerequisites]
-== Prerequisites
+== Pre-requisites
 
 You will need:
 
@@ -27,8 +24,7 @@ NOTE: Couchbase Enterprise Edition is required if you wish to enable secure conn
 Likewise, Elasticsearch requires an additional license in order to support secure connections.
 Trial versions of both are available.
 
-[#preflight-check]
-== Preflight Check
+== Pre-flight Check
 
 Verify the Elasticsearch cluster is up and running (the default port is `9200`).
 
@@ -66,7 +62,6 @@ Expected result is something like:
 {"couchdb":"Welcome","version":"v4.5.1-60-g3cf258d","couchbase":"5.0.2-5506-community"}
 ----
 
-[#installation]
 == Installation
 
 Download and extract the https://github.com/couchbase/couchbase-elasticsearch-connector/releases/tag/4.0.0-dp.1[connector distribution].
@@ -75,7 +70,6 @@ This directory will be referred to as `$CBES_HOME`.
 
 Add `$CBES_HOME/bin` to your `PATH`.
 
-[#configuration]
 == Configuration
 
 Copy `$CBES_HOME/config/example-connector.toml` to `$CBES_HOME/config/default-connector.toml`.
@@ -92,12 +86,10 @@ If you're using Elasticsearch 5.x, replace all instances of the type name `_doc`
 The sample config will replicate documents from the Couchbase `travel-sample` bucket.
 Go ahead and https://developer.couchbase.com/documentation/server/current/settings/install-sample-buckets.html[install the sample buckets] now if you haven't already.
 
-[#controlling]
 == Controlling the Connector Service
 
 The command-line tools in `$CBES_HOME/bin` are used to start the connector and manage replication checkpoints.
 
-[#starting]
 === Starting the connector
 
 Run this command:
@@ -106,14 +98,11 @@ Run this command:
 
 The connector should start copying documents from the `travel-sample` bucket into Elasticsearch.
 
-[#stopping]
 === Stopping the connector
 
 A connector process will shut down gracefully in response to an interrupt signal
 (ctrl-c, or `kill -s INT <pid>`).
 
-
-[#distributed-mode]
 == Distributed Mode
 
 The throughput of the connector is limited by the time it takes for Elasticsearch to index documents.
@@ -129,8 +118,6 @@ WARNING: Make sure to stop all of the connector instances in a group before chan
 
 When a connector instance runs in distributed mode, it replicates from only the vbuckets that correspond to its group membership configuration.
 
-
-[#managing-checkpoints]
 == Managing Checkpoints
 
 The connector periodically saves its replication state by writing metadata documents to the Couchbase bucket.
