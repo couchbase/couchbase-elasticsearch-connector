@@ -6,16 +6,13 @@ Configure the connector to encrypt data in transit.
 By default, the connector talks to Couchbase and Elasticsearch over unencrypted socket connections.
 If encryption is required, you can configure the connector to use TLS/SSL.
 
-[#overview]
 == Overview
 
 Couchbase Server and Elasticsearch both use a root certificate to generate a certificate for each node in the respective cluster.
 
 This guide shows how to obtain the root certificates, and how to tell the connector it should trust these certificates when establishing secure connections.
 
-
-[#prerequisitres]
-== Prerequisites
+== Pre-requisites
 
 During the setup process you'll need access to the Java `keytool` command.
 This command is included in standard Java distributions under `$JAVA_HOME/bin`.
@@ -62,7 +59,6 @@ Verify Elasticsearch requires secure connections by opening `https://localhost:9
 (You might get a warning about an untrusted or self-signed certificate).
 You should be prompted for your Elasticsearch credentials, which default to username `elastic` with password `changeme`.
 
-
 [#trust-store]
 == Add Certificates to the Trust Store
 
@@ -81,8 +77,6 @@ If the information is correct, enter `y` to confirm.
 
 Run the `keytool` command again, replacing `couchbase.crt` with the path to the Elasticsearch root certificate.
 
-
-[#configure-connector]
 == Configure the Connector
 
 You're almost done. Now that you have a keystore file containing the CA certificates used by Couchbase and Elasticsearch, you need to tell the connector where to find it.
