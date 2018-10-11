@@ -208,7 +208,7 @@ CAUTION: If you set `documentContentAtTopLevel = true`, be sure to omit metadata
 [abstract]
 Not to be confused with Elasticsearch types -- these are not those.
 
-A type definition is a rule for matching a document ID, and instructions for what to do with matching documents.
+A type definition is a rule for matching a document ID, and instructions for what to do with matched documents.
 
 The order of type definitions is significant.
 If a document matches more than one type, the type definition that appears first in the config file takes precedence.
