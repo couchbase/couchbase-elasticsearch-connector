@@ -3,9 +3,9 @@ Couchbase Transport Plug-in for Elasticsearch
 [**Download**](https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases)
 | [**Plug-in Instruction Manual**](https://docs.couchbase.com/elasticsearch-connector)
 
-> This branch of the repository is for the **Elasticsearch Plug-in** flavor of the Couchbase Elasticsearch Connector.
-> We recommend migrating to the modern [**Connector Service**](https://github.com/couchbase/couchbase-elasticsearch-connector) flavor
-which supports Elasticsearch 6.x and secure connections. 
+> This branch of the repository is for the old **Elasticsearch Plug-in** flavor of the Couchbase Elasticsearch Connector.
+> We recommend migrating to the new [**standalone connector**](https://github.com/couchbase/couchbase-elasticsearch-connector)
+which supports Elasticsearch 6 and secure connections. 
 
 This Elasticsearch plug-in makes your Elasticsearch node appear like a Couchbase Server node.  After installation you can use the Cross-Datacenter Replication (XDCR) feature of Couchbase Server to transfer data continuously.
 
