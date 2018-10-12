@@ -4,24 +4,22 @@
 == Standalone Connector vs. Plug-in
 
 Starting with version 4.0, the connector is now a standalone process.
-The standalone distribution archives are named `couchbase-elasticsearch-connector-`.
+The standalone distribution archives are named `couchbase-elasticsearch-connector-`, and download links are provided on this page.
 
 Prior to version 4.0, the connector was implemented as an Elasticsearch plug-in.
 The plug-in distributions have archive names starting with `elasticsearch-transport-couchbase-`.
 
-[#version-compatibility]
-=== Plug-in Version Compatibility
+TIP: If you want to use the old plug-in, distributions may be https://github.com/couchbase/couchbase-elasticsearch-connector/releases[downloaded from GitHub].
+Make sure to pick the archive whose `es` version component _exactly_ matches your Elasticsearch version.
+For example, to use the 3.0.0 version of the plug-in with Elasticsearch 5.6.4, you would select `elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip`.
 
-The https://github.com/couchbase/couchbase-elasticsearch-connector/releases[GitHub releases] page lists all the plug-in variants.
-In a given release, the plug-in's filename is of the form *+elasticsearch-transport-couchbase-${PLUGIN_VERSION}-alder-es${ES_VERSION}.zip+*.
-It is imperative to use the file where *ES_VERSION* matches your Elasticsearch cluster version.
-For example, to use the 3.0.0 version of the plug-in with Elasticsearch 5.6.4, you will need to download *elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip*.
+== Elasticsearch Connector 4.0.0
 
-== Elasticsearch Connector 4.0.0-dp.1
+http://packages.couchbase.com/clients/connectors/elasticsearch/4.0.0/couchbase-elasticsearch-connector-4.0.0.zip[couchbase-elasticsearch-connector-4.0.0.zip]
 
-https://github.com/couchbase/couchbase-elasticsearch-connector/releases/tag/4.0.0-dp.1[Download]
+=== New in this version
 
-=== New in the Developer Preview
+* The connector is now a standalone process instead of an Elasticsearch plug-in.
 
 * Compatible with Elasticsearch versions 5 and 6.
 
@@ -33,15 +31,19 @@ https://github.com/couchbase/couchbase-elasticsearch-connector/releases/tag/4.0.
 
 * Configurable document structure (omit metadata if you don't need it).
 
-* The connector is a separate process instead of an Elasticsearch plug-in.
+* The connector now listens for document changes using the high performance Couchbase Database Change Protocol (DCP).
 
 ==== Things to be aware of
+
+CAUTION: This is a major version upgrade.
+Because the plug-in and the standalone connector are so different, there is no online upgrade process.
+See the xref:migration.adoc[Migration] documentation for details.
 
 * Parent-child relationships are no longer supported, as this feature
 was removed in ES 6.
 
-* Custom document routing is not implemented. Please let us know
-if this feature is still relevant for your deployment.
+* Routing documents to specific Elasticsearch shards is not implemented.
+Please let us know if this feature is still relevant for your deployment.
 
 == Elasticsearch Plug-in 3.0.2
 

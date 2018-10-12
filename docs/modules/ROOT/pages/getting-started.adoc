@@ -11,6 +11,8 @@ Step-by-step instructions for installing the Couchbase Elasticsearch Connector.
 
 You will need:
 
+* The xref:release-notes.adoc[latest release] of Couchbase Elasticsearch Connector.
+
 * Java 8 or newer from
 https://docs.oracle.com/javase/8/[Oracle].
 
@@ -64,7 +66,7 @@ Expected result is something like:
 
 == Installation
 
-Download and extract the https://github.com/couchbase/couchbase-elasticsearch-connector/releases/tag/4.0.0-dp.1[connector distribution].
+Extract the connector distribution archive.
 This should give you a directory called `couchbase-elasticsearch-connector-<version>`.
 This directory will be referred to as `$CBES_HOME`.
 
