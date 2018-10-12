@@ -1,8 +1,7 @@
 = Configuration
 
 [abstract]
-The connector ships with a sample config file, `$CBES_HOME/config/example-connector-config.toml`.
-Let's take a deeper look at the sections of that file, and the properties defined in each section.
+A description of the sections and properties defined in the sample config file, `$CBES_HOME/config/example-connector-config.toml`.
 
 TIP: If this is your first time working with the TOML config file format, check out Nate Finch's excellent https://npf.io/2014/08/intro-to-toml/[Intro to TOML], or the https://github.com/toml-lang/toml[official specification].
 
@@ -112,7 +111,13 @@ The base for a relative path is the connector installation directory.
 TIP: If you want to replicate from multiple buckets, you can run a separate connector group for each bucket.
 
 === DCP
+[abstract]
 Options for the Couchbase Database Change Protocol (DCP).
+
+Couchbase Server notifies the connector about database changes as soon as they are stored in memory, _even before they are written to disk_.
+You can tell the connector to immediately propagate the changes to Elasticsearch, or you can defer writing to Elasticsearch until the changes have been saved to disk on all Couchbase replicas.
+
+Immediate propagation gives the lowest possible latency, but increases the likelihood that a Couchbase node failure will result in document changes being present in Elasticsearch but not in Couchbase.
 
 [source,toml]
 ----
@@ -121,16 +126,14 @@ Options for the Couchbase Database Change Protocol (DCP).
   flowControlBuffer = '128mb' <2>
   persistencePollingInterval = '100ms' <3>
 ----
-<1> Disabling compression uses more network bandwidth and makes Couchbase work harder.
-Enabling compression makes the connector work harder.
+<1> Disabling compression uses more network bandwidth and increases Couchbase Server's CPU usage.
+Enabling compression increases the connector's CPU usage.
 <2> Couchbase will only send this much data until the connector acknowledges it has been written to Elasticsearch.
-<3> Longer intervals reduce network traffic at the cost of increased end-to-end latency.
-Set this to `'0s'` to disable persistence polling.
+<3> To propagate changes immediately, disable persistence polling by setting this to `'0ms'`.
+A non-zero duration tells the connector to defer propagation until the change is persisted on all Couchbase replicas.
+Longer intervals reduce network traffic at the cost of increased end-to-end latency.
 
-Persistence polling is a form of _rollback mitigation_ that prevents documents from being sent to Elasticsearch until Couchbase has written them to disk on all replicas.
-This reduces the likelihood that the failure of a Couchbase node will result in document changes being present in Elasticsearch even though Couchbase rolled them back.
-
-CAUTION: When replicating from an ephemeral bucket, always disable persistence polling (since documents are never persisted).
+CAUTION: When replicating from an ephemeral bucket, always set `persistencePollingInterval = '0s'` to disable persistence polling, since documents are never persisted.
 
 
 == Elasticsearch
@@ -183,6 +186,8 @@ You control whether the Couchbase document is indexed verbatim, or whether it is
 If you decide to include metadata, it will be in a top-level field of the Elasticsearch document, with a field name of your choice.
 You also control whether the Couchbase document content is at the top level of the Elasticsearch document, or nested inside field named `doc`.
 
+NOTE: The connector does not replicate a document's extended attributes (xattrs).
+
 [source,toml]
 ----
 [elasticsearch.docStructure]
@@ -233,7 +238,6 @@ Empty string (`''`) means "no default".
 <2> Send matching documents though this pipeline.
 Empty string (`''`) means "no pipeline".
 <3> Assign this Elasticsearch type to matching documents.
-For ES 5.x remove leading underscore!
 <4> If `true`, ignore matching documents entirely.
 <5> If `true`, never delete matching documents from Elasticsearch.
 
@@ -254,7 +258,7 @@ We'll see an example of this shortly.
 === Sample Type Definitions
 
 The first sample definition we'll look at is one you should include whenever the Couchbase Sync Gateway is present.
-It ignores any Sync Gateway metadata documents based in their ID prefix.
+It ignores any Sync Gateway metadata documents based on their ID prefix.
 
 ==== Ignore Sync Gateway Metadata
 [source,toml]
@@ -338,6 +342,5 @@ Related configuration properties:
 ----
 <1> Rejection log entries are written to this index.
 <2> This Elasticsearch type will be assigned to the documents.
-For ES 5.x remove leading underscore!
 
 TIP: If you're running multiple connector groups, you may wish to use a separate rejection log index for each group.

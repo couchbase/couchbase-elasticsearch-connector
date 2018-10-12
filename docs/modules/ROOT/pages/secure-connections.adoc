@@ -18,8 +18,8 @@ During the setup process you'll need access to the Java `keytool` command.
 This command is included in standard Java distributions under `$JAVA_HOME/bin`.
 
 Couchbase Server *Enterprise Edition* is required in order to connect to Couchbase over an encrypted connection.
-Enterprise Edition is available free of charge for unlimited pre-production development and testing.
-A commercial license is required for production use.
+Enterprise Edition may be downloaded and evaluated for free.
+During the download process, see the license agreement for details about commercial use.
 
 Similarly, Elasticsearch requires an *X-Pack license* in order to accept secure connections.
 A trial license can be activated by modifying a configuration setting, as explained in the Elasticsearch documentation linked below.

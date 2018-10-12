@@ -1,16 +1,16 @@
 = Release Notes
 :description: Elasticsearch Connector release notes
 
-== Standalone Connector vs. Plugin
+== Standalone Connector vs. Plug-in
 
-Starting with version 4.0, the connector is now a standalone service.
-The service distribution archives are named `couchbase-elasticsearch-connector-`.
+Starting with version 4.0, the connector is now a standalone process.
+The standalone distribution archives are named `couchbase-elasticsearch-connector-`.
 
-Prior to version 4.0, the connector was implemented as an Elasticsearch plugin.
-The plugin distributions have archive names starting with `elasticsearch-transport-couchbase-`.
+Prior to version 4.0, the connector was implemented as an Elasticsearch plug-in.
+The plug-in distributions have archive names starting with `elasticsearch-transport-couchbase-`.
 
 [#version-compatibility]
-=== Plugin Version Compatibility
+=== Plug-in Version Compatibility
 
 The https://github.com/couchbase/couchbase-elasticsearch-connector/releases[GitHub releases] page lists all the plug-in variants.
 In a given release, the plug-in's filename is of the form *+elasticsearch-transport-couchbase-${PLUGIN_VERSION}-alder-es${ES_VERSION}.zip+*.
@@ -33,7 +33,7 @@ https://github.com/couchbase/couchbase-elasticsearch-connector/releases/tag/4.0.
 
 * Configurable document structure (omit metadata if you don't need it).
 
-* The connector is a separate process instead of an Elasticsearch plugin.
+* The connector is a separate process instead of an Elasticsearch plug-in.
 
 ==== Things to be aware of
 
@@ -68,7 +68,7 @@ Be aware that child documents created by previous versions of the connector are 
 
 The signposts have a document type of `couchbaseSignpost`.
 The mapping for this type must store the contents of the `meta` field.
-This is already the case if you're using the default mapping template included in the plugin distribution.
+This is already the case if you're using the default mapping template included in the plug-in distribution.
 
 === Bug Fixes
 

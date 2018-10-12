@@ -4,7 +4,7 @@ https://github.com/couchbaselabs/couchbase-elasticsearch-connector/releases[*Dow
 | https://docs.couchbase.com/elasticsearch-connector/4.0/index.html[*Documentation*]
 
 The Couchbase Elasticsearch Connector replicates your documents from Couchbase Server to Elasticsearch in real time.
-The connector service uses the high-performance Database Change Protocol (DCP) to receive notifications when documents change in Couchbase.
+The connector uses the high-performance Database Change Protocol (DCP) to receive notifications when documents change in Couchbase.
 When a Couchbase change is saved to disk, the connector propagates the change to your Elasticsearch cluster.
 
 NOTE: If you're looking for the Elasticsearch Plug-in flavor of the connector, that's in a https://github.com/couchbase/couchbase-elasticsearch-connector/tree/release/cypress[different branch].

@@ -1,18 +1,18 @@
 = Getting Started
-:description: Learn how to install the Elasticsearch Connector Service.
+:description: Learn how to install the Elasticsearch Connector.
 
 [abstract]
-Step-by-step instructions for installing the Couchbase Elasticsearch Connector Service.
+Step-by-step instructions for installing the Couchbase Elasticsearch Connector.
 
 // todo link to index page for version 3
-//NOTE: These instructions are for version 4 of the Elasticsearch Connector which runs as a standalone service. Documentation for the `elasticsearch-transport-couchbase` plugin for Elasticsearch is over here.
+//NOTE: These instructions are for version 4 of the Elasticsearch Connector which runs as a standalone service. Documentation for the `elasticsearch-transport-couchbase` plug-in for Elasticsearch is over here.
 
 == Pre-requisites
 
 You will need:
 
 * Java 8 or newer from
-https://docs.oracle.com/javase/8/[Oracle] or http://openjdk.java.net/install/[OpenJDK].
+https://docs.oracle.com/javase/8/[Oracle].
 
 * Elasticsearch 5 or 6. Other versions might work, but are untested.
 If you are new to Elasticsearch, we recommend https://www.elastic.co/guide/en/elasticsearch/reference/current/zip-targz.html[installing from a zip or tar.gz archive].
@@ -83,10 +83,14 @@ Note that the passwords are stored separately in the `$CBES_HOME/secrets` direct
 
 If you're using Elasticsearch 5.x, replace all instances of the type name `_doc` with something that doesn't have a leading underscore.
 
+NOTE: Starting with Elasticsearch 6 there can be only one mapping type per index.
+Consequently, type names are no longer useful, and are https://www.elastic.co/guide/en/elasticsearch/reference/6.x/removal-of-types.html#_schedule_for_removal_of_mapping_types[scheduled for removal from Elasticsearch].
+In the mean time, using the default type name `_doc` is recommended to help ease the transition... unless you're still using Elasticsearch 5, which doesn't allow type names to have leading underscores.
+
 The sample config will replicate documents from the Couchbase `travel-sample` bucket.
 Go ahead and https://developer.couchbase.com/documentation/server/current/settings/install-sample-buckets.html[install the sample buckets] now if you haven't already.
 
-== Controlling the Connector Service
+== Controlling the Connector
 
 The command-line tools in `$CBES_HOME/bin` are used to start the connector and manage replication checkpoints.
 
