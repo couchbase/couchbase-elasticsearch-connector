@@ -24,5 +24,18 @@ During development, it might be more convenient to run:
 
 which creates `build/install/couchbase-elasticsearch-connector` as a `$CBES_HOME` directory.
 
+
+=== Running the integration tests
+
+A local Docker installation is required for these tests.
+
+.Quickly test only the latest Couchbase and Elasticsearch
+    ./gradlew integrationTest
+
+
+.Test all supported versions of Couchbase an Elasticsearch
+    ./gradlew exhaustiveTest
+
+
 === IntelliJ IDEA setup
 Because the project uses annotation processors, some link:INTELLIJ-SETUP.md[fiddly setup] is required when importing the project into IntelliJ IDEA.
