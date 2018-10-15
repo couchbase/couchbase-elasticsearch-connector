@@ -28,12 +28,13 @@ which creates `build/install/couchbase-elasticsearch-connector` as a `$CBES_HOME
 === Running the integration tests
 
 A local Docker installation is required for these tests.
+To quickly test using only the latest Couchbase and Elasticsearch:
 
-.Quickly test only the latest Couchbase and Elasticsearch
     ./gradlew integrationTest
 
 
-.Test all supported versions of Couchbase an Elasticsearch
+To test against _all_ supported versions of Couchbase and Elasticsearch:
+
     ./gradlew exhaustiveTest
 
 
