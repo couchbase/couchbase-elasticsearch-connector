@@ -46,7 +46,7 @@ dependencies {
   compile 'org.apache.logging.log4j:log4j-core:2.9.1'
 
   compile 'com.couchbase.client:java-client:2.6.1'
-  compile 'com.couchbase.client:dcp-client:0.19.0'
+  compile 'com.couchbase.client:dcp-client:0.20.0'
   compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.3.2'
 
   compile 'com.orbitz.consul:consul-client:1.2.1'
