@@ -1,6 +1,6 @@
 = Introduction
 
-The Couchbase Elasticsearch Connector replicates your documents from Couchbase Server to Elasticsearch in real time.
+The Couchbase Elasticsearch Connector replicates your documents from Couchbase Server to Elasticsearch in near real time.
 The connector uses the high-performance Database Change Protocol (DCP) to receive notifications when documents change in Couchbase.
 
 [small]_This product is neither affiliated with nor endorsed by Elastic.
