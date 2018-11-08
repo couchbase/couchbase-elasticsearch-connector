@@ -15,7 +15,7 @@ For example, to use the 3.0.0 version of the plug-in with Elasticsearch 5.6.4, y
 
 == Elasticsearch Connector 4.0.0
 
-http://packages.couchbase.com/clients/connectors/elasticsearch/4.0.0/couchbase-elasticsearch-connector-4.0.0.zip[couchbase-elasticsearch-connector-4.0.0.zip]
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.0.0/couchbase-elasticsearch-connector-4.0.0.zip[couchbase-elasticsearch-connector-4.0.0.zip]
 
 === New in this version
 
