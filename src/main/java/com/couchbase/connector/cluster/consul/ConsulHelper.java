@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.cluster.v2;
+package com.couchbase.connector.cluster.consul;
 
 import com.orbitz.consul.ConsulException;
 import com.orbitz.consul.KeyValueClient;
