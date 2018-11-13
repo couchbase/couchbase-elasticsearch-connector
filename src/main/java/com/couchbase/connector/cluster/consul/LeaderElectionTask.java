@@ -82,7 +82,10 @@ public class LeaderElectionTask implements AutoCloseable {
 
     } finally {
       try {
-        // Abdicate (delete leadership document) if we own the lock.
+        // Abdicate (delete leadership document); only succeeds if we own the lock. This lets another node acquire
+        // the lock immediately. If we don't do this, the lock will be auto-released when the session ends,
+        // but the lock won't be eligible for acquisition until the Consul lock delay has elapsed.
+
         clearInterrupted(); // so final Consul request doesn't fail with InterruptedException
         ConsulHelper.unlockAndDelete(kv, leaderKey, sessionId);
 
