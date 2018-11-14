@@ -67,7 +67,7 @@ dependencies {
   testCompile("org.assertj:assertj-core:3.11.1")
   integrationTestCompile 'com.jayway.jsonpath:json-path:2.3.0'
 
-  def testcontainersVersion = '1.9.1'
+  def testcontainersVersion = '1.10.1'
   integrationTestCompile "org.testcontainers:testcontainers:${testcontainersVersion}"
   integrationTestCompile "org.testcontainers:couchbase:${testcontainersVersion}"
   //def testcontainersCommit = 'ac05988143e8d433d' // avoid port conflicts between multiple Couchbase containers on same host
