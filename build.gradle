@@ -55,6 +55,7 @@ dependencies {
   compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.3.2'
 
   compile 'com.orbitz.consul:consul-client:1.2.1'
+  compile 'com.github.therapi:therapi-json-rpc:0.4.0'
 
   compile 'io.dropwizard.metrics:metrics-json:4.0.3'
   compile 'io.dropwizard.metrics:metrics-jvm:4.0.3'
@@ -104,6 +105,17 @@ tasks.withType(CreateStartScripts) {
     // tidy up the class path, yeah? Maybe add $APP_HOME/lib-ext as well?
     unixScript.text = unixScript.text.replaceAll('CLASSPATH=.*', 'CLASSPATH=\\$APP_HOME/lib/*')
     //windowsScript.text = windowsScript.text.replaceAll('CLASSPATH=.*', 'CLASSPATH=%APP_HOME%\\\\lib\\\\*')
+
+    // Some of the Consul client methods use the platform default encoding.
+    // Force UTF-8 by tweaking the value for DEFAULT_JVM_OPTS
+    unixScript.text = unixScript.text.replace('"-server"', '"-server -Dfile.encoding=UTF-8"')
+    windowsScript.text = windowsScript.text.replace('"-server"', '"-server -Dfile.encoding=UTF-8"')
+
+    // ensure the replacement was effective
+    if (!unixScript.text.contains("-Dfile.encoding=UTF-8")||
+        !windowsScript.text.contains("-Dfile.encoding=UTF-8")) {
+      throw new RuntimeException("oops, failed to set default encoding")
+    }
   }
 }
 
