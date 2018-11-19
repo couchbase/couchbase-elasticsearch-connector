@@ -37,7 +37,7 @@ This certificate will be added to the connector's trust store, so it will be tru
 
 Copy the certificate into a plain text file. The filename does not matter, but let's call it `couchbase.crt`.
 
-To use a different root certificate, you can follow instructions on the xref:server:security:security-x509certsintro.adoc[x.509 certificate authentication] page.
+To use a different root certificate, you can follow instructions on the xref:server:manage:manage-security/configure-server-certificates.adoc[Configure Server Certificates] page.
 
 [#get-elasticsearch-cert]
 == Get the Elasticsearch CA Certificate
