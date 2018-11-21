@@ -75,6 +75,27 @@ public class ConsulHelper {
     }
   }
 
+  public static ConsulResponse<Value> awaitChange(KeyValueClient kv, String key, BigInteger index) {
+    while (true) {
+      final ConsulResponse<Value> response = kv.getConsulResponseWithValue(key,
+          ImmutableQueryOptions.builder()
+              .index(index)
+              .wait("5m")
+              .build())
+          .orElse(null);
+      if (response == null) {
+        LOGGER.debug("Document does not exist: {}", key);
+        return null;
+      }
+
+      if (index.equals(response.getIndex())) {
+        LOGGER.debug("Long poll timed out, polling again for {}", key);
+      } else {
+        return response;
+      }
+    }
+  }
+
 
   public static String awaitChange(KeyValueClient kv, String key, String expectedValue) {
     requireNonNull(expectedValue);

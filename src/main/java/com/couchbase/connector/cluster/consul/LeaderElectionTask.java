@@ -16,7 +16,6 @@
 
 package com.couchbase.connector.cluster.consul;
 
-import com.orbitz.consul.Consul;
 import com.orbitz.consul.KeyValueClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,29 +26,26 @@ import java.util.function.Consumer;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-public class LeaderElectionTask implements AutoCloseable {
+public class LeaderElectionTask extends AbstractLongPollTask<LeaderElectionTask> {
   private static final Logger LOGGER = LoggerFactory.getLogger(LeaderElectionTask.class);
 
-  private final AtomicInteger threadCounter = new AtomicInteger();
-  private final Thread thread;
   private final String candidateUuid;// = UUID.randomUUID().toString();
   private final Consumer<Throwable> fatalErrorConsumer;
-  private volatile boolean closed;
 
   public LeaderElectionTask(KeyValueClient kv, String serviceName, String sessionId, Consumer<Throwable> fatalErrorConsumer) {
+    super(kv, "leader-election-", serviceName, sessionId);
     requireNonNull(kv);
     requireNonNull(sessionId);
     this.candidateUuid = sessionId;
     this.fatalErrorConsumer = requireNonNull(fatalErrorConsumer);
-    this.thread = new Thread(() -> doRun(kv, serviceName, sessionId), "leader-election-" + threadCounter.getAndIncrement());
   }
 
-  private void doRun(KeyValueClient kv, String serviceName, String sessionId) {
+  protected void doRun(KeyValueClient kv, String serviceName, String sessionId) {
     final String leaderKey = "couchbase/cbes/" + serviceName + "/leader";
     LOGGER.info("Leader key: {}", leaderKey);
 
     try {
-      while (!closed) {
+      while (!closed()) {
         LOGGER.info("Racing to become new leader.");
         final boolean acquired = kv.acquireLock(leaderKey, candidateUuid, sessionId);
 
@@ -71,7 +67,7 @@ public class LeaderElectionTask implements AutoCloseable {
       }
 
     } catch (Throwable t) {
-      if (closed) {
+      if (closed()) {
         // Closing the task is likely to result in an InterruptedException,
         // or a ConsulException wrapping an InterruptedIOException.
         LOGGER.debug("Caught exception in leader election loop after closing. Don't panic; this is expected.", t);
@@ -97,53 +93,4 @@ public class LeaderElectionTask implements AutoCloseable {
     }
   }
 
-  /**
-   * Clears the <i>interrupted status</i> of the current thread.
-   */
-  private static void clearInterrupted() {
-    @SuppressWarnings("unused")
-    boolean wasInterrupted = Thread.interrupted();
-  }
-
-  /**
-   * @throws IllegalStateException if already started
-   */
-  public LeaderElectionTask start() {
-    try {
-      thread.start();
-      LOGGER.info("Leader election thread started.");
-      return this;
-
-    } catch (IllegalThreadStateException e) {
-      throw new IllegalStateException("May only be started once", e);
-    }
-  }
-
-  /**
-   * Requests a graceful shutdown. After calling this method, the caller should complete the shutdown process
-   * by calling {@link Consul#destroy}, optionally followed by {@link LeaderElectionTask#awaitTermination}.
-   */
-  @Override
-  public void close() {
-    closed = true;
-
-    // Interrupting the thread prevents execution of new Consul request.
-    // To cancel requests already in flight, the owner of the Consul client must destroy it.
-    // This little dance is required because destroying the Consul client does not prevent
-    // it from issuing new requests :-p
-    thread.interrupt();
-
-    // The thread will exit when it makes a new Consul request, the current in-flight request finishes,
-    // or the Consul client is destroyed (whichever comes first).
-    LOGGER.info("Asking thread {} to terminate.", thread.getName());
-  }
-
-  public void awaitTermination() throws InterruptedException {
-    if (!closed) {
-      throw new IllegalStateException("must call close() first");
-    }
-    LOGGER.info("Waiting for thread {} to terminate.", thread.getName());
-    thread.join();
-    LOGGER.info("Thread {} terminated.", thread.getName());
-  }
 }
