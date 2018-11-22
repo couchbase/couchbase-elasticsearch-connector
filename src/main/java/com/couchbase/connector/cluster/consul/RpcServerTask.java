@@ -16,21 +16,31 @@
 
 package com.couchbase.connector.cluster.consul;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.orbitz.consul.KeyValueClient;
 import com.orbitz.consul.model.ConsulResponse;
 import com.orbitz.consul.model.kv.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.math.BigInteger;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
+
+  private static final ObjectMapper mapper = newLenientObjectMapper();
 
   static class EndpointAlreadyInUseException extends Exception {
     public EndpointAlreadyInUseException(String message) {
@@ -56,12 +66,43 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
     this.endpointKey = "couchbase/cbes/" + serviceName + "/rpc/" + endpointId;
   }
 
+  public static LinkedHashMap<JsonNode, ObjectNode> indexById(List<ObjectNode> nodes) {
+    LinkedHashMap<JsonNode, ObjectNode> result = new LinkedHashMap<>();
+    nodes.forEach(n -> {
+      if (n.has("id")) {
+        result.put(n.get("id"), n);
+      }
+    });
+    return result;
+  }
+
+  private static Optional<EndpointDocument> getEndpointDocument(ConsulResponse<Value> response) {
+    if (response == null) {
+      // key does not exist
+      return Optional.empty();
+    }
+
+    final String value = response.getResponse().getValueAsString(UTF_8).orElse(null);
+    if (value == null) {
+      // document has no content
+      return Optional.empty();
+    }
+
+    try {
+      return Optional.of(mapper.readValue(value, EndpointDocument.class));
+    } catch (IOException e) {
+      LOGGER.error("Malformed RPC endpoint document", e);
+      return Optional.empty();
+    }
+  }
+
   @Override
   protected void doRun(KeyValueClient kv, String serviceName, String sessionId) {
     try {
       bind();
 
       BigInteger index = BigInteger.ZERO;
+
 
       while (!closed()) {
         final ConsulResponse<Value> response = ConsulHelper.awaitChange(kv, endpointKey, index);
@@ -71,7 +112,29 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
           continue;
         }
 
-        LOGGER.info("New RPC endpoint value: {}", response.getResponse().getValueAsString(UTF_8));
+        final String json = response.getResponse().getValueAsString(UTF_8).orElse("{}");
+        EndpointDocument initialEndpoint = mapper.readValue(json, EndpointDocument.class);
+
+        final ObjectNode unansweredRequest = initialEndpoint.firstUnansweredRequest().orElse(null);
+        if (unansweredRequest == null) {
+          LOGGER.debug("No unanswered requests.");
+        } else {
+          final ObjectNode invocationResult = execute(unansweredRequest);
+
+          ConsulHelper.atomicUpdate(kv, response, document -> {
+            try {
+              final EndpointDocument endpoint = mapper.readValue(document, EndpointDocument.class);
+              endpoint.addResponse(invocationResult);
+              return mapper.writeValueAsString(endpoint);
+
+            } catch (IOException e) {
+              throw new IllegalArgumentException("Malformed RPC endpoint document", e);
+            }
+          });
+
+          LOGGER.info("Endpoint update complete");
+        }
+
         index = response.getIndex();
       }
 
@@ -101,12 +164,18 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
     }
   }
 
+  private ObjectNode execute(ObjectNode request) {
+    ObjectNode result = mapper.createObjectNode();
+    result.set("id", request.get("id"));
+    result.set("result", new TextNode("yay"));
+    return result;
+  }
 
   private void bind() throws InterruptedException, EndpointAlreadyInUseException {
     while (!closed()) {
       LOGGER.info("Attempting to binding to RPC endpoint document {}", endpointKey);
 
-      final boolean acquired = kv.acquireLock(endpointKey, "[]", sessionId);
+      final boolean acquired = kv.acquireLock(endpointKey, "{}", sessionId);
       if (acquired) {
         LOGGER.info("Successfully bound to RPC endpoint document {}", endpointKey);
         return;
@@ -124,5 +193,4 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
       SECONDS.sleep(1);
     }
   }
-
 }

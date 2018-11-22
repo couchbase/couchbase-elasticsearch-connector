@@ -22,15 +22,19 @@ import com.orbitz.consul.model.ConsulResponse;
 import com.orbitz.consul.model.kv.ImmutableOperation;
 import com.orbitz.consul.model.kv.Value;
 import com.orbitz.consul.model.kv.Verb;
+import com.orbitz.consul.option.ImmutablePutOptions;
 import com.orbitz.consul.option.ImmutableQueryOptions;
+import com.orbitz.consul.option.PutOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
+import java.util.function.Function;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class ConsulHelper {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsulHelper.class);
@@ -72,6 +76,42 @@ public class ConsulHelper {
       }
 
       index = response.getIndex();
+    }
+  }
+
+  private static final String missingDocumentValue = "";
+
+  private static void atomicUpdate(KeyValueClient kv, String key, Function<String, String> mutator) {
+    while (true) {
+      final ConsulResponse<Value> r = kv.getConsulResponseWithValue(key).orElse(null);
+      final BigInteger index = r == null ? BigInteger.ZERO : r.getIndex();
+      final String newValue = mutator.apply(r == null ? missingDocumentValue : r.getResponse().getValueAsString(UTF_8).orElse(missingDocumentValue));
+
+      final PutOptions options = ImmutablePutOptions.builder().cas(index.longValue()).build();
+      boolean success = kv.putValue(key, newValue, 0, options, UTF_8);
+      if (success) {
+        return;
+      }
+
+      // todo truncated exponential backoff, please! Die if timeout!
+      //MILLISECONDS.sleep(100);
+    }
+  }
+
+  public static void atomicUpdate(KeyValueClient kv, ConsulResponse<Value> initialResponse, Function<String, String> mutator) {
+    final Value v = initialResponse.getResponse();
+    final String key = v.getKey();
+
+    LOGGER.info("Updating key {}", key);
+
+    final String newValue = mutator.apply(v.getValueAsString(UTF_8).orElse(missingDocumentValue));
+    final long index = initialResponse.getIndex().longValue();
+    final PutOptions options = ImmutablePutOptions.builder().cas(index).build();
+    boolean success = kv.putValue(key, newValue, 0, options, UTF_8);
+
+    if (!success) {
+      LOGGER.info("Failed to put new document (optimistic locking failure?); reloading and retrying");
+      atomicUpdate(kv, key, mutator);
     }
   }
 
