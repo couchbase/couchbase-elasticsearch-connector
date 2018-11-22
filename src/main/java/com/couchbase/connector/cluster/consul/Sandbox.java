@@ -16,43 +16,88 @@
 
 package com.couchbase.connector.cluster.consul;
 
+import com.github.therapi.core.MethodRegistry;
+import com.github.therapi.jsonrpc.DefaultExceptionTranslator;
+import com.github.therapi.jsonrpc.JsonRpcDispatcher;
+import com.github.therapi.jsonrpc.JsonRpcError;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.orbitz.consul.Consul;
+import com.orbitz.consul.model.agent.Member;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
-import static java.util.concurrent.TimeUnit.MINUTES;
+import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
 
 public class Sandbox {
   private static final Logger LOGGER = LoggerFactory.getLogger(Sandbox.class);
 
   public static void main(String[] args) throws Exception {
     final String serviceName = "service-registration-test";
-    //final String serviceId = "zero";
-    final String serviceId = "one";
-    final Consumer<Throwable> errorConsumer = e -> LOGGER.error("Got fatal error", e);
+    final String serviceId = "zero";
+    //final String serviceId = "one";
+    //final String serviceId = UUID.randomUUID().toString();
+    final BlockingQueue<Throwable> fatalErrorQueue = new LinkedBlockingQueue<>();
+
+    final Consumer<Throwable> errorConsumer = e -> {
+      LOGGER.error("Got fatal error", e);
+      fatalErrorQueue.add(e);
+    };
+
 
     final Consul consul = Consul.newClient();
-    LeaderElectionTask waitForMe = null;
     Thread shutdownHook = null;
+
+    final Member member = consul.agentClient().getAgent().getMember();
+    final String endpointId = member.getName() + "::" + member.getAddress() + "::" + serviceId;
+
+    List<AbstractLongPollTask> waitForMe = new ArrayList<>();
+
+
+    final MethodRegistry methodRegistry = new MethodRegistry(newLenientObjectMapper());
+    methodRegistry.scan(new FollowerService() {
+    });
+
+    LOGGER.info("Registered JSON-RPC methods: {}", methodRegistry.getMethods());
+
+    final JsonRpcDispatcher dispatcher = JsonRpcDispatcher.builder(methodRegistry)
+        .exceptionTranslator(new DefaultExceptionTranslator() {
+          @Override
+          protected JsonRpcError translateCustom(Throwable t) {
+            JsonRpcError error = super.translateCustom(t);
+            error.setData(ImmutableMap.of(
+                "exception", t.toString(),
+                "stackTrace", Throwables.getStackTraceAsString(t)));
+            return error;
+          }
+        })
+        .build();
 
     try (SessionTask session =
              new SessionTask(consul, serviceName, serviceId, errorConsumer).start();
 
+         RpcServerTask rpc =
+             new RpcServerTask(dispatcher, consul.keyValueClient(), serviceName, session.sessionId(), endpointId, errorConsumer).start();
+
          LeaderElectionTask election =
              new LeaderElectionTask(consul.keyValueClient(), serviceName, session.sessionId(), errorConsumer).start()) {
 
-
-      waitForMe = election;
-
+      waitForMe.add(election);
+      waitForMe.add(rpc);
 
       shutdownHook = new Thread(() -> {
         try {
-          System.out.println("Shutting down");
+          LOGGER.info("Shutting down");
 
           session.close(); // to prevent race with updating (failing) the health check
           election.close();
+          rpc.close();
           consul.destroy();
           election.awaitTermination();
 
@@ -65,8 +110,7 @@ public class Sandbox {
       });
       Runtime.getRuntime().addShutdownHook(shutdownHook);
 
-
-      MINUTES.sleep(5);
+      fatalErrorQueue.take();
 
     } finally {
       if (shutdownHook != null) {
@@ -77,8 +121,8 @@ public class Sandbox {
       // see https://github.com/rickfast/consul-client/issues/307
       consul.destroy();
 
-      if (waitForMe != null) {
-        waitForMe.awaitTermination();
+      for (AbstractLongPollTask task : waitForMe) {
+        task.awaitTermination();
       }
     }
 

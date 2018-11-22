@@ -17,8 +17,9 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import com.github.therapi.jsonrpc.JsonRpcDispatcher;
 import com.orbitz.consul.KeyValueClient;
 import com.orbitz.consul.model.ConsulResponse;
 import com.orbitz.consul.model.kv.Value;
@@ -38,6 +39,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
 
   private static final ObjectMapper mapper = newLenientObjectMapper();
+  private static final ObjectWriter objectWriter = mapper.writerWithDefaultPrettyPrinter();
 
   static class EndpointAlreadyInUseException extends Exception {
     public EndpointAlreadyInUseException(String message) {
@@ -52,12 +54,14 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
   private final String endpointKey;
   private final KeyValueClient kv;
   private final String sessionId;
+  private final JsonRpcDispatcher dispatcher;
 
-  public RpcServerTask(KeyValueClient kv, String serviceName, String sessionId, String endpointId, Consumer<Throwable> fatalErrorConsumer) {
+  public RpcServerTask(JsonRpcDispatcher dispatcher, KeyValueClient kv, String serviceName, String sessionId, String endpointId, Consumer<Throwable> fatalErrorConsumer) {
     super(kv, "rpc-server-", serviceName, sessionId);
     this.kv = requireNonNull(kv);
     this.sessionId = requireNonNull(sessionId);
     this.fatalErrorConsumer = requireNonNull(fatalErrorConsumer);
+    this.dispatcher = requireNonNull(dispatcher);
 
     this.endpointId = requireNonNull(endpointId);
     this.endpointKey = "couchbase/cbes/" + serviceName + "/rpc/" + endpointId;
@@ -91,7 +95,7 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
             try {
               final EndpointDocument endpoint = mapper.readValue(document, EndpointDocument.class);
               endpoint.respond(invocationResult);
-              return mapper.writeValueAsString(endpoint);
+              return objectWriter.writeValueAsString(endpoint);
 
             } catch (IOException e) {
               throw new IllegalArgumentException("Malformed RPC endpoint document", e);
@@ -131,10 +135,11 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
   }
 
   private ObjectNode execute(ObjectNode request) {
-    ObjectNode result = mapper.createObjectNode();
-    result.set("id", request.get("id"));
-    result.set("result", new TextNode("yay"));
-    return result;
+    if (!request.has("id")) {
+      throw new IllegalArgumentException("JSON-RPC request node is missing 'id' (notifications not supported)");
+    }
+
+    return (ObjectNode) dispatcher.invoke(request.toString()).orElseThrow(() -> new AssertionError("missing response"));
   }
 
   private void bind() throws InterruptedException, EndpointAlreadyInUseException {
