@@ -16,25 +16,20 @@
 
 package com.couchbase.connector.cluster.consul;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 public class EndpointDocument {
   private final List<ObjectNode> requests;
   private final List<ObjectNode> responses;
 
-  public EndpointDocument(@JsonProperty("requests") List<ObjectNode> requests, @JsonProperty("responses") List<ObjectNode> responses) {
+  public EndpointDocument(@JsonProperty("requests") List<ObjectNode> requests,
+                          @JsonProperty("responses") List<ObjectNode> responses) {
     this.requests = requests != null ? requests : new ArrayList<>();
     this.responses = responses != null ? responses : new ArrayList<>();
   }
@@ -47,30 +42,18 @@ public class EndpointDocument {
     return responses;
   }
 
-  public void addResponse(ObjectNode response) {
-    responses.add(response);
-  }
-
-  @JsonIgnore
-  public List<ObjectNode> getUnansweredRequests() {
-    final Map<JsonNode, ObjectNode> idToRequest = RpcServerTask.indexById(getRequests());
-    final Map<JsonNode, ObjectNode> idToResponse = RpcServerTask.indexById(getResponses());
-
-    final Map<JsonNode, ObjectNode> idToUnansweredRequests = new LinkedHashMap<>(idToRequest);
-    idToUnansweredRequests.keySet().removeAll(idToResponse.keySet());
-    return new ArrayList<>(idToUnansweredRequests.values());
-  }
-
-  public Optional<ObjectNode> firstUnansweredRequest() {
-    final LinkedHashMap<JsonNode, ObjectNode> idToRequest = RpcServerTask.indexById(getRequests());
-    final LinkedHashMap<JsonNode, ObjectNode> idToResponse = RpcServerTask.indexById(getResponses());
-
-    for (Map.Entry<JsonNode, ObjectNode> e : idToRequest.entrySet()) {
-      if (!idToResponse.containsKey(e.getKey())) {
-        return Optional.of(e.getValue());
-      }
+  public void respond(ObjectNode response) {
+    final JsonNode id = response.get("id");
+    if (id == null) {
+      throw new IllegalArgumentException("JSON-RPC response node is missing 'id': " + response);
     }
-    return Optional.empty();
+
+    responses.add(response);
+    requests.removeIf(request -> request.path("id").equals(id));
+  }
+
+  public Optional<ObjectNode> firstRequest() {
+    return requests.isEmpty() ? Optional.empty() : Optional.of(requests.get(0));
   }
 
   @Override
