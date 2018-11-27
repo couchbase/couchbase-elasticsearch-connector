@@ -20,7 +20,6 @@ import com.orbitz.consul.KeyValueClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static java.util.Objects.requireNonNull;
@@ -52,7 +51,7 @@ public class LeaderElectionTask extends AbstractLongPollTask<LeaderElectionTask>
         if (acquired) {
           LOGGER.info("Won the leader election! {}", candidateUuid);
 
-          String newLeader = ConsulHelper.awaitChange(kv, leaderKey, candidateUuid);
+          final String newLeader = ConsulHelper.awaitCondition(kv, leaderKey, value -> !candidateUuid.equals(value));
           LOGGER.info("No longer the leader; new leader is {}", newLeader);
 
         } else {

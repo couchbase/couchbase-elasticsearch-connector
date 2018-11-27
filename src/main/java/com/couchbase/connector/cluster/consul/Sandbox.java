@@ -37,9 +37,9 @@ import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
 
 public class Sandbox {
   private static final Logger LOGGER = LoggerFactory.getLogger(Sandbox.class);
+  public static final String serviceName = "service-registration-test";
 
   public static void main(String[] args) throws Exception {
-    final String serviceName = "service-registration-test";
     final String serviceId = "zero";
     //final String serviceId = "one";
     //final String serviceId = UUID.randomUUID().toString();
@@ -71,9 +71,9 @@ public class Sandbox {
           @Override
           protected JsonRpcError translateCustom(Throwable t) {
             JsonRpcError error = super.translateCustom(t);
-            error.setData(ImmutableMap.of(
+            error.setData(ImmutableMap.of("detail", ImmutableMap.of(
                 "exception", t.toString(),
-                "stackTrace", Throwables.getStackTraceAsString(t)));
+                "stackTrace", Throwables.getStackTraceAsString(t))));
             return error;
           }
         })

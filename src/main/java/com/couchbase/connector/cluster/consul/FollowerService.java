@@ -20,7 +20,7 @@ import com.couchbase.connector.elasticsearch.Metrics;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.github.therapi.core.annotation.Remotable;
 
-@Remotable
+@Remotable("follower")
 public interface FollowerService {
   default void ping() {
   }

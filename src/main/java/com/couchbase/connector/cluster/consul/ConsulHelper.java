@@ -29,12 +29,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
+import java.util.Objects;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class ConsulHelper {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsulHelper.class);
@@ -85,7 +86,12 @@ public class ConsulHelper {
     while (true) {
       final ConsulResponse<Value> r = kv.getConsulResponseWithValue(key).orElse(null);
       final BigInteger index = r == null ? BigInteger.ZERO : r.getIndex();
-      final String newValue = mutator.apply(r == null ? missingDocumentValue : r.getResponse().getValueAsString(UTF_8).orElse(missingDocumentValue));
+      final String oldValue = r == null ? missingDocumentValue : r.getResponse().getValueAsString(UTF_8).orElse(missingDocumentValue);
+      final String newValue = mutator.apply(oldValue);
+
+      if (Objects.equals(newValue, oldValue)) {
+        return;
+      }
 
       final PutOptions options = ImmutablePutOptions.builder().cas(index.longValue()).build();
       boolean success = kv.putValue(key, newValue, 0, options, UTF_8);
@@ -104,7 +110,13 @@ public class ConsulHelper {
 
     LOGGER.info("Updating key {}", key);
 
-    final String newValue = mutator.apply(v.getValueAsString(UTF_8).orElse(missingDocumentValue));
+    final String oldValue = v.getValueAsString(UTF_8).orElse(missingDocumentValue);
+    final String newValue = mutator.apply(oldValue);
+
+    if (Objects.equals(newValue, oldValue)) {
+      return;
+    }
+
     final long index = initialResponse.getIndex().longValue();
     final PutOptions options = ImmutablePutOptions.builder().cas(index).build();
     boolean success = kv.putValue(key, newValue, 0, options, UTF_8);
@@ -136,9 +148,12 @@ public class ConsulHelper {
     }
   }
 
+  public static String awaitCondition(KeyValueClient kv, String key, Predicate<String> condition) {
+    return awaitCondition(kv, key, value -> value, condition);
+  }
 
-  public static String awaitChange(KeyValueClient kv, String key, String expectedValue) {
-    requireNonNull(expectedValue);
+  public static <T> T awaitCondition(KeyValueClient kv, String key, Function<String, T> mapper, Predicate<T> condition) {
+    requireNonNull(condition);
 
     BigInteger index = BigInteger.ZERO;
 
@@ -158,13 +173,18 @@ public class ConsulHelper {
         LOGGER.debug("Long poll timed out, polling again for {}", key);
       } else {
         final String valueAsString = response.getResponse().getValueAsString(UTF_8).orElse(null);
-        if (!expectedValue.equals(valueAsString)) {
+        final T mappedValue = mapper.apply(valueAsString);
+        if (condition.test(mappedValue)) {
           LOGGER.debug("New value for key {}: {}", key, valueAsString);
-          return valueAsString;
+          return mappedValue;
         }
 
         index = response.getIndex();
       }
     }
+  }
+
+  public static String rpcEndpointKey(String serviceName, String endpointId) {
+    return "couchbase/cbes/" + requireNonNull(serviceName) + "/rpc/" + requireNonNull(endpointId);
   }
 }

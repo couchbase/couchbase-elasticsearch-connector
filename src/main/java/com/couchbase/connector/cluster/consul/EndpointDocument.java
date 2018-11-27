@@ -42,18 +42,36 @@ public class EndpointDocument {
     return responses;
   }
 
-  public void respond(ObjectNode response) {
-    final JsonNode id = response.get("id");
+  private static ObjectNode checkHasId(ObjectNode node) {
+    final JsonNode id = node.get("id");
     if (id == null) {
-      throw new IllegalArgumentException("JSON-RPC response node is missing 'id': " + response);
+      throw new IllegalArgumentException("JSON-RPC node is missing 'id': " + node);
     }
+    return node;
+  }
 
+  public void addRequest(ObjectNode request) {
+    requests.add(checkHasId(request));
+  }
+
+  public void respond(ObjectNode response) {
+    final JsonNode id = checkHasId(response).get("id");
     responses.add(response);
     requests.removeIf(request -> request.path("id").equals(id));
   }
 
   public Optional<ObjectNode> firstRequest() {
     return requests.isEmpty() ? Optional.empty() : Optional.of(requests.get(0));
+  }
+
+  public Optional<ObjectNode> findResponse(JsonNode id) {
+    return responses.stream()
+        .filter(r -> r.path("id").equals(id))
+        .findFirst();
+  }
+
+  public boolean removeResponse(JsonNode id) {
+    return responses.removeIf(r -> r.path("id").equals(id));
   }
 
   @Override

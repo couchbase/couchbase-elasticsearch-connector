@@ -31,12 +31,14 @@ import java.math.BigInteger;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import static com.couchbase.connector.cluster.consul.ConsulHelper.rpcEndpointKey;
 import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
+  private static final Logger LOGGER = LoggerFactory.getLogger(RpcServerTask.class);
 
   private static final ObjectMapper mapper = newLenientObjectMapper();
   private static final ObjectWriter objectWriter = mapper.writerWithDefaultPrettyPrinter();
@@ -46,8 +48,6 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
       super(message);
     }
   }
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(RpcServerTask.class);
 
   private final Consumer<Throwable> fatalErrorConsumer;
   private final String endpointId;
@@ -64,7 +64,7 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
     this.dispatcher = requireNonNull(dispatcher);
 
     this.endpointId = requireNonNull(endpointId);
-    this.endpointKey = "couchbase/cbes/" + serviceName + "/rpc/" + endpointId;
+    this.endpointKey = rpcEndpointKey(serviceName, endpointId);
   }
 
   @Override
