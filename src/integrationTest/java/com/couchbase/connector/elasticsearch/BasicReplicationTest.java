@@ -30,10 +30,12 @@ import com.couchbase.connector.elasticsearch.cli.CheckpointClear;
 import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
 import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.io.CharStreams;
+import org.apache.http.HttpHost;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.unit.TimeValue;
 import org.junit.AfterClass;
@@ -48,6 +50,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -191,6 +195,8 @@ public class BasicReplicationTest {
   private static ImmutableConnectorConfig patchConfigForTesting(ImmutableConnectorConfig config,
                                                                 CustomCouchbaseContainer couchbase,
                                                                 ElasticsearchContainer elasticsearch) {
+    final String dockerHost = getDockerHost();
+
     return config
         .withMetrics(ImmutableMetricsConfig.builder()
             .httpPort(-1)
@@ -198,11 +204,24 @@ public class BasicReplicationTest {
             .build())
         .withElasticsearch(
             ImmutableElasticsearchConfig.copyOf(config.elasticsearch())
-                .withHosts(elasticsearch.getHost()))
+                .withHosts(new HttpHost(dockerHost, elasticsearch.getHost().getPort())))
         .withCouchbase(
             ImmutableCouchbaseConfig.copyOf(config.couchbase())
-                .withHosts("localhost:" + couchbase.getMappedPort(8091))
+                .withHosts(dockerHost + ":" + couchbase.getMappedPort(8091))
         );
+  }
+
+  private static String getDockerHost() {
+    final String env = System.getenv("DOCKER_HOST");
+    if (Strings.isNullOrEmpty(env)) {
+      return "localhost";
+    }
+
+    try {
+      return env.contains("://") ? new URI(env).getHost() : env;
+    } catch (URISyntaxException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static ImmutableConnectorConfig withBucketName(ImmutableConnectorConfig config, String bucketName) {
