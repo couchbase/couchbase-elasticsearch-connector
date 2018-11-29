@@ -138,7 +138,7 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
         ConsulHelper.unlockAndDelete(kv, endpointKey, sessionId);
 
       } catch (Exception e) {
-        LOGGER.warn("Failed to unbinds", e);
+        LOGGER.warn("Failed to unbind", e);
       }
     }
   }

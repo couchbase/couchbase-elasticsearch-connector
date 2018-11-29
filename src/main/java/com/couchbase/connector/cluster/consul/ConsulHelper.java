@@ -28,6 +28,7 @@ import com.orbitz.consul.option.PutOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.time.Duration;
 import java.util.Objects;
@@ -35,7 +36,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
@@ -86,11 +86,17 @@ public class ConsulHelper {
 
   private static final String missingDocumentValue = "";
 
-  private static void atomicUpdate(KeyValueClient kv, String key, Function<String, String> mutator) {
+  private static void atomicUpdate(KeyValueClient kv, String key, Function<String, String> mutator) throws IOException {
     while (true) {
       final ConsulResponse<Value> r = kv.getConsulResponseWithValue(key).orElse(null);
-      final BigInteger index = r == null ? BigInteger.ZERO : r.getIndex();
-      final String oldValue = r == null ? missingDocumentValue : r.getResponse().getValueAsString(UTF_8).orElse(missingDocumentValue);
+      if (r == null) {
+        // Don't automatically create the document, because it might need to be associated with another node's session.
+        // For example, an RPC endpoint doc is updated by both client and server, but is tied to the server session.
+        throw new IOException("Can't update non-existent document: " + key);
+      }
+
+      final BigInteger index = r.getIndex();
+      final String oldValue = r.getResponse().getValueAsString(UTF_8).orElse(missingDocumentValue);
       final String newValue = mutator.apply(oldValue);
 
       if (Objects.equals(newValue, oldValue)) {
@@ -108,7 +114,7 @@ public class ConsulHelper {
     }
   }
 
-  public static void atomicUpdate(KeyValueClient kv, ConsulResponse<Value> initialResponse, Function<String, String> mutator) {
+  public static void atomicUpdate(KeyValueClient kv, ConsulResponse<Value> initialResponse, Function<String, String> mutator) throws IOException {
     final Value v = initialResponse.getResponse();
     final String key = v.getKey();
 

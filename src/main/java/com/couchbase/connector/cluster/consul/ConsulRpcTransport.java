@@ -105,7 +105,7 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
     };
   }
 
-  private void removeResponseFromEndpointDocument(ObjectMapper mapper, JsonNode id) {
+  private void removeResponseFromEndpointDocument(ObjectMapper mapper, JsonNode id) throws IOException {
     final ConsulResponse<Value> initialEndpointValue = kv.getConsulResponseWithValue(endpointKey).orElse(null);
     if (initialEndpointValue == null) {
       return;
@@ -132,7 +132,7 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
     return doc -> doc.findResponse(id).isPresent();
   }
 
-  private void sendRequest(ConsulResponse<Value> initialEndpointValue, ObjectMapper mapper, ObjectNode requestNode) {
+  private void sendRequest(ConsulResponse<Value> initialEndpointValue, ObjectMapper mapper, ObjectNode requestNode) throws IOException {
     // todo add a timeout!!!
     ConsulHelper.atomicUpdate(kv, initialEndpointValue, document -> {
       try {
