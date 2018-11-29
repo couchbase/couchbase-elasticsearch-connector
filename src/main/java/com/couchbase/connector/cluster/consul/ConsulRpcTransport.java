@@ -25,6 +25,7 @@ import com.google.common.base.Strings;
 import com.orbitz.consul.KeyValueClient;
 import com.orbitz.consul.model.ConsulResponse;
 import com.orbitz.consul.model.kv.Value;
+import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,8 +38,12 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static com.couchbase.connector.cluster.consul.ConsulHelper.awaitCondition;
+import static com.couchbase.connector.cluster.consul.ConsulHelper.getWithRetry;
 import static com.couchbase.connector.cluster.consul.ConsulHelper.rpcEndpointKey;
+import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.constantBackoff;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class ConsulRpcTransport implements JsonRpcHttpClient {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsulRpcTransport.class);
@@ -62,20 +67,17 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
 
   @Override
   public JsonNode execute(ObjectMapper mapper, Object jsonRpcRequest) throws IOException {
-    final ConsulResponse<Value> initialEndpointValue = kv.getConsulResponseWithValue(endpointKey).orElse(null);
-    if (initialEndpointValue == null) {
-      // Server has not yet bound to endpoint
-      // todo could wait a bit and retry (analogous to a socket connection timeout)
-      throw new IOException("Failed to send RPC request; endpoint document does not exist: " + endpointKey);
-    }
-
-    final ObjectNode requestNode = mapper.valueToTree(jsonRpcRequest);
-    final JsonNode id = new TextNode(nextRequestId() + "::" + requestNode.path("method").asText());
-    requestNode.set("id", id);
-
-    sendRequest(initialEndpointValue, mapper, requestNode);
-
     try {
+      // retry getting the endpoint document, because the server node might not have created it yet.
+      final BackoffPolicy backoffPolicy = constantBackoff(500, MILLISECONDS).timeout(timeout).build();
+      final ConsulResponse<Value> initialEndpointValue = getWithRetry(kv, endpointKey, backoffPolicy);
+
+      final ObjectNode requestNode = mapper.valueToTree(jsonRpcRequest);
+      final JsonNode id = new TextNode(nextRequestId() + "::" + requestNode.path("method").asText());
+      requestNode.set("id", id);
+
+      sendRequest(initialEndpointValue, mapper, requestNode);
+
       final Function<String, EndpointDocument> parseEndpoint = readValueUnchecked(mapper, EndpointDocument.class);
       final EndpointDocument endpointDocument = awaitCondition(kv, endpointKey, timeout, parseEndpoint, hasResponseWithId(id));
 
@@ -91,7 +93,7 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
       return rpcResponse;
 
     } catch (TimeoutException e) {
-      throw new IOException("Request timed out", e);
+      throw new IOException("RPC endpoint operation timed out", e);
     }
   }
 

@@ -25,12 +25,15 @@ import com.orbitz.consul.model.kv.Verb;
 import com.orbitz.consul.option.ImmutablePutOptions;
 import com.orbitz.consul.option.ImmutableQueryOptions;
 import com.orbitz.consul.option.PutOptions;
+import org.elasticsearch.action.bulk.BackoffPolicy;
+import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigInteger;
 import java.time.Duration;
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
@@ -112,6 +115,33 @@ public class ConsulHelper {
       // todo truncated exponential backoff, please! Die if timeout!
       //MILLISECONDS.sleep(100);
     }
+  }
+
+  public static ConsulResponse<Value> getWithRetry(KeyValueClient kv, String key, BackoffPolicy backoffPolicy) throws TimeoutException {
+    final Iterator<TimeValue> retryDelays = backoffPolicy.iterator();
+
+    while (true) {
+      final ConsulResponse<Value> response = kv.getConsulResponseWithValue(key).orElse(null);
+      if (response != null) {
+        return response;
+      }
+
+      try {
+        if (!retryDelays.hasNext()) {
+          break;
+        }
+
+        final TimeValue retryDelay = retryDelays.next();
+        LOGGER.debug("Document does not exist; sleeping for {} and then trying again to get {}", retryDelay, key);
+        retryDelay.timeUnit().sleep(retryDelay.duration());
+
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
+    }
+
+    throw new TimeoutException("getWithRetry timed out for key " + key);
   }
 
   public static void atomicUpdate(KeyValueClient kv, ConsulResponse<Value> initialResponse, Function<String, String> mutator) throws IOException {

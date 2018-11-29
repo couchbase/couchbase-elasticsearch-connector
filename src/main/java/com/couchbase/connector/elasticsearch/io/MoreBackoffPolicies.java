@@ -126,7 +126,7 @@ public class MoreBackoffPolicies {
   }
 
   public static BackoffPolicy limit(int maxRetries, BackoffPolicy wrapped) {
-    checkArgument(maxRetries >= 0, "maxRetries be non-negative");
+    checkArgument(maxRetries >= 0, "maxRetries must be non-negative");
 
     return new BackoffPolicy() {
       public String toString() {
