@@ -28,6 +28,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -39,6 +41,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
   private static final Logger LOGGER = LoggerFactory.getLogger(RpcServerTask.class);
+  private static final Duration unclaimedResponseTtl = Duration.ofMinutes(5);
 
   private static final ObjectMapper mapper = newLenientObjectMapper();
   private static final ObjectWriter objectWriter = mapper.writerWithDefaultPrettyPrinter();
@@ -83,7 +86,7 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
         }
 
         final String json = response.getResponse().getValueAsString(UTF_8).orElse("{}");
-        EndpointDocument initialEndpoint = mapper.readValue(json, EndpointDocument.class);
+        final EndpointDocument initialEndpoint = mapper.readValue(json, EndpointDocument.class);
 
         final ObjectNode jsonRpcRequest = initialEndpoint.firstRequest().orElse(null);
         if (jsonRpcRequest == null) {
@@ -94,6 +97,12 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
           ConsulHelper.atomicUpdate(kv, response, document -> {
             try {
               final EndpointDocument endpoint = mapper.readValue(document, EndpointDocument.class);
+
+              final List<ObjectNode> unclaimedResponses = endpoint.removeResponsesOlderThan(unclaimedResponseTtl);
+              if (!unclaimedResponses.isEmpty()) {
+                LOGGER.warn("Removed unclaimed responses (expired): {}", unclaimedResponses);
+              }
+
               endpoint.respond(invocationResult);
               return objectWriter.writeValueAsString(endpoint);
 

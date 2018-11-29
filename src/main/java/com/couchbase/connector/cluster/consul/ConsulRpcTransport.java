@@ -29,7 +29,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -42,10 +45,19 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
 
   private final KeyValueClient kv;
   private final String endpointKey;
+  private final Duration timeout;
 
-  public ConsulRpcTransport(KeyValueClient kv, String serviceName, String endpointId) {
+  private final String requestIdPrefix = UUID.randomUUID().toString() + "#";
+  private final AtomicLong requestCounter = new AtomicLong();
+
+  public ConsulRpcTransport(KeyValueClient kv, String serviceName, String endpointId, Duration timeout) {
     this.kv = requireNonNull(kv);
     this.endpointKey = rpcEndpointKey(serviceName, endpointId);
+    this.timeout = requireNonNull(timeout);
+  }
+
+  private String nextRequestId() {
+    return requestIdPrefix + requestCounter.getAndIncrement();
   }
 
   @Override
@@ -58,21 +70,29 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
     }
 
     final ObjectNode requestNode = mapper.valueToTree(jsonRpcRequest);
-    final JsonNode id = new TextNode(UUID.randomUUID().toString());
+    final JsonNode id = new TextNode(nextRequestId() + "::" + requestNode.path("method").asText());
     requestNode.set("id", id);
 
     sendRequest(initialEndpointValue, mapper, requestNode);
 
-    final Function<String, EndpointDocument> parseEndpoint = readValueUnchecked(mapper, EndpointDocument.class);
-    final EndpointDocument endpointDocument = awaitCondition(kv, endpointKey, parseEndpoint, hasResponseWithId(id));
+    try {
+      final Function<String, EndpointDocument> parseEndpoint = readValueUnchecked(mapper, EndpointDocument.class);
+      final EndpointDocument endpointDocument = awaitCondition(kv, endpointKey, timeout, parseEndpoint, hasResponseWithId(id));
 
-    if (endpointDocument == null) {
-      throw new IOException("Failed to receive RPC response; endpoint document does not exist: " + endpointKey);
+      if (endpointDocument == null) {
+        throw new IOException("Failed to receive RPC response; endpoint document does not exist: " + endpointKey);
+      }
+
+      // expect to find response, since that was the condition we awaited.
+      final JsonNode rpcResponse = endpointDocument.findResponse(id)
+          .orElseThrow(() -> new AssertionError("Missing rpc response with id " + id));
+
+      removeResponseFromEndpointDocument(mapper, id);
+      return rpcResponse;
+
+    } catch (TimeoutException e) {
+      throw new IOException("Request timed out", e);
     }
-
-    final JsonNode rpcResponse = endpointDocument.findResponse(id).orElseThrow(() -> new AssertionError("Missing rpc response with id " + id));
-    removeResponseFromEndpointDocument(mapper, id);
-    return rpcResponse;
   }
 
   private static <T> Function<String, T> readValueUnchecked(ObjectMapper mapper, Class<T> type) {

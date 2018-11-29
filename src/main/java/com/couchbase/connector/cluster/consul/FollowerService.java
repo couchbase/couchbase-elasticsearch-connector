@@ -20,6 +20,8 @@ import com.couchbase.connector.elasticsearch.Metrics;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.github.therapi.core.annotation.Remotable;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 @Remotable("follower")
 public interface FollowerService {
   default void ping() {
@@ -31,5 +33,13 @@ public interface FollowerService {
 
   default JsonNode metrics() {
     return Metrics.toJsonNode();
+  }
+
+  default void sleep(long seconds) {
+    try {
+      SECONDS.sleep(seconds);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 }

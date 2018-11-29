@@ -16,8 +16,6 @@
 
 package com.couchbase.connector.cluster.consul;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.therapi.core.MethodRegistry;
 import com.github.therapi.core.annotation.Default;
 import com.github.therapi.core.annotation.Remotable;
 import com.github.therapi.jsonrpc.client.JsonRpcHttpClient;
@@ -25,6 +23,7 @@ import com.github.therapi.jsonrpc.client.ServiceFactory;
 import com.orbitz.consul.Consul;
 import com.orbitz.consul.model.health.ServiceHealth;
 
+import java.time.Duration;
 import java.util.List;
 
 import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
@@ -42,19 +41,6 @@ public class RpcSandbox {
   }
 
   public static void main(String[] args) {
-    ObjectMapper mapper = newLenientObjectMapper();//new ObjectMapper();
-    MethodRegistry methodRegistry = new MethodRegistry(mapper);
-    methodRegistry.scan(new GreetingService(){});
-
-    //JsonNode result = methodRegistry.invoke("greeting.greet", mapper.createArrayNode());
-    //System.out.println(result);
-
-//    JsonRpcDispatcher jsonRpcDispatcher = JsonRpcDispatcher.builder(methodRegistry)
-//        .build();
-//
-//    Optional<JsonNode> result = jsonRpcDispatcher.invoke("{id:1,method:'greeting.greet', params:['Harold']}");
-//    System.out.println(result.orElse(null));
-
     final Consul consul = Consul.newClient();
 
     final List<ServiceHealth> healthyServices = consul.healthClient().getHealthyServiceInstances(Sandbox.serviceName).getResponse();
@@ -65,15 +51,25 @@ public class RpcSandbox {
           serviceHealth.getNode().getAddress(),
           serviceHealth.getService().getId());
 
-      JsonRpcHttpClient client = new ConsulRpcTransport(consul.keyValueClient(), Sandbox.serviceName, endpointId);
-      ServiceFactory factory = new ServiceFactory(mapper, client);
-      FollowerService service = factory.createService(FollowerService.class);
+      final Duration rpcTimeout = Duration.ofSeconds(14);
 
+      final JsonRpcHttpClient client = new ConsulRpcTransport(consul.keyValueClient(), Sandbox.serviceName, endpointId, rpcTimeout);
+      final ServiceFactory factory = new ServiceFactory(newLenientObjectMapper(), client);
+      final FollowerService service = factory.createService(FollowerService.class);
 
       System.out.println(endpointId + " -> " + service.metrics());
 
 
       service.ping();
+
+      System.out.println("Before sleep 3");
+      service.sleep(3);
+      System.out.println("After sleep 3");
+
+      System.out.println("Before sleep 16");
+      service.sleep(16);
+      System.out.println("After sleep 16");
+
     }
 
     System.out.println("done");

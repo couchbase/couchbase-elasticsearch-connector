@@ -29,13 +29,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
+import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class ConsulHelper {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsulHelper.class);
@@ -149,19 +153,30 @@ public class ConsulHelper {
   }
 
   public static String awaitCondition(KeyValueClient kv, String key, Predicate<String> condition) {
-    return awaitCondition(kv, key, value -> value, condition);
+    try {
+      return awaitCondition(kv, key, null, value -> value, condition);
+    } catch (TimeoutException e) {
+      throw new AssertionError("unexpected timeout", e);
+    }
   }
 
-  public static <T> T awaitCondition(KeyValueClient kv, String key, Function<String, T> mapper, Predicate<T> condition) {
+  /**
+   * @param timeout nullable
+   */
+  public static <T> T awaitCondition(KeyValueClient kv, String key, Duration timeout, Function<String, T> mapper, Predicate<T> condition) throws TimeoutException {
     requireNonNull(condition);
+
+    final TimeoutEnforcer timeoutEnforcer = new TimeoutEnforcer(timeout);
 
     BigInteger index = BigInteger.ZERO;
 
     while (true) {
+      final long waitSeconds = Math.min(300, timeoutEnforcer.remaining(SECONDS));
+
       final ConsulResponse<Value> response = kv.getConsulResponseWithValue(key,
           ImmutableQueryOptions.builder()
               .index(index)
-              .wait("5m")
+              .wait(waitSeconds + "s")
               .build())
           .orElse(null);
       if (response == null) {
