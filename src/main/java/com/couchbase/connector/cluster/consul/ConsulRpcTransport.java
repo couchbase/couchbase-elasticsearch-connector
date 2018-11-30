@@ -39,11 +39,9 @@ import java.util.function.Predicate;
 
 import static com.couchbase.connector.cluster.consul.ConsulHelper.awaitCondition;
 import static com.couchbase.connector.cluster.consul.ConsulHelper.getWithRetry;
-import static com.couchbase.connector.cluster.consul.ConsulHelper.rpcEndpointKey;
 import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.constantBackoff;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class ConsulRpcTransport implements JsonRpcHttpClient {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsulRpcTransport.class);
@@ -52,13 +50,17 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
   private final String endpointKey;
   private final Duration timeout;
 
-  private final String requestIdPrefix = UUID.randomUUID().toString() + "#";
-  private final AtomicLong requestCounter = new AtomicLong();
+  private final static String requestIdPrefix = UUID.randomUUID().toString() + "#";
+  private final static AtomicLong requestCounter = new AtomicLong();
 
-  public ConsulRpcTransport(KeyValueClient kv, String serviceName, String endpointId, Duration timeout) {
+  public ConsulRpcTransport(KeyValueClient kv, String endpointKey, Duration timeout) {
     this.kv = requireNonNull(kv);
-    this.endpointKey = rpcEndpointKey(serviceName, endpointId);
+    this.endpointKey = requireNonNull(endpointKey);
     this.timeout = requireNonNull(timeout);
+  }
+
+  public ConsulRpcTransport withTimeout(Duration timeout) {
+    return new ConsulRpcTransport(kv, endpointKey, timeout);
   }
 
   private String nextRequestId() {
@@ -146,5 +148,13 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
         throw new IllegalArgumentException("Malformed RPC endpoint document", e);
       }
     });
+  }
+
+  @Override
+  public String toString() {
+    return "ConsulRpcTransport{" +
+        "endpointKey='" + endpointKey + '\'' +
+        ", timeout=" + timeout +
+        '}';
   }
 }

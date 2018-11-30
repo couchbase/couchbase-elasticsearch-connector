@@ -33,13 +33,16 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
+import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -148,7 +151,7 @@ public class ConsulHelper {
     final Value v = initialResponse.getResponse();
     final String key = v.getKey();
 
-    LOGGER.info("Updating key {}", key);
+    LOGGER.debug("Updating key {}", key);
 
     final String oldValue = v.getValueAsString(UTF_8).orElse(missingDocumentValue);
     final String newValue = mutator.apply(oldValue);
@@ -235,7 +238,23 @@ public class ConsulHelper {
     }
   }
 
+  public static List<String> listKeys(KeyValueClient kv, String keyPrefix) {
+    try {
+      return kv.getKeys(keyPrefix);
+
+    } catch (ConsulException e) {
+      if (e.getCode() == HTTP_NOT_FOUND) {
+        return new ArrayList<>(0);
+      }
+      throw e;
+    }
+  }
+
   public static String rpcEndpointKey(String serviceName, String endpointId) {
-    return "couchbase/cbes/" + requireNonNull(serviceName) + "/rpc/" + requireNonNull(endpointId);
+    return rpcEndpointKeyPrefix(serviceName) + requireNonNull(endpointId);
+  }
+
+  public static String rpcEndpointKeyPrefix(String serviceName) {
+    return "couchbase/cbes/" + requireNonNull(serviceName) + "/rpc/";
   }
 }

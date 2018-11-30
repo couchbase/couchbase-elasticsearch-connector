@@ -111,7 +111,7 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
             }
           });
 
-          LOGGER.info("Endpoint update complete");
+          LOGGER.debug("Endpoint update complete");
         }
 
         index = response.getIndex();

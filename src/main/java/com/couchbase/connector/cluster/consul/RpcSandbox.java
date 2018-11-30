@@ -16,60 +16,64 @@
 
 package com.couchbase.connector.cluster.consul;
 
-import com.github.therapi.core.annotation.Default;
-import com.github.therapi.core.annotation.Remotable;
-import com.github.therapi.jsonrpc.client.JsonRpcHttpClient;
-import com.github.therapi.jsonrpc.client.ServiceFactory;
 import com.orbitz.consul.Consul;
-import com.orbitz.consul.model.health.ServiceHealth;
+import com.orbitz.consul.KeyValueClient;
 
 import java.time.Duration;
 import java.util.List;
 
-import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
+import static com.couchbase.connector.cluster.consul.ConsulHelper.listKeys;
+import static java.util.stream.Collectors.toList;
 
 public class RpcSandbox {
 
 
-  @Remotable("greeting")
-  public interface GreetingService {
-
-    default String greet(@Default("stranger") String name) {
-      System.out.println("Greeting " + name + "!");
-      return "Hello, " + name + "!";
-    }
+  private static List<RpcEndpoint> listRpcEndpoints(KeyValueClient kv, String serviceName, Duration endpointTimeout) {
+    return listKeys(kv, ConsulHelper.rpcEndpointKeyPrefix(serviceName))
+        .stream()
+        .map(endpointKey -> new RpcEndpoint(kv, endpointKey, endpointTimeout))
+        .collect(toList());
   }
 
   public static void main(String[] args) {
     final Consul consul = Consul.newClient();
 
-    final List<ServiceHealth> healthyServices = consul.healthClient().getHealthyServiceInstances(Sandbox.serviceName).getResponse();
+    //final List<ServiceHealth> healthyServices = consul.healthClient().getHealthyServiceInstances(Sandbox.serviceName).getResponse();
 
-    for (ServiceHealth serviceHealth : healthyServices) {
-      final String endpointId = String.join("::",
-          serviceHealth.getNode().getNode(),
-          serviceHealth.getNode().getAddress(),
-          serviceHealth.getService().getId());
+    final Duration defaultTimeout = Duration.ofSeconds(30);
 
-      final Duration rpcTimeout = Duration.ofSeconds(14);
+//    for (ServiceHealth serviceHealth : healthyServices) {
+//      final String endpointId = String.join("::",
+//          serviceHealth.getNode().getNode(),
+//          serviceHealth.getNode().getAddress(),
+//          serviceHealth.getService().getId());
+//      final String endpointKey = rpcEndpointKey(Sandbox.serviceName, endpointId);
 
-      final JsonRpcHttpClient client = new ConsulRpcTransport(consul.keyValueClient(), Sandbox.serviceName, endpointId, rpcTimeout);
-      final ServiceFactory factory = new ServiceFactory(newLenientObjectMapper(), client);
-      final FollowerService service = factory.createService(FollowerService.class);
+    for (RpcEndpoint endpoint : listRpcEndpoints(consul.keyValueClient(), Sandbox.serviceName, defaultTimeout)) {
+      System.out.println(endpoint);
 
-      System.out.println(endpointId + " -> " + service.metrics());
+      final FollowerService follower = endpoint.service(FollowerService.class);
 
+      System.out.println(follower.metrics());
+      follower.ping();
+      follower.sleep(3);
 
-      service.ping();
-
-      System.out.println("Before sleep 3");
-      service.sleep(3);
-      System.out.println("After sleep 3");
-
-      System.out.println("Before sleep 16");
-      service.sleep(16);
-      System.out.println("After sleep 16");
-
+//
+//      System.out.println("Before sleep 3");
+//      follower.sleep(3);
+//      System.out.println("After sleep 3");
+//
+//      System.out.println("Before sleep 16");
+//
+//      try {
+//        endpoint.withTimeout(Duration.ofSeconds(1))
+//            .service(FollowerService.class)
+//            .sleep(16);
+//      } catch (Exception e) {
+//        e.printStackTrace();
+//      }
+////
+//      System.out.println("After sleep 16");
     }
 
     System.out.println("done");
