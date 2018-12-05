@@ -102,7 +102,7 @@ public class EndpointDocument {
   }
 
   public Optional<ObjectNode> firstRequest() {
-    return requests.isEmpty() ? Optional.empty() : Optional.of(requests.get(0));
+    return requests.stream().findFirst();
   }
 
   public Optional<ObjectNode> findResponse(JsonNode id) {
