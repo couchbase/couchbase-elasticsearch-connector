@@ -28,15 +28,15 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class LeaderElectionTask extends AbstractLongPollTask<LeaderElectionTask> {
   private static final Logger LOGGER = LoggerFactory.getLogger(LeaderElectionTask.class);
 
-  private final String candidateUuid;// = UUID.randomUUID().toString();
+  private final String candidateUuid;
   private final Consumer<Throwable> fatalErrorConsumer;
+  private final LeaderController leaderController;
 
-  public LeaderElectionTask(KeyValueClient kv, String serviceName, String sessionId, Consumer<Throwable> fatalErrorConsumer) {
+  public LeaderElectionTask(KeyValueClient kv, String serviceName, String sessionId, Consumer<Throwable> fatalErrorConsumer, LeaderController leaderController) {
     super(kv, "leader-election-", serviceName, sessionId);
-    requireNonNull(kv);
-    requireNonNull(sessionId);
-    this.candidateUuid = sessionId;
+    this.candidateUuid = requireNonNull(sessionId);
     this.fatalErrorConsumer = requireNonNull(fatalErrorConsumer);
+    this.leaderController = requireNonNull(leaderController);
   }
 
   protected void doRun(KeyValueClient kv, String serviceName, String sessionId) {
@@ -50,9 +50,12 @@ public class LeaderElectionTask extends AbstractLongPollTask<LeaderElectionTask>
 
         if (acquired) {
           LOGGER.info("Won the leader election! {}", candidateUuid);
+          leaderController.startLeading();
 
           final String newLeader = ConsulHelper.awaitCondition(kv, leaderKey, value -> !candidateUuid.equals(value));
+
           LOGGER.info("No longer the leader; new leader is {}", newLeader);
+          leaderController.stopLeading();
 
         } else {
           LOGGER.info("Not the leader");

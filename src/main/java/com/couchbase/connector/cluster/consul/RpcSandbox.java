@@ -17,23 +17,13 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.orbitz.consul.Consul;
-import com.orbitz.consul.KeyValueClient;
 
 import java.time.Duration;
-import java.util.List;
 
-import static com.couchbase.connector.cluster.consul.ConsulHelper.listKeys;
-import static java.util.stream.Collectors.toList;
+import static com.couchbase.connector.cluster.consul.ConsulHelper.listRpcEndpoints;
+
 
 public class RpcSandbox {
-
-
-  private static List<RpcEndpoint> listRpcEndpoints(KeyValueClient kv, String serviceName, Duration endpointTimeout) {
-    return listKeys(kv, ConsulHelper.rpcEndpointKeyPrefix(serviceName))
-        .stream()
-        .map(endpointKey -> new RpcEndpoint(kv, endpointKey, endpointTimeout))
-        .collect(toList());
-  }
 
   public static void main(String[] args) {
     final Consul consul = Consul.newClient();
@@ -52,7 +42,7 @@ public class RpcSandbox {
     for (RpcEndpoint endpoint : listRpcEndpoints(consul.keyValueClient(), Sandbox.serviceName, defaultTimeout)) {
       System.out.println(endpoint);
 
-      final FollowerService follower = endpoint.service(FollowerService.class);
+      final WorkerService follower = endpoint.service(WorkerService.class);
 
       System.out.println(follower.metrics());
       follower.ping();

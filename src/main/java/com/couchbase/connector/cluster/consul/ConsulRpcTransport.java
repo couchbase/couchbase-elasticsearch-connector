@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.cluster.consul;
 
+import com.couchbase.client.core.logging.RedactableArgument;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -153,7 +154,7 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
   @Override
   public String toString() {
     return "ConsulRpcTransport{" +
-        "endpointKey='" + endpointKey + '\'' +
+        "endpointKey='" + RedactableArgument.system(endpointKey) + '\'' +
         ", timeout=" + timeout +
         '}';
   }

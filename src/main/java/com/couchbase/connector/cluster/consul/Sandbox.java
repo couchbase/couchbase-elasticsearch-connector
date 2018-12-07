@@ -23,7 +23,9 @@ import com.github.therapi.jsonrpc.JsonRpcError;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.orbitz.consul.Consul;
+import com.orbitz.consul.cache.ServiceHealthKey;
 import com.orbitz.consul.model.agent.Member;
+import com.orbitz.consul.model.health.ServiceHealth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,15 +36,18 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
 import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
+import static com.google.common.base.Preconditions.checkState;
 
 public class Sandbox {
   private static final Logger LOGGER = LoggerFactory.getLogger(Sandbox.class);
   public static final String serviceName = "service-registration-test";
 
+  private static String endpointId(Member member, String serviceId) {
+    return member.getName() + "::" + member.getAddress() + "::" + serviceId;
+  }
+
   public static void main(String[] args) throws Exception {
-    final String serviceId = "zero";
-    //final String serviceId = "one";
-    //final String serviceId = UUID.randomUUID().toString();
+    final String serviceId = args.length == 0 ? Sandbox.serviceName : args[0];
     final BlockingQueue<Throwable> fatalErrorQueue = new LinkedBlockingQueue<>();
 
     final Consumer<Throwable> errorConsumer = e -> {
@@ -55,14 +60,12 @@ public class Sandbox {
     Thread shutdownHook = null;
 
     final Member member = consul.agentClient().getAgent().getMember();
-    final String endpointId = member.getName() + "::" + member.getAddress() + "::" + serviceId;
+    final String endpointId = endpointId(member, serviceId);
 
     List<AbstractLongPollTask> waitForMe = new ArrayList<>();
 
-
     final MethodRegistry methodRegistry = new MethodRegistry(newLenientObjectMapper());
-    methodRegistry.scan(new FollowerService() {
-    });
+    methodRegistry.scan(new WorkerServiceImpl());
 
     LOGGER.info("Registered JSON-RPC methods: {}", methodRegistry.getMethods());
 
@@ -79,6 +82,24 @@ public class Sandbox {
         })
         .build();
 
+    final LeaderController leaderController = new LeaderController() {
+      private volatile LeaderTask leader;
+
+      @Override
+      public void startLeading() {
+        checkState(leader == null, "Already leading");
+        leader = new LeaderTask(consul, Sandbox.serviceName, 64).start();
+      }
+
+      @Override
+      public void stopLeading() {
+        checkState(leader != null, "Wasn't leading");
+        // todo interrupt the leader thread.
+        leader.stop();
+        leader = null;
+      }
+    };
+
     try (SessionTask session =
              new SessionTask(consul, serviceName, serviceId, errorConsumer).start();
 
@@ -86,7 +107,7 @@ public class Sandbox {
              new RpcServerTask(dispatcher, consul.keyValueClient(), serviceName, session.sessionId(), endpointId, errorConsumer).start();
 
          LeaderElectionTask election =
-             new LeaderElectionTask(consul.keyValueClient(), serviceName, session.sessionId(), errorConsumer).start()) {
+             new LeaderElectionTask(consul.keyValueClient(), serviceName, session.sessionId(), errorConsumer, leaderController).start()) {
 
       waitForMe.add(election);
       waitForMe.add(rpc);

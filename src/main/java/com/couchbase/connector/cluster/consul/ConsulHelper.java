@@ -46,6 +46,7 @@ import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.stream.Collectors.toList;
 
 public class ConsulHelper {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsulHelper.class);
@@ -256,5 +257,12 @@ public class ConsulHelper {
 
   public static String rpcEndpointKeyPrefix(String serviceName) {
     return "couchbase/cbes/" + requireNonNull(serviceName) + "/rpc/";
+  }
+
+  public static List<RpcEndpoint> listRpcEndpoints(KeyValueClient kv, String serviceName, Duration endpointTimeout) {
+    return listKeys(kv, ConsulHelper.rpcEndpointKeyPrefix(serviceName))
+        .stream()
+        .map(endpointKey -> new RpcEndpoint(kv, endpointKey, endpointTimeout))
+        .collect(toList());
   }
 }
