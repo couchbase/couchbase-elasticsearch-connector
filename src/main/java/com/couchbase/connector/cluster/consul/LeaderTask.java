@@ -17,13 +17,8 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.couchbase.client.core.logging.RedactableArgument;
-import com.couchbase.connector.util.QuietPeriodExecutor;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import com.orbitz.consul.Consul;
-import com.orbitz.consul.cache.ServiceHealthCache;
-import com.orbitz.consul.model.health.ServiceHealth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,11 +27,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -47,14 +37,14 @@ import static com.couchbase.connector.util.ListHelper.chunks;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class LeaderTask {
   private static final Logger LOGGER = LoggerFactory.getLogger(LeaderTask.class);
 
-  private static final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-  private static final QuietPeriodExecutor quietPeriodExecutor = new QuietPeriodExecutor(Duration.ofSeconds(5), executorService);
-
+  // Wait this long before assuming an unreachable worker node has stopped streaming.
+  private static final Duration quietPeriodAfterFailedShutdownRequest = Duration.ofSeconds(30);
 
   private Consul consul;
   private String serviceName;
@@ -77,49 +67,17 @@ public class LeaderTask {
     return this;
   }
 
-  private volatile ImmutableSet<String> prevEndpointIds = ImmutableSet.of();
-
-
-  private static String endpointId(ServiceHealth health) {
-    return health.getNode().getNode() + "::" + health.getNode().getAddress() + "::" + health.getService().getId();
-  }
-
   private void doRun() {
-    final ServiceHealthCache svHealth = ServiceHealthCache.newCache(consul.healthClient(), serviceName);
-
-    try {
-      final BlockingQueue<String> eventQueue = new LinkedBlockingQueue<>();
-
-      svHealth.addListener(newValues -> {
-        final ImmutableSet<String> currentEndpointIds = ImmutableSet.copyOf(newValues.values().stream().map(LeaderTask::endpointId).collect(Collectors.toSet()));
-        if (!currentEndpointIds.equals(prevEndpointIds)) {
-
-          if (LOGGER.isInfoEnabled()) {
-            final Set<String> joiningNodes = Sets.difference(currentEndpointIds, prevEndpointIds);
-            final Set<String> leavingNodes = Sets.difference(prevEndpointIds, currentEndpointIds);
-            LOGGER.info("Service health changed; will rebalance after quiet period. Joining: {} Leaving: {}", joiningNodes, leavingNodes);
-          }
-
-          prevEndpointIds = currentEndpointIds;
-          quietPeriodExecutor.schedule(() -> eventQueue.add("group membership changed"));
-        }
-      });
-      svHealth.start();
-
+    try (NodeWatcher watcher = new NodeWatcher(consul, serviceName, Duration.ofSeconds(5))) {
       while (true) {
-        throwIfDone();
-        eventQueue.take();
+        watcher.waitForNodesToJoinOrLeave();
         rebalance();
       }
-
     } catch (InterruptedException e) {
-
-    } finally {
-      svHealth.stop();
+      // this is how the thread normally terminates.
+      LOGGER.debug("Leader thread interrupted", e);
     }
-
   }
-
 
   private <T> Map<RpcEndpoint, T> broadcast(Function<RpcEndpoint, T> endpointCallback) {
     final List<RpcEndpoint> endpoints = listRpcEndpoints(consul.keyValueClient(), serviceName, Duration.ofSeconds(15));
@@ -213,6 +171,9 @@ public class LeaderTask {
   }
 
   public void stopStreaming() throws InterruptedException {
+    int attempt = 1;
+
+    // Repeat until all endpoints successfully acknowledge they have been shut down
     while (true) {
       throwIfDone();
 
@@ -221,11 +182,24 @@ public class LeaderTask {
 
       if (stopResults.entrySet().stream()
           .noneMatch(e -> e.getValue().isFailed())) {
+        if (attempt != 1) {
+          LOGGER.warn("Multiple attempts were required to quiesce the cluster. Sleeping for an additional {} to allow unreachable nodes to terminate.", quietPeriodAfterFailedShutdownRequest);
+          sleep(quietPeriodAfterFailedShutdownRequest);
+        }
+
+        LOGGER.info("Cluster quiesced.");
         return;
       }
 
-      SECONDS.sleep(3);
+      LOGGER.warn("Attempt #{} to quiesce the cluster failed. Will retry.", attempt);
+
+      attempt++;
+      SECONDS.sleep(5);
     }
+  }
+
+  private static void sleep(Duration d) throws InterruptedException {
+    MILLISECONDS.sleep(d.toMillis() + 1);
   }
 
   /**
