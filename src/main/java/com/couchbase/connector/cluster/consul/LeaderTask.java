@@ -67,15 +67,28 @@ public class LeaderTask {
     return this;
   }
 
+  public void stop() {
+    done = true;
+    if (thread != null) {
+      thread.interrupt();
+    }
+    thread = null;
+  }
+
   private void doRun() {
+    LOGGER.info("Leader thread started.");
+
     try (NodeWatcher watcher = new NodeWatcher(consul, serviceName, Duration.ofSeconds(5))) {
       while (true) {
+        throwIfDone();
         watcher.waitForNodesToJoinOrLeave();
         rebalance();
       }
     } catch (InterruptedException e) {
       // this is how the thread normally terminates.
       LOGGER.debug("Leader thread interrupted", e);
+    } finally {
+      LOGGER.info("Leader thread terminated.");
     }
   }
 
@@ -170,7 +183,7 @@ public class LeaderTask {
     return results;
   }
 
-  public void stopStreaming() throws InterruptedException {
+  private void stopStreaming() throws InterruptedException {
     int attempt = 1;
 
     // Repeat until all endpoints successfully acknowledge they have been shut down
@@ -231,47 +244,40 @@ public class LeaderTask {
     }
   }
 
-  public void rebalance() throws InterruptedException {
-    LOGGER.info("Rebalancing the cluster");
-    // dumb strategy: shut everything down, then reassign vbuckets
-    stopStreaming();
+  private void rebalance() throws InterruptedException {
+    restartRebalance:
+    while (true) {
+      LOGGER.info("Rebalancing the cluster");
+      // dumb strategy: shut everything down, then reassign vbuckets
+      stopStreaming();
 
-    final List<RpcEndpoint> endpoints = awaitReadyEndpoints();
-    final List<List<Integer>> vbucketChunks = chunks(allPartitions(numVbuckets), endpoints.size());
+      final List<RpcEndpoint> endpoints = awaitReadyEndpoints();
+      final List<List<Integer>> vbucketChunks = chunks(allPartitions(numVbuckets), endpoints.size());
 
-    for (int i = 0; i < endpoints.size(); i++) {
-      throwIfDone();
+      for (int i = 0; i < endpoints.size(); i++) {
+        throwIfDone();
 
-      final Collection<Integer> vbuckets = vbucketChunks.get(i);
-      final RpcEndpoint endpoint = endpoints.get(i);
-      LOGGER.info("Assigning vbuckets to endpoint {} : {}", endpoint, vbuckets);
-      try {
-        endpoint.service(WorkerService.class).assignVbuckets(vbuckets);
-      } catch (Throwable t) {
-        // todo what happens here? What if it fails due to timeout, and the worker is actually doing the work?
-        // for now, assume the leader will notice and fix the failure at some time in the future.
-        LOGGER.warn("Failed to assign vbuckets to endpoint {}", endpoint, t);
+        final Collection<Integer> vbuckets = vbucketChunks.get(i);
+        final RpcEndpoint endpoint = endpoints.get(i);
+        LOGGER.info("Assigning vbuckets to endpoint {} : {}", endpoint, vbuckets);
+        try {
+          endpoint.service(WorkerService.class).assignVbuckets(vbuckets);
+        } catch (Throwable t) {
+          // todo what happens here? What if it fails due to timeout, and the worker is actually doing the work?
+          // For now, start the whole rebalance process over again. This is obviously not idea.
+          LOGGER.warn("Failed to assign vbuckets to endpoint {}", endpoint, t);
+          continue restartRebalance;
+        }
       }
-    }
-  }
 
-  public synchronized void stop() {
-    done = true;
-    if (thread != null) {
-      thread.interrupt();
+      // success!
+      return;
     }
-    thread = null;
   }
 
   private void throwIfDone() throws InterruptedException {
     if (done) {
       throw new InterruptedException("Leader termination requested.");
     }
-  }
-
-  public static void main(String[] args) throws Exception {
-    Consul consul = Consul.newClient();
-    LeaderTask leader = new LeaderTask(consul, Sandbox.serviceName, 64);
-    leader.rebalance();
   }
 }
