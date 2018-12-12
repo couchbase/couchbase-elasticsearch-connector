@@ -23,6 +23,7 @@ import com.couchbase.client.dcp.StreamFrom;
 import com.couchbase.client.dcp.StreamTo;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.client.java.util.features.Version;
 import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.Coordinator;
@@ -41,37 +42,19 @@ import com.couchbase.connector.dcp.SnapshotMarker;
 import com.couchbase.connector.elasticsearch.cli.AbstractCliCommand;
 import com.couchbase.connector.elasticsearch.io.RequestFactory;
 import com.couchbase.connector.util.HttpServer;
-import com.google.common.collect.Iterables;
 import joptsimple.OptionSet;
-import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.ssl.SSLContexts;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
 import java.io.File;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Supplier;
 
 import static com.couchbase.connector.VersionHelper.getVersionString;
 import static com.couchbase.connector.dcp.CouchbaseHelper.requireCouchbaseVersion;
-import static com.couchbase.connector.dcp.DcpHelper.allPartitions;
 import static com.couchbase.connector.dcp.DcpHelper.getCurrentSeqnos;
 import static com.couchbase.connector.dcp.DcpHelper.initControlHandler;
 import static com.couchbase.connector.dcp.DcpHelper.initDataEventHandler;
@@ -79,7 +62,6 @@ import static com.couchbase.connector.dcp.DcpHelper.initSessionState;
 import static com.couchbase.connector.dcp.DcpHelper.toBoxedShortArray;
 import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
 import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.waitForElasticsearchAndRequireVersion;
-import static com.couchbase.connector.util.ListHelper.chunks;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -143,7 +125,8 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         LOGGER.info("Metrics HTTP server is disabled. Edit the [metrics] 'httpPort' config property to enable.");
       }
 
-      final CouchbaseCluster cluster = CouchbaseHelper.createCluster(config.couchbase(), config.trustStore());
+      final CouchbaseEnvironment env = CouchbaseHelper.environmentBuilder(config.couchbase(), config.trustStore()).build();
+      final CouchbaseCluster cluster = CouchbaseHelper.createCluster(config.couchbase(), env);
 
       Metrics.gauge("connectorVersion", () -> VersionHelper::getVersionString);
       ElasticsearchHelper.registerElasticsearchVersionGauge(esClient);
@@ -212,9 +195,14 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         fatalError = workers.awaitFatalError();
         LOGGER.error("Terminating due to fatal error.", fatalError);
 
+      } catch (InterruptedException shutdownRequest) {
+        LOGGER.info("Graceful shutdown requested. Saving checkpoints and cleaning up.");
+        checkpointService.save();
+        throw shutdownRequest;
+
       } finally {
-        // This code path represents an disorderly shutdown due to some exception,
-        // or running in an integration test. In those cases, the shutdown hook is counterproductive.
+        // If we get here it means there was a fatal exception, or the connector is running in distributed
+        // or test mode and a graceful shutdown was requested. Don't need the shutdown hook for any of those cases.
         Runtime.getRuntime().removeShutdownHook(saveCheckpoints);
 
         checkpointExecutor.shutdown();
@@ -223,6 +211,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         dcpClient.disconnect().await();
         checkpointExecutor.awaitTermination(10, SECONDS);
         cluster.disconnect();
+        env.shutdown(); // can't reuse, because connector config might have different SSL settings next time
       }
     }
 

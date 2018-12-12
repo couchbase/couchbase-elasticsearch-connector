@@ -16,31 +16,77 @@
 
 package com.couchbase.connector.cluster.consul;
 
-import java.util.Collection;
-import java.util.Collections;
+import com.couchbase.connector.cluster.Membership;
+import com.couchbase.connector.config.common.ImmutableGroupConfig;
+import com.couchbase.connector.config.es.ConnectorConfig;
+import com.couchbase.connector.config.es.ImmutableConnectorConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.function.Consumer;
 
 import static java.util.Objects.requireNonNull;
 
 public class WorkerServiceImpl implements WorkerService {
+  private static final Logger LOGGER = LoggerFactory.getLogger(WorkerServiceImpl.class);
 
   private volatile Status status = Status.IDLE;
 
-  @Override
-  public void stopStreaming() {
-    assignVbuckets(Collections.emptySet());
+  private volatile ConnectorTask connectorTask;
+
+  private final Consumer<Throwable> fatalErrorListener;
+
+  private volatile ConnectorConfig config;
+
+  public WorkerServiceImpl(ConnectorConfig config, Consumer<Throwable> fatalErrorListener) {
+    this.config = requireNonNull(config);
+    this.fatalErrorListener = requireNonNull(fatalErrorListener);
   }
 
   @Override
-  public void assignVbuckets(Collection<Integer> vbuckets) {
-    this.status = new Status(vbuckets);
+  public synchronized void stopStreaming() {
+    if (connectorTask != null) {
+      try {
+        connectorTask.close();
+        this.status = Status.IDLE;
+
+      } catch (Throwable t) {
+        LOGGER.error("Connector task failed to close. Terminating worker process.", t);
+        System.exit(1);
+
+      } finally {
+        connectorTask = null;
+      }
+    }
+  }
+
+//  @Override
+//  public synchronized void assignVbuckets(Collection<Integer> vbuckets) {
+//    stopStreaming();
+//
+//    if (!vbuckets.isEmpty()) {
+//      connectorTask = new ConnectorTask(loadConfig(), vbuckets, fatalErrorListener).start();
+//    }
+//
+//    this.status = new Status(vbuckets);
+//  }
+
+
+  @Override
+  public synchronized void startStreaming(Membership membership) {
+    stopStreaming();
+
+    final ConnectorConfig workerConfig = ImmutableConnectorConfig.copyOf(config)
+        .withGroup(ImmutableGroupConfig.copyOf(config.group())
+            .withStaticMembership(membership));
+
+    connectorTask = new ConnectorTask(workerConfig, fatalErrorListener).start();
+
+    this.status = new Status(membership);
   }
 
   @Override
-  public Status status() {
+  public synchronized Status status() {
     return status;
-  }
-
-  public void setStatus(Status status) {
-    this.status = requireNonNull(status);
   }
 }

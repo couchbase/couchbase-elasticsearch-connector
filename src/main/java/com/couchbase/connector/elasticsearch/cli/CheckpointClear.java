@@ -22,6 +22,7 @@ import com.couchbase.client.dcp.state.PartitionState;
 import com.couchbase.client.dcp.state.SessionState;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.dcp.Checkpoint;
 import com.couchbase.connector.dcp.CheckpointDao;
@@ -42,6 +43,7 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.createCluster;
+import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
 import static com.couchbase.connector.dcp.CouchbaseHelper.getBucketConfig;
 import static com.couchbase.connector.dcp.DcpHelper.allPartitions;
 import static java.util.stream.Collectors.toSet;
@@ -73,7 +75,8 @@ public class CheckpointClear extends AbstractCliCommand {
   }
 
   private static void run(ConnectorConfig config, boolean catchUp) throws IOException {
-    final CouchbaseCluster cluster = createCluster(config.couchbase(), config.trustStore());
+    final CouchbaseEnvironment env = environmentBuilder(config.couchbase(), config.trustStore()).build();
+    final CouchbaseCluster cluster = createCluster(config.couchbase(), env);
     try {
       final Bucket bucket = cluster.openBucket(config.couchbase().bucket());
       final CouchbaseBucketConfig bucketConfig = getBucketConfig(bucket);
@@ -94,6 +97,7 @@ public class CheckpointClear extends AbstractCliCommand {
       }
     } finally {
       cluster.disconnect();
+      env.shutdown();
     }
   }
 

@@ -20,6 +20,7 @@ import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.document.json.JsonObject;
+import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.connector.config.common.ImmutableCouchbaseConfig;
 import com.couchbase.connector.config.common.ImmutableMetricsConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
@@ -56,6 +57,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
+import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
 import static com.couchbase.connector.testcontainers.CustomCouchbaseContainer.newCouchbaseCluster;
 import static com.couchbase.connector.testcontainers.Poller.poll;
@@ -231,8 +233,11 @@ public class BasicReplicationTest {
   }
 
   private static CouchbaseCluster createTestCluster(ImmutableConnectorConfig config) {
-    return CouchbaseHelper.createCluster(config.couchbase(), config.trustStore(),
-        env -> env.mutationTokensEnabled(true));
+    // xxx orphans the environment.
+    final CouchbaseEnvironment env = environmentBuilder(config.couchbase(), config.trustStore())
+        .mutationTokensEnabled(true)
+        .build();
+    return CouchbaseHelper.createCluster(config.couchbase(), env);
   }
 
   @Test

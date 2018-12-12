@@ -42,7 +42,6 @@ import java.security.KeyStore;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static com.couchbase.connector.elasticsearch.io.MoreBackoffPolicies.truncatedExponentialBackoff;
@@ -57,16 +56,13 @@ public class CouchbaseHelper {
     throw new AssertionError("not instantiable");
   }
 
-  public static CouchbaseCluster createCluster(CouchbaseConfig config, Supplier<KeyStore> keystore,
-                                               Consumer<DefaultCouchbaseEnvironment.Builder> envCustomizer) {
+  public static DefaultCouchbaseEnvironment.Builder environmentBuilder(CouchbaseConfig config, Supplier<KeyStore> keystore) {
     final DefaultCouchbaseEnvironment.Builder envBuilder = DefaultCouchbaseEnvironment.builder();
     if (config.secureConnection()) {
       envBuilder
           .sslEnabled(true)
           .sslTruststore(keystore.get());
     }
-
-    envCustomizer.accept(envBuilder);
 
     // Dirty kludge to allow non-standard bootstrap port for containerized Couchbase
     final ConnectionString c = ConnectionString.fromHostnames(config.hosts());
@@ -79,19 +75,26 @@ public class CouchbaseHelper {
       }
     }
 
-    final CouchbaseEnvironment couchbaseEnvironment = envBuilder.build();
+    return envBuilder;
+  }
+
+  public static CouchbaseCluster createCluster(CouchbaseConfig config, CouchbaseEnvironment couchbaseEnvironment) {
     final CouchbaseCluster cluster = CouchbaseCluster.create(couchbaseEnvironment, config.hosts());
     cluster.authenticate(config.username(), config.password());
     return cluster;
   }
 
-  public static CouchbaseCluster createCluster(CouchbaseConfig config, Supplier<KeyStore> keystore) {
-    return createCluster(config, keystore, env -> {
-    });
-  }
-
+  /**
+   * CAVEAT: Only suitable for one-shot command-line tools, since this method
+   * leaks a couchbase environment. That's bad, right?
+   *
+   * @deprecated Leaks the environment. Probably shouldn't use this.
+   */
+  @Deprecated
   public static Bucket openBucket(CouchbaseConfig config, Supplier<KeyStore> keystore) {
-    return createCluster(config, keystore).openBucket(config.bucket());
+    // xxx there's no way to shut down this environment :-/
+    final CouchbaseEnvironment env = environmentBuilder(config, keystore).build();
+    return createCluster(config, env).openBucket(config.bucket());
   }
 
   public static CouchbaseBucketConfig getBucketConfig(Bucket bucket) {

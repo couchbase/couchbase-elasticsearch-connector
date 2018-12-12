@@ -109,7 +109,7 @@ public class ConsulCoordinator implements Coordinator {
     }
 
     try {
-      consul.agentClient().pass(serviceId, "(" + serviceId + ") Alive and well. Metrics: " + Metrics.toJson());
+      consul.agentClient().pass(serviceId, "(" + serviceId + ") OK");
 
     } catch (NotRegisteredException e) {
       // todo re-register? maybe only if we haven't skipped too many heartbeats since last "pass"?

@@ -16,6 +16,9 @@
 
 package com.couchbase.connector.cluster;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -26,16 +29,17 @@ public class Membership {
   private final int memberNumber; // valid rage = from 1 to clusterSize, inclusive
   private final int clusterSize;
 
-  public static Membership of(int memberNumber, int groupSize) {
-    return new Membership(memberNumber, groupSize);
+  @JsonCreator
+  public static Membership of(@JsonProperty("memberNumber") int memberNumber, @JsonProperty("clusterSize") int clusterSize) {
+    return new Membership(memberNumber, clusterSize);
   }
 
-  private Membership(int memberNumber, int groupSize) {
-    if (memberNumber <= 0 || memberNumber > groupSize) {
-      throw new IllegalArgumentException("Invalid static group membership number, must be between 1 and cluster size (" + groupSize + ") inclusive.");
+  private Membership(int memberNumber, int clusterSize) {
+    if (memberNumber <= 0 || memberNumber > clusterSize) {
+      throw new IllegalArgumentException("Invalid static group membership number, must be between 1 and cluster size (" + clusterSize + ") inclusive.");
     }
     this.memberNumber = memberNumber;
-    this.clusterSize = groupSize;
+    this.clusterSize = clusterSize;
   }
 
   public int getMemberNumber() {

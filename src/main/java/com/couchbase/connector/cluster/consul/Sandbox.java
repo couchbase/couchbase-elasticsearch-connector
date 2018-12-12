@@ -16,6 +16,8 @@
 
 package com.couchbase.connector.cluster.consul;
 
+import com.couchbase.connector.config.es.ConnectorConfig;
+import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import com.github.therapi.core.MethodRegistry;
 import com.github.therapi.jsonrpc.DefaultExceptionTranslator;
 import com.github.therapi.jsonrpc.JsonRpcDispatcher;
@@ -23,12 +25,13 @@ import com.github.therapi.jsonrpc.JsonRpcError;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.orbitz.consul.Consul;
-import com.orbitz.consul.cache.ServiceHealthKey;
 import com.orbitz.consul.model.agent.Member;
-import com.orbitz.consul.model.health.ServiceHealth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -55,7 +58,6 @@ public class Sandbox {
       fatalErrorQueue.add(e);
     };
 
-
     final Consul consul = Consul.newClient();
     Thread shutdownHook = null;
 
@@ -65,7 +67,10 @@ public class Sandbox {
     List<AbstractLongPollTask> waitForMe = new ArrayList<>();
 
     final MethodRegistry methodRegistry = new MethodRegistry(newLenientObjectMapper());
-    methodRegistry.scan(new WorkerServiceImpl());
+    methodRegistry.scan(new WorkerServiceImpl(loadConfig(), e -> {
+      e.printStackTrace();
+      System.exit(1);
+    }));
 
     LOGGER.info("Registered JSON-RPC methods: {}", methodRegistry.getMethods());
 
@@ -88,7 +93,7 @@ public class Sandbox {
       @Override
       public void startLeading() {
         checkState(leader == null, "Already leading");
-        leader = new LeaderTask(consul, Sandbox.serviceName, 64).start();
+        leader = new LeaderTask(consul, Sandbox.serviceName).start();
       }
 
       @Override
@@ -149,4 +154,13 @@ public class Sandbox {
 
     System.out.println("Done");
   }
+
+  private static ImmutableConnectorConfig loadConfig() {
+    try (InputStream is = new FileInputStream("src/dist/config/example-connector.toml")) {
+      return ConnectorConfig.from(is);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
 }

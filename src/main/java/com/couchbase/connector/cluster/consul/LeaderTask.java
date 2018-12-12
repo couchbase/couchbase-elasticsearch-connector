@@ -17,13 +17,13 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.couchbase.client.core.logging.RedactableArgument;
+import com.couchbase.connector.cluster.Membership;
 import com.google.common.base.Throwables;
 import com.orbitz.consul.Consul;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,9 +32,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.couchbase.connector.cluster.consul.ConsulHelper.listRpcEndpoints;
-import static com.couchbase.connector.dcp.DcpHelper.allPartitions;
-import static com.couchbase.connector.util.ListHelper.chunks;
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -48,16 +45,12 @@ public class LeaderTask {
 
   private Consul consul;
   private String serviceName;
-  private int numVbuckets;
   private volatile boolean done;
   private volatile Thread thread;
 
-  public LeaderTask(Consul consul, String serviceName, int numVbuckets) {
-    checkArgument(numVbuckets > 0);
-
+  public LeaderTask(Consul consul, String serviceName) {
     this.consul = requireNonNull(consul);
     this.serviceName = requireNonNull(serviceName);
-    this.numVbuckets = numVbuckets;
   }
 
   public LeaderTask start() {
@@ -252,20 +245,23 @@ public class LeaderTask {
       stopStreaming();
 
       final List<RpcEndpoint> endpoints = awaitReadyEndpoints();
-      final List<List<Integer>> vbucketChunks = chunks(allPartitions(numVbuckets), endpoints.size());
 
       for (int i = 0; i < endpoints.size(); i++) {
         throwIfDone();
 
-        final Collection<Integer> vbuckets = vbucketChunks.get(i);
+        final int memberNumber = i + 1;
+        final int clusterSize = endpoints.size();
+        final Membership membership = Membership.of(memberNumber, clusterSize);
+
         final RpcEndpoint endpoint = endpoints.get(i);
-        LOGGER.info("Assigning vbuckets to endpoint {} : {}", endpoint, vbuckets);
+        LOGGER.info("Assigning group membership {} to endpoint {}", membership, endpoint);
         try {
-          endpoint.service(WorkerService.class).assignVbuckets(vbuckets);
+          endpoint.service(WorkerService.class).startStreaming(membership);
         } catch (Throwable t) {
           // todo what happens here? What if it fails due to timeout, and the worker is actually doing the work?
           // For now, start the whole rebalance process over again. This is obviously not idea.
-          LOGGER.warn("Failed to assign vbuckets to endpoint {}", endpoint, t);
+          LOGGER.warn("Failed to assign group membership {} to endpoint {}", membership, endpoint, t);
+          SECONDS.sleep(1);
           continue restartRebalance;
         }
       }

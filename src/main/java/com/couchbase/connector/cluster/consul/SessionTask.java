@@ -16,7 +16,6 @@
 
 package com.couchbase.connector.cluster.consul;
 
-import com.couchbase.connector.elasticsearch.Metrics;
 import com.google.common.base.Throwables;
 import com.orbitz.consul.Consul;
 import com.orbitz.consul.model.session.ImmutableSession;
@@ -118,7 +117,7 @@ public class SessionTask implements AutoCloseable {
     }
 
     try {
-      consul.agentClient().pass(serviceId, "(" + serviceId + ") Alive and well. Metrics: " + Metrics.toJson());
+      consul.agentClient().pass(serviceId, "(" + serviceId + ") OK");
       LOGGER.debug("Passed health check.");
 
     } catch (Throwable t) {

@@ -16,14 +16,11 @@
 
 package com.couchbase.connector.cluster.consul;
 
+import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.elasticsearch.Metrics;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.github.therapi.core.annotation.Remotable;
-import com.google.common.collect.ImmutableSet;
-
-import java.util.Collection;
-import java.util.Collections;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -31,26 +28,26 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public interface WorkerService {
 
   class Status {
-    public static Status IDLE = new Status(Collections.emptyList());
+    public static Status IDLE = new Status(null);
 
-    private final ImmutableSet<Integer> vbuckets;
-
-    public Status(@JsonProperty("vbuckets") Collection<Integer> vbuckets) {
-      this.vbuckets = ImmutableSet.copyOf(vbuckets);
-    }
+    private final Membership membership;
 
     /**
-     * Returns the set of vbuckets this worker is currently streaming.
+     * @param membership nullable (null means not streaming)
      */
-    public ImmutableSet<Integer> getVbuckets() {
-      return vbuckets;
+    public Status(@JsonProperty("membership") Membership membership) {
+      this.membership = membership;
+    }
+
+    public Membership getMembership() {
+      return membership;
     }
   }
 
 
   void stopStreaming();
 
-  void assignVbuckets(Collection<Integer> vbuckets);
+  void startStreaming(Membership membership);
 
   Status status();
 
@@ -59,10 +56,6 @@ public interface WorkerService {
 
   default boolean ready() {
     return true;
-  }
-
-  default void fail() {
-    throw new RuntimeException("Failed");
   }
 
   default JsonNode metrics() {

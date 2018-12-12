@@ -77,6 +77,9 @@ public class Metrics {
   }
 
   public static Gauge gauge(String name, MetricRegistry.MetricSupplier<Gauge> supplier) {
+    // Some of our gauges are backed by connections to Couchbase or other server.
+    // These must be recreated for each connection, so remove first.
+    registry.remove(PREFIX + name);
     return registry.gauge(PREFIX + name, supplier);
   }
 
