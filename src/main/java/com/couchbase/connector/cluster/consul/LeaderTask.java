@@ -18,11 +18,14 @@ package com.couchbase.connector.cluster.consul;
 
 import com.couchbase.client.core.logging.RedactableArgument;
 import com.couchbase.connector.cluster.Membership;
+import com.couchbase.connector.config.ConfigException;
+import com.couchbase.connector.config.es.ConnectorConfig;
 import com.google.common.base.Throwables;
 import com.orbitz.consul.Consul;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -80,6 +83,9 @@ public class LeaderTask {
     } catch (InterruptedException e) {
       // this is how the thread normally terminates.
       LOGGER.debug("Leader thread interrupted", e);
+    } catch (Throwable t) {
+      LOGGER.error("panic: Leader task failed", t);
+      System.exit(1);
     } finally {
       LOGGER.info("Leader thread terminated.");
     }
@@ -238,6 +244,17 @@ public class LeaderTask {
   }
 
   private void rebalance() throws InterruptedException {
+    final String configLocation = "couchbase/cbes/" + serviceName + "/config";
+    LOGGER.info("Reading connector config from Consul key: {}", configLocation);
+
+    final String config = consul.keyValueClient().getValue(configLocation)
+        .orElseThrow(() -> new ConfigException("missing Consul config key: " + configLocation))
+        .getValueAsString(StandardCharsets.UTF_8)
+        .orElseThrow(() -> new ConfigException("missing value for Consul key: " + configLocation));
+
+    // Sanity check, validate the config.
+    ConnectorConfig.from(config);
+
     restartRebalance:
     while (true) {
       LOGGER.info("Rebalancing the cluster");
@@ -256,12 +273,12 @@ public class LeaderTask {
         final RpcEndpoint endpoint = endpoints.get(i);
         LOGGER.info("Assigning group membership {} to endpoint {}", membership, endpoint);
         try {
-          endpoint.service(WorkerService.class).startStreaming(membership);
+          endpoint.service(WorkerService.class).startStreaming(membership, config);
         } catch (Throwable t) {
           // todo what happens here? What if it fails due to timeout, and the worker is actually doing the work?
-          // For now, start the whole rebalance process over again. This is obviously not idea.
+          // For now, start the whole rebalance process over again. This is obviously not ideal.
           LOGGER.warn("Failed to assign group membership {} to endpoint {}", membership, endpoint, t);
-          SECONDS.sleep(1);
+          SECONDS.sleep(3);
           continue restartRebalance;
         }
       }

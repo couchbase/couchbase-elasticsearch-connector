@@ -47,7 +47,7 @@ public interface WorkerService {
 
   void stopStreaming();
 
-  void startStreaming(Membership membership);
+  void startStreaming(Membership membership, String config);
 
   Status status();
 

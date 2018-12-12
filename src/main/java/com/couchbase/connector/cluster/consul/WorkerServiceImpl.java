@@ -36,10 +36,7 @@ public class WorkerServiceImpl implements WorkerService {
 
   private final Consumer<Throwable> fatalErrorListener;
 
-  private volatile ConnectorConfig config;
-
-  public WorkerServiceImpl(ConnectorConfig config, Consumer<Throwable> fatalErrorListener) {
-    this.config = requireNonNull(config);
+  public WorkerServiceImpl(Consumer<Throwable> fatalErrorListener) {
     this.fatalErrorListener = requireNonNull(fatalErrorListener);
   }
 
@@ -60,27 +57,18 @@ public class WorkerServiceImpl implements WorkerService {
     }
   }
 
-//  @Override
-//  public synchronized void assignVbuckets(Collection<Integer> vbuckets) {
-//    stopStreaming();
-//
-//    if (!vbuckets.isEmpty()) {
-//      connectorTask = new ConnectorTask(loadConfig(), vbuckets, fatalErrorListener).start();
-//    }
-//
-//    this.status = new Status(vbuckets);
-//  }
-
-
   @Override
-  public synchronized void startStreaming(Membership membership) {
+  public synchronized void startStreaming(Membership membership, String config) {
     stopStreaming();
 
-    final ConnectorConfig workerConfig = ImmutableConnectorConfig.copyOf(config)
-        .withGroup(ImmutableGroupConfig.copyOf(config.group())
+    final ImmutableConnectorConfig originalConfig = ConnectorConfig.from(config);
+
+    // Plug in the appropriate group membership. Ick.
+    final ConnectorConfig patchedConfig = originalConfig
+        .withGroup(ImmutableGroupConfig.copyOf(originalConfig.group())
             .withStaticMembership(membership));
 
-    connectorTask = new ConnectorTask(workerConfig, fatalErrorListener).start();
+    connectorTask = new ConnectorTask(patchedConfig, fatalErrorListener).start();
 
     this.status = new Status(membership);
   }

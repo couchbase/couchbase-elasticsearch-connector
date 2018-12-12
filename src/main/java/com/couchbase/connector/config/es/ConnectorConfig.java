@@ -23,7 +23,6 @@ import com.couchbase.connector.config.common.MetricsConfig;
 import com.couchbase.connector.config.common.TrustStoreConfig;
 import net.consensys.cava.toml.Toml;
 import net.consensys.cava.toml.TomlParseResult;
-import net.consensys.cava.toml.TomlTable;
 import org.immutables.value.Value;
 
 import java.io.File;
@@ -46,7 +45,11 @@ public interface ConnectorConfig {
 
   TrustStoreConfig trustStore();
 
-  static ImmutableConnectorConfig from(TomlTable config) {
+  static ImmutableConnectorConfig from(TomlParseResult config) {
+    if (config.hasErrors()) {
+      throw new ConfigException("Config syntax error: " + config.errors());
+    }
+
     expectOnly(config, "couchbase", "elasticsearch", "metrics", "group", "truststore");
 
     return ImmutableConnectorConfig.builder()
@@ -58,18 +61,16 @@ public interface ConnectorConfig {
         .build();
   }
 
-  static ImmutableConnectorConfig from(InputStream is) throws IOException {
-    final TomlParseResult config = Toml.parse(is);
-
-    if (config.hasErrors()) {
-      throw new ConfigException("Config syntax error: " + config.errors());
-    }
-
-    return ConnectorConfig.from(config);
+  static ImmutableConnectorConfig from(String toml) {
+    return ConnectorConfig.from(Toml.parse(toml));
   }
 
-  static ImmutableConnectorConfig from(File configFile) throws IOException {
-    try (InputStream is = new FileInputStream(configFile)) {
+  static ImmutableConnectorConfig from(InputStream toml) throws IOException {
+    return ConnectorConfig.from(Toml.parse(toml));
+  }
+
+  static ImmutableConnectorConfig from(File toml) throws IOException {
+    try (InputStream is = new FileInputStream(toml)) {
       return ConnectorConfig.from(is);
     }
   }

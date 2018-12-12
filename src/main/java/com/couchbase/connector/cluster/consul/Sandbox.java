@@ -16,8 +16,6 @@
 
 package com.couchbase.connector.cluster.consul;
 
-import com.couchbase.connector.config.es.ConnectorConfig;
-import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import com.github.therapi.core.MethodRegistry;
 import com.github.therapi.jsonrpc.DefaultExceptionTranslator;
 import com.github.therapi.jsonrpc.JsonRpcDispatcher;
@@ -29,9 +27,6 @@ import com.orbitz.consul.model.agent.Member;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -67,7 +62,7 @@ public class Sandbox {
     List<AbstractLongPollTask> waitForMe = new ArrayList<>();
 
     final MethodRegistry methodRegistry = new MethodRegistry(newLenientObjectMapper());
-    methodRegistry.scan(new WorkerServiceImpl(loadConfig(), e -> {
+    methodRegistry.scan(new WorkerServiceImpl(e -> {
       e.printStackTrace();
       System.exit(1);
     }));
@@ -154,13 +149,4 @@ public class Sandbox {
 
     System.out.println("Done");
   }
-
-  private static ImmutableConnectorConfig loadConfig() {
-    try (InputStream is = new FileInputStream("src/dist/config/example-connector.toml")) {
-      return ConnectorConfig.from(is);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
 }
