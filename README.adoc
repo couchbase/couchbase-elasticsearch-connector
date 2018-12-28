@@ -1,0 +1,44 @@
+= Couchbase Elasticsearch Connector
+
+https://docs.couchbase.com/elasticsearch-connector/4.0/release-notes.html[*Download*]
+| https://docs.couchbase.com/elasticsearch-connector/4.0/index.html[*Documentation*]
+| https://issues.couchbase.com/projects/CBES[*Issues*]
+| https://forums.couchbase.com/c/elasticsearch-connector[*Discussion*]
+
+The Couchbase Elasticsearch Connector replicates your documents from Couchbase Server to Elasticsearch in near real time.
+The connector uses the high-performance Database Change Protocol (DCP) to receive notifications when documents change in Couchbase.
+
+NOTE: If you're looking for the Elasticsearch Plug-in flavor of the connector, that's in a https://github.com/couchbase/couchbase-elasticsearch-connector/tree/release/cypress[different branch].
+
+[small]_This product is neither affiliated with nor endorsed by Elastic.
+Elasticsearch is a trademark of Elasticsearch BV, registered in the U.S. and in other countries._
+
+== Building the connector from source
+
+The connector distribution may be built from source with the command:
+
+    ./gradlew build
+
+The distribution archive will be generated under `build/distributions`.
+During development, it might be more convenient to run:
+
+    ./gradlew installDist
+
+which creates `build/install/couchbase-elasticsearch-connector` as a `$CBES_HOME` directory.
+
+
+=== Running the integration tests
+
+A local Docker installation is required for these tests.
+To quickly test using only the latest Couchbase and Elasticsearch:
+
+    ./gradlew integrationTest
+
+
+To test against _all_ supported versions of Couchbase and Elasticsearch:
+
+    ./gradlew exhaustiveTest
+
+
+=== IntelliJ IDEA setup
+Because the project uses annotation processors, some link:INTELLIJ-SETUP.md[fiddly setup] is required when importing the project into IntelliJ IDEA.

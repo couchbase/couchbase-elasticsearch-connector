@@ -1,0 +1,346 @@
+= Configuration
+
+[abstract]
+A description of the sections and properties defined in the sample config file, `$CBES_HOME/config/example-connector-config.toml`.
+
+TIP: If this is your first time working with the TOML config file format, check out Nate Finch's excellent https://npf.io/2014/08/intro-to-toml/[Intro to TOML], or the https://github.com/toml-lang/toml[official specification].
+
+== Group Membership
+
+First, let's define some terminology:
+
+connector instance::
+A single connector process.
+When you run the `cbes` command, you are starting an instance of the connector.
+Sometimes referred to as a "connector worker", or simply an "instance."
+
+connector group::
+A set of one or more _connector instances_ configured to share the task of replicating from the same bucket.
+
+The first section of the config file tells the connector instance which group it belongs to.
+A connector group is defined by configuring one or more connector instances to use the same group name.
+
+[source,toml]
+----
+[group]
+  name = 'example-group' <1>
+----
+<1> Each connector group must be assigned a unique name (in order to keep its replication checkpoints separate).
+The group name is required even if there is only one connector instance in the group.
+
+TIP: Renaming a group invalidates its replication status checkpoint.
+To preserve the checkpoint, run the `cbes-checkpoint-backup` command before renaming, and `cbes-checkpoint-restore` afterwards.
+
+=== Sharing the load
+
+A group with more than once instance is called "distributed".
+Each instance in a distributed group must be told which part of the workload it is responsible for.
+
+The default configuration is not distributed, since it specifies a group with only one member.
+
+[source,toml]
+----
+[group.static] <1>
+  memberNumber = 1 <2>
+  totalMembers = 1 <3>
+----
+<1> This config section is named "static" because the group membership is predetermined.
+A future release is expected to introduce a "coordinated" mode that will allow instances to dynamically join and leave the group.
+<2> A value from 1 to 'totalMembers', inclusive.
+Each member in the group must be assigned a unique member number.
+<3> The total number of workers in the group.
+
+TIP: To safely add or remove workers from a static group, first stop all running workers, then reconfigure them with the new 'totalMembers' value, and finally start all the workers again.
+
+== Metrics
+
+Performance metrics may be written to a log file and/or exposed via HTTP to enable external monitoring.
+
+[source,toml]
+----
+[metrics]
+  httpPort = 31415 <1>
+  logInterval = '1m' <2>
+----
+<1> Set the port number to `-1` to disable the embedded HTTP server.
+<2> "One minute." A value of '0m' disables metrics logging.
+
+The metrics log file location defaults to `CBES_HOME/logs/cbes-metrics.log`.
+The location and retention policy can be changed by editing `$CBES_HOME/config/log4j2.xml` (consult the https://logging.apache.org/log4j/2.x/manual/configuration.html[Log4j2 Configuration Manual] for details).
+
+[#truststore]
+== Trust Store for Secure Connections
+
+This is where you tell the connector how to access the keystore containing the certificates to trust when establishing TLS/SSL connections.
+For more details, see xref:secure-connections.adoc[Setting Up Secure Connections].
+If you decide not to enable secure connections, you can ignore this section.
+
+[source,toml]
+----
+[truststore]
+  path = 'path/to/truststore' <1>
+  pathToPassword = 'secrets/truststore-password.toml' <2>
+----
+<1> The filesystem path to the keystore containing the CA certificates for the Couchbase and/or Elasticsearch clusters.
+The base for a relative path is the connector installation directory.
+<2> Path to a separate TOML file with a single 'password' key.
+The base for a relative path is the connector installation directory.
+
+
+== Couchbase
+
+Here's where the Couchbase connection parameters and credentials are specified.
+
+[source,toml]
+----
+[couchbase]
+  hosts = ['localhost'] <1>
+  bucket = 'travel-sample' <2>
+  username = 'Administrator' <3>
+  pathToPassword = 'secrets/couchbase-password.toml' <4>
+  secureConnection = false <5>
+----
+<1> A list of bootstrap nodes for the Couchbase cluster.
+Multiple nodes can be specified like `['host1','host2']`.
+<2> The bucket to replicate from.
+<3> At a minimum, the Couchbase user must have the "Data Reader", "Data Writer", and "Data DCP Reader" roles for the bucket.
+<4> Path to a separate TOML file with a single 'password' key.
+The base for a relative path is the connector installation directory.
+<5> If you have configured the <<truststore,Trust Store>> section, set this to `true` to encrypt the Couchbase connections.
+
+TIP: If you want to replicate from multiple buckets, you can run a separate connector group for each bucket.
+
+=== DCP
+[abstract]
+Options for the Couchbase Database Change Protocol (DCP).
+
+Couchbase Server notifies the connector about database changes as soon as they are stored in memory, _even before they are written to disk_.
+You can tell the connector to immediately propagate the changes to Elasticsearch, or you can defer writing to Elasticsearch until the changes have been saved to disk on all Couchbase replicas.
+
+Immediate propagation gives the lowest possible latency, but increases the likelihood that a Couchbase node failure will result in document changes being present in Elasticsearch but not in Couchbase.
+
+[source,toml]
+----
+[couchbase.dcp]
+  compression = true <1>
+  flowControlBuffer = '128mb' <2>
+  persistencePollingInterval = '100ms' <3>
+----
+<1> Disabling compression uses more network bandwidth and increases Couchbase Server's CPU usage.
+Enabling compression increases the connector's CPU usage.
+<2> Couchbase will only send this much data until the connector acknowledges it has been written to Elasticsearch.
+<3> To propagate changes immediately, disable persistence polling by setting this to `'0ms'`.
+A non-zero duration tells the connector to defer propagation until the change is persisted on all Couchbase replicas.
+Longer intervals reduce network traffic at the cost of increased end-to-end latency.
+
+CAUTION: When replicating from an ephemeral bucket, always set `persistencePollingInterval = '0s'` to disable persistence polling, since documents are never persisted.
+
+
+== Elasticsearch
+
+[source,toml]
+----
+[elasticsearch]
+  hosts = ['localhost'] <1>
+  username = 'elastic' <2>
+  pathToPassword = 'secrets/elasticsearch-password.toml' <3>
+  secureConnection = false <4>
+----
+
+<1> A list of bootstrap nodes for the Elasticsearch cluster.
+Multiple nodes can be specified like `['host1','host2']`.
+Specify a custom port like `['host:19002']`.
+<2> Elasticsearch user to authenticate as.
+Username and password are only required if Elasticsearch is set up to require authentication.
+<3> Path to a separate TOML file with a single 'password' key.
+The base for a relative path is the connector installation directory.
+<4> If your Elasticsearch cluster requires secure connections, configure the <<truststore,Trust Store>> section and then set this to `true` to encrypt the Elasticsearch connections.
+
+
+=== Bulk Request Limits
+
+The Elasticsearch documentation offers these https://www.elastic.co/guide/en/elasticsearch/guide/current/indexing-performance.html#_using_and_sizing_bulk_requests[guidelines for sizing bulk requests].
+Experiment with these parameters to see what yields the best performance with your data and cluster configuration.
+
+[source,toml]
+----
+[elasticsearch.bulkRequestLimits]
+  bytes = '10mb' <1>
+  actions = 1000 <2>
+  timeout = '1m' <3>
+  concurrentRequests = 2 <4>
+----
+
+<1> Limits the size in bytes of a single bulk request.
+<2> Limits the number of actions (index or delete) in single bulk request.
+<3> A bulk request will be retried if it takes longer than this duration.
+<4> Limits the number of simultaneous bulk requests the connector will make.
+Setting this to `1` will reduce the load on your Elasticsearch cluster.
+
+CAUTION: Actual bulk request size may exceed the `bytes` limit by approximately the size of a single document.
+Make sure the limit configured here is *well under* the Elasticsearch cluster's https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-http.html#_settings_2[`http.max_content_length`] setting.
+
+=== Document Structure
+
+You control whether the Couchbase document is indexed verbatim, or whether it is transformed to include Couchbase metadata.
+If you decide to include metadata, it will be in a top-level field of the Elasticsearch document, with a field name of your choice.
+You also control whether the Couchbase document content is at the top level of the Elasticsearch document, or nested inside field named `doc`.
+
+NOTE: The connector does not replicate a document's extended attributes (xattrs).
+
+[source,toml]
+----
+[elasticsearch.docStructure]
+  metadataFieldName = 'meta' <1>
+  documentContentAtTopLevel = false <2>
+  wrapCounters = false <3>
+----
+<1> Name to assign to the metadata field, or empty string (`''`) to omit metadata.
+<2> If `false`, the Elasticsearch document root will have a `doc` field whose value is the Couchbase document.
+If `true`, the Elasticsearch document will be identical to the Couchbase document with the possible addition of the metadata field.
+<3> If `false`, ignore Couchbase counter documents.
+If `true`, replicate them as Object nodes like `{"value":<counter>}`
+
+TIP: The defaults mimic the behavior of version 3.x of the connector.
+If you don't care about metadata, you can make the Elasticsearch document identical to the Couchbase document by setting `documentContentAtTopLevel = true` and `metadataFieldName = ''`.
+
+CAUTION: If you set `documentContentAtTopLevel = true`, be sure to omit metadata or select a metadata field name that does not conflict with any document fields.
+
+
+[#type-definitions]
+== Type Definitions
+
+[abstract]
+Not to be confused with Elasticsearch types -- these are not those.
+
+A type definition is a rule for matching a document ID, and instructions for what to do with matched documents.
+
+The order of type definitions is significant.
+If a document matches more than one type, the definition that appears first in the config file takes precedence.
+
+=== Type Definition Defaults
+
+Here's where you can specify the default values for all type definitions.
+This may be useful, for example, if you want to write all documents to the same index, or send them all through the same pipeline.
+The default values can be overridden by specific type definitions, which we'll look at in just a moment.
+
+[source,toml]
+----
+[elasticsearch.typeDefaults]
+  index = '' <1>
+  pipeline = '' <2>
+  typeName = '_doc' <3>
+  ignore = false <4>
+  ignoreDeletes = false <5>
+----
+<1> Write matching documents to this index.
+Empty string (`''`) means "no default".
+<2> Send matching documents though this pipeline.
+Empty string (`''`) means "no pipeline".
+<3> Assign this Elasticsearch type to matching documents.
+<4> If `true`, ignore matching documents entirely.
+<5> If `true`, never delete matching documents from Elasticsearch.
+
+==== Document matching rules
+Every type definition must have a rule for matching document IDs.
+The matching rule is specified by exactly one of the following fields:
+
+`prefix`::
+A type definition with a `prefix` field matches any document whose ID starts with the given case-sensitive string.
+
+`regex`::
+A type definition with a `regex` field matches any document whose ID fully matches the given https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html[Java regular expression].
+
+
+TIP: If the regular expression contains a capturing group named "index", the captured value will be used as the destination index.
+We'll see an example of this shortly.
+
+=== Sample Type Definitions
+
+The first sample definition we'll look at is one you should include whenever the Couchbase Sync Gateway is present.
+It ignores any Sync Gateway metadata documents based on their ID prefix.
+
+==== Ignore Sync Gateway Metadata
+[source,toml]
+----
+[[elasticsearch.type]]
+  prefix = '_sync:' <1>
+  ignore = true <2>
+----
+<1> This type definition matches any document whose ID begins with the specified case-sensitive string.
+<2> Any matched documents will be ignored completely.
+
+NOTE: Did you notice that unlike the config sections we've looked at so for, the `\[[elasticsearch.type]]` section name is enclosed in *double brackets*?
+This indicates it's a repeated element.
+You can declare any number of these sections, and each one will define an additional type.
+
+==== Prefix Match
+
+Here's another type definition that uses `prefix` matching.
+This time, instead of ignoring the matched documents, the connector will write them to the "airlines" index using the https://www.elastic.co/blog/new-way-to-ingest-part-1[ingestion pipeline] named "audit".
+
+[source,toml]
+----
+[[elasticsearch.type]]
+  prefix = 'airline_'
+  index = 'airlines' <1>
+  pipeline = 'audit' <2>
+----
+<1> Matching documents will be written to this Elasticsearch index.
+<2> A pipeline lets you apply additional processing to a document before it is indexed.
+
+TIP: Specifying the empty string (`''`) as the prefix will match _any_ document.
+
+==== Regular Expression Match
+
+Now let's look at a type definition that matches document IDs using a https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html[Java regular expression] instead of a literal prefix.
+
+[source,toml]
+----
+[[elasticsearch.type]]
+  regex = '.*port_.*' <1>
+  index = 'ports'
+----
+<1> Matches "airport_sfo", "seaport_oakland", etc.
+
+==== Index Inference
+
+Finally, here's the promised example of using a regular expression with a capturing group named "index" to set the index based on document ID.
+
+[source,toml]
+----
+[[elasticsearch.type]]
+  regex = '(?<index>.+?)::.*' <1>
+----
+<1> Matches IDs that start with one or more characters followed by "::".
+It directs "user::alice" to index "user", and "foo::bar::123" to index "foo".
+
+
+== Rejection Log
+
+When Elasticsearch rejects a document (usually due to a type mapping error) the connector writes a rejection log entry document to Elasticsearch.
+The log entry's document ID is the ID of the rejected Couchbase document.
+
+.Rejection Log Entry Fields
+|===
+|Field Name |Type |Description
+
+|index | string | Name of the index the connector failed to write to
+|type | string | Document type name used for the write attempt
+|action | string | Failed action type ("INDEX" or "DELETE")
+|error | string | Error message received from Elasticsearch
+|===
+
+
+Related configuration properties:
+
+[source,toml]
+----
+[elasticsearch.rejectionLog]
+  index = 'cbes-rejects' <1>
+  typeName = '_doc' <2>
+----
+<1> Rejection log entries are written to this index.
+<2> This Elasticsearch type will be assigned to the documents.
+
+TIP: If you're running multiple connector groups, you may wish to use a separate rejection log index for each group.

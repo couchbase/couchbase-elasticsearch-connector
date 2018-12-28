@@ -1,0 +1,171 @@
+= Getting Started
+:description: Learn how to install the Elasticsearch Connector.
+
+[abstract]
+Step-by-step instructions for installing the Couchbase Elasticsearch Connector.
+
+// todo link to index page for version 3
+//NOTE: These instructions are for version 4 of the Elasticsearch Connector which runs as a standalone service. Documentation for the `elasticsearch-transport-couchbase` plug-in for Elasticsearch is over here.
+
+== Pre-requisites
+
+You will need:
+
+* The xref:release-notes.adoc[latest release] of Couchbase Elasticsearch Connector.
+
+* Java 8 or newer from
+https://docs.oracle.com/javase/8/[Oracle].
+
+* Elasticsearch 5 or 6. Other versions might work, but are untested.
+If you are new to Elasticsearch, we recommend https://www.elastic.co/guide/en/elasticsearch/reference/current/zip-targz.html[installing from a zip or tar.gz archive].
+
+* Couchbase Server 5 or later.
+https://www.couchbase.com/downloads[Download] and xref:server:install:install-intro.adoc[install].
+
+NOTE: Couchbase Enterprise Edition is required if you wish to enable secure connections to Couchbase.
+Likewise, Elasticsearch requires an additional license in order to support secure connections.
+Trial versions of both are available.
+
+== Pre-flight Check
+
+Verify the Elasticsearch cluster is up and running (the default port is `9200`).
+
+[source,console]
+----
+$ curl localhost:9200
+----
+Expected result is something like:
+[source,json]
+----
+{
+  "name" : "K3RqW4F",
+  "cluster_name" : "elasticsearch",
+  "cluster_uuid" : "Bw-Ta0wDTcekzQIhXZHGkg",
+  "version" : {
+    "number" : "5.6.5",
+    "build_hash" : "6a37571",
+    "build_date" : "2017-12-04T07:50:10.466Z",
+    "build_snapshot" : false,
+    "lucene_version" : "6.6.1"
+  },
+  "tagline" : "You Know, for Search"
+}
+----
+
+Verify that Couchbase Server is running.
+
+[source,console]
+----
+$ curl localhost:8092
+----
+Expected result is something like:
+[source,json]
+----
+{"couchdb":"Welcome","version":"v4.5.1-60-g3cf258d","couchbase":"5.0.2-5506-community"}
+----
+
+== Installation
+
+Extract the connector distribution archive.
+This should give you a directory called `couchbase-elasticsearch-connector-<version>`.
+This directory will be referred to as `$CBES_HOME`.
+
+Add `$CBES_HOME/bin` to your `PATH`.
+
+== Configuration
+
+Copy `$CBES_HOME/config/example-connector.toml` to `$CBES_HOME/config/default-connector.toml`.
+
+TIP: The connector commands get their configuration from `$CBES_HOME/config/default-connector.toml` by default.
+You can tell them to use a different config file with the `--config <file>` command line option.
+
+Take a moment to browse the settings available in `default-connector.toml`.
+Make sure the Couchbase and Elasticsearch credentials and hostnames match your environment.
+Note that the passwords are stored separately in the `$CBES_HOME/secrets` directory.
+
+If you're using Elasticsearch 5.x, replace all instances of the type name `_doc` with something that doesn't have a leading underscore.
+
+NOTE: Starting with Elasticsearch 6 there can be only one mapping type per index.
+Consequently, type names are no longer useful, and are https://www.elastic.co/guide/en/elasticsearch/reference/6.x/removal-of-types.html#_schedule_for_removal_of_mapping_types[scheduled for removal from Elasticsearch].
+In the mean time, using the default type name `_doc` is recommended to help ease the transition... unless you're still using Elasticsearch 5, which doesn't allow type names to have leading underscores.
+
+The sample config will replicate documents from the Couchbase `travel-sample` bucket.
+Go ahead and https://developer.couchbase.com/documentation/server/current/settings/install-sample-buckets.html[install the sample buckets] now if you haven't already.
+
+== Controlling the Connector
+
+The command-line tools in `$CBES_HOME/bin` are used to start the connector and manage replication checkpoints.
+
+=== Starting the connector
+
+Run this command:
+
+    cbes
+
+The connector should start copying documents from the `travel-sample` bucket into Elasticsearch.
+
+=== Stopping the connector
+
+A connector process will shut down gracefully in response to an interrupt signal
+(ctrl-c, or `kill -s INT <pid>`).
+
+== Distributed Mode
+
+The throughput of the connector is limited by the time it takes for Elasticsearch to index documents.
+If you determine a single instance of the connector is unable to saturate your Elasticsearch indexing capacity, you can run multiple instances of the connector in distributed mode for horizontal scalability.
+
+NOTE: A Couchbase bucket consists of many separate partitions known as virtual buckets (often abbreviated as "vbuckets"). When the connector runs in distributed mode, each instance of the connector is responsible for replicating a different subset of the vbuckets.
+
+To run the connector in distributed mode, install the connector on multiple machines.
+Make sure the connector configuration is identical on each machine, except for the `memberNumber` config key, which must be unique within the group.
+Set the `totalMembers` config key to the total number of connector processes in the group.
+
+WARNING: Make sure to stop all of the connector instances in a group before changing the number of instances in the group.
+
+When a connector instance runs in distributed mode, it replicates from only the vbuckets that correspond to its group membership configuration.
+
+== Managing Checkpoints
+
+The connector periodically saves its replication state by writing metadata documents to the Couchbase bucket.
+These documents have IDs starting with `_connector:cbes:`
+
+Command line tools are provided to manage the replication checkpoint.
+
+CAUTION: You must stop all connector instances in a group before modifying the replication checkpoint, otherwise the changes will not take effect.
+
+[#save-checkpoint]
+=== Saving the current replication state
+
+To create a backup of the current state:
+
+    cbes-checkpoint-backup --output <checkpoint.json>
+
+This will create a checkpoint document on the local filesystem.
+On Linux, to include a timestamp in the filename:
+
+    cbes-checkpoint-backup \
+        --output checkpoint-$(date -u +%Y-%m-%dT%H:%M:%SZ).json
+
+This command is safe to use while the connector is running, and can be triggered from a cron job to create periodic backups.
+
+[#restore-checkpoint]
+=== Reverting to a saved checkpoint
+
+If you want to rewind the event stream and re-index documents starting from a saved checkpoint, first stop all running connector processes in the connector group.
+Then run:
+
+    cbes-checkpoint-restore --input <checkpoint.json>
+
+The next time you run the connector, it will resume from the checkpoint you just restored.
+
+[#reset-checkpoint]
+=== Resetting the connector
+
+If you want to discard all replication state and start streaming from the beginning, first stop all of the connector processes, then run:
+
+    cbes-checkpoint-clear
+
+Or, if you want to reset the connector so it starts from the
+current state of the bucket:
+
+    cbes-checkpoint-clear --catch-up

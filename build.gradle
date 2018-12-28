@@ -1,150 +1,170 @@
 plugins {
-    id 'com.github.johnrengelman.shadow' version '2.0.1'
+  id "com.github.jk1.dependency-license-report" version "1.2"
+  id 'org.unbroken-dome.test-sets' version '1.5.1'
+  id 'com.adarshr.test-logger' version '1.5.0'
 }
 
-import java.security.MessageDigest
-
-defaultTasks 'clean', 'buildAll'
+import org.apache.tools.ant.filters.ReplaceTokens
 
 apply plugin: 'java'
+apply plugin: 'application'
 
-def baseVersion = '3.0.2'
-def snapshot = true
-
-def branch = 'cypress'
-
-ext.elasticsearchVersions = [
-        '5.6.7',
-        '5.6.6',
-        '5.6.5',
-        '5.6.4',
-        '5.6.3',
-        '5.6.2',
-        '5.6.1',
-        '5.6.0',
-        '5.5.3',
-        '5.5.2',
-        '5.5.1',
-        '5.5.0',
-        '5.4.3',
-        '5.4.2',
-        '5.4.1',
-        '5.4.0',
-        '5.3.3',
-        '5.3.2',
-        '5.3.1',
-        '5.3.0',
-        '5.2.2',
-        '5.2.1',
-        '5.2.0',
-        '5.1.2',
-        '5.1.1',
-        '5.0.2',
-        '5.0.1',
-        '5.0.0',
-]
-
-if (!project.hasProperty("elasticsearchVersion")) {
-    // Set default version for 'build' task, and for IDE to use when importing the project
-    ext.elasticsearchVersion = elasticsearchVersions[0]
+repositories {
+  mavenCentral()
+  //jcenter() // for testcontainers release candidate
+  //maven { url 'https://jitpack.io' } // for testcontainers snapshot
 }
-
-group = 'com.couchbase'
-version = baseVersion + "-" + branch + "-es" + ext.elasticsearchVersion + (snapshot ? "-SNAPSHOT" : "")
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-repositories {
-    mavenLocal()
-    jcenter()
+version = "4.0.1-SNAPSHOT"
+
+// https://github.com/unbroken-dome/gradle-testsets-plugin
+testSets {
+  integrationTest
 }
+
+integrationTest.dependsOn(test)
+
+// https://github.com/radarsh/gradle-test-logger-plugin
+def runningInJenkins = System.getenv("JENKINS_URL") != null
+testlogger {
+  theme runningInJenkins ? 'plain' : 'mocha'
+  showStandardStreams runningInJenkins
+  showPassedStandardStreams runningInJenkins
+  showSkippedStandardStreams runningInJenkins
+  showFailedStandardStreams runningInJenkins
+}
+
+task exhaustiveTest(group: "Verification", description: "Runs the integration tests against *all* supported server versions") {
+  doLast {
+    tasks.withType(Test) {
+      systemProperty 'com.couchbase.integrationTest.exhaustive', 'true'
+    }
+  }
+}
+exhaustiveTest.finalizedBy(integrationTest)
 
 dependencies {
-    // shadow = Normal dependencies, not included in uber-jar.
-    shadow "com.google.guava:guava:19.0"
-    shadow "com.couchbase:couchbase-capi-server:1.6.3"
-    shadow("org.slf4j:slf4j-log4j12:1.7.23") { // SLF4J bridge required by CAPI server
-        transitive = false // Elasticsearch provides the log4j library
-    }
+  compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.11.0'
+  compile 'org.apache.logging.log4j:log4j-core:2.9.1'
 
-    // compile = Included in uber-jar. This is everything we want to relocate to avoid conflicts with
-    // versions provided by ES (like Jackson) as well as everything that depends on the relocated classes.
-    compile "com.fasterxml.jackson.core:jackson-databind:2.9.2"
-    compile("io.dropwizard.metrics:metrics-json:3.2.5") {
-        // Already included in 'shadow' config (via CAPI server) and ES complains if it's duplicated.
-        exclude group: 'org.slf4j', module: 'slf4j-api'
-    }
+  compile 'com.couchbase.client:java-client:2.6.1'
+  compile 'com.couchbase.client:dcp-client:0.20.0'
+  compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.3.2'
 
-    // compileOnly = Libraries provided by Elasticsearch that we're comfortable depending on.
-    compileOnly "org.elasticsearch:elasticsearch:${elasticsearchVersion}"
-    compileOnly "com.carrotsearch:hppc:0.7.1"
-    compileOnly "org.apache.logging.log4j:log4j-1.2-api:2.7"
+  compile 'com.orbitz.consul:consul-client:1.2.1'
+  compile 'com.github.therapi:therapi-json-rpc:0.4.0'
 
-    testCompile "org.apache.logging.log4j:log4j-core:2.7"
-    testCompile "org.apache.logging.log4j:log4j-api:2.7"
+  compile 'io.dropwizard.metrics:metrics-json:4.0.3'
+  compile 'io.dropwizard.metrics:metrics-jvm:4.0.3'
+
+  compile 'com.google.guava:guava:26.0-jre'
+  compile 'net.consensys.cava:cava-toml:0.3.1'
+  compile 'net.sf.jopt-simple:jopt-simple:5.0.4'
+
+  testCompile 'junit:junit:4.12'
+  testCompile("org.assertj:assertj-core:3.11.1")
+  integrationTestCompile 'com.jayway.jsonpath:json-path:2.3.0'
+
+  def testcontainersVersion = '1.10.1'
+  integrationTestCompile "org.testcontainers:testcontainers:${testcontainersVersion}"
+  integrationTestCompile "org.testcontainers:couchbase:${testcontainersVersion}"
+  //def testcontainersCommit = 'ac05988143e8d433d' // avoid port conflicts between multiple Couchbase containers on same host
+  //integrationTestCompile "com.github.testcontainers.testcontainers-java:testcontainers:${testcontainersCommit}"
+  //integrationTestCompile "com.github.testcontainers.testcontainers-java:couchbase:${testcontainersCommit}"
+
+  compileOnly 'org.immutables:value:2.6.3'
+  annotationProcessor 'org.immutables:value:2.6.3'
 }
 
-shadowJar {
-    relocate 'com.fasterxml.jackson', 'com.couchbase.relocated.com.fasterxml.jackson'
+// IntelliJ doesn't play nice with classes generated by annotation processors.
+// This dirty workaround aligns Gradle with IDEA's default behavior so we can use org.immutables.
+// Assumes IDEA is storing generated sources relative to the module content root,
+// using the default directory name of "generated"
+ext.generatedFilesDir = file('src/main/generated')
+compileJava.options.annotationProcessorGeneratedSourcesDirectory = generatedFilesDir
+sourceSets.main.java.srcDirs += generatedFilesDir
+clean {
+  delete generatedFilesDir
 }
 
-task buildAll(group: "Build", description: "Assemble plugins compatible with all supported Elasticsearch versions")
-
-ext.elasticsearchVersions.each { esVersion ->
-    def taskName = "build-" + esVersion
-    task "$taskName"(type: GradleBuild, group: "Build", description: "Assemble a plugin compatible with Elasticsearch $esVersion") {
-        buildFile = 'build.gradle'
-        tasks = ['build']
-        startParameter.projectProperties = [
-                elasticsearchVersion: esVersion
-        ]
-    }
-    buildAll.dependsOn taskName
+tasks.withType(Tar) {
+  compression = Compression.GZIP
 }
 
-task pluginMetadata(type: Copy, group: "Build", description: "Assembles the plugin metadata resources") {
-    def placeholders = [
-            'plugin.version'       : project.version,
-            'elasticsearch.version': elasticsearchVersion,
-            'java.version'         : targetCompatibility.toString(),
+// Patch the start scripts to export the APP_HOME environment variable
+// so we can read log4j config and write log files in usual location.
+// See https://discuss.gradle.org/t/linux-launcher-script-should-export-app-home-before-starting-the-application/3570
+tasks.withType(CreateStartScripts) {
+  doLast {
+    unixScript.text = unixScript.text.replace('exec', 'export APP_HOME; exec')
+    // Apparently the Windows launcher already exposes the variable (NOT VERIFIED)
+
+    // tidy up the class path, yeah? Maybe add $APP_HOME/lib-ext as well?
+    unixScript.text = unixScript.text.replaceAll('CLASSPATH=.*', 'CLASSPATH=\\$APP_HOME/lib/*')
+    //windowsScript.text = windowsScript.text.replaceAll('CLASSPATH=.*', 'CLASSPATH=%APP_HOME%\\\\lib\\\\*')
+  }
+}
+
+mainClassName = "com.couchbase.connector.elasticsearch.ElasticsearchConnector"
+applicationDefaultJvmArgs = ['-server']
+
+startScripts {
+  applicationName = 'cbes'
+}
+
+def extraStartScripts = [
+    'cbes-checkpoint-backup' : 'com.couchbase.connector.elasticsearch.cli.CheckpointBackup',
+    'cbes-checkpoint-restore': 'com.couchbase.connector.elasticsearch.cli.CheckpointRestore',
+    'cbes-checkpoint-clear'  : 'com.couchbase.connector.elasticsearch.cli.CheckpointClear'
+]
+
+extraStartScripts.each { scriptName, driverClass ->
+  task(scriptName + "-script", group: 'CLI Script Generation', type: CreateStartScripts) {
+    mainClassName = driverClass
+    applicationName = scriptName
+    outputDir = startScripts.outputDir
+    classpath = startScripts.classpath
+  }
+}
+
+// include the additional start scripts in the distribution
+applicationDistribution.into("bin") {
+  from(tasks.withType(CreateStartScripts))
+  fileMode = 0755
+}
+
+applicationDistribution.into("notices") {
+  // https://github.com/jk1/Gradle-License-Report
+  from(generateLicenseReport)
+}
+
+def getGitInfo = { ->
+  def stdout = new ByteArrayOutputStream()
+  exec {
+    commandLine 'git', 'describe', '--tags', '--dirty', '--always'
+    standardOutput = stdout
+  }
+  return stdout.toString().trim()
+}
+
+def gitInfo = getGitInfo()
+
+//if (gitInfo.contains("dirty")) {
+//    println "WARNING: workspace is dirty"
+//}
+
+processResources {
+  inputs.property("version", project.property("version"))
+  inputs.property("gitInfo", gitInfo)
+
+  filteringCharset = 'UTF-8'
+  filesMatching('**/*.properties') {
+    filter ReplaceTokens, tokens: [
+        "application.version": project.property("version"),
+        "git.info"           : gitInfo
     ]
-
-    inputs.properties(placeholders)
-
-    from 'src/main/plugin-metadata'
-    into "${buildDir}/pluginMetadata"
-    filteringCharset = 'UTF-8'
-    filter { line ->
-        placeholders.each { placeholder, replacement -> line = line.replace("@$placeholder@", replacement) }
-        return line
-    }
+  }
 }
-
-task pluginArchive(type: Zip, group: "Build", description: "Assembles the distribution archive") {
-    into('elasticsearch') {
-        from shadowJar
-        from configurations.shadow
-        from pluginMetadata
-    }
-}
-
-def sha1(File file) {
-    MessageDigest md = MessageDigest.getInstance("SHA-1");
-    file.eachByte 4096, { bytes, size -> md.update(bytes, 0, size) }
-    return md.digest().encodeHex()
-}
-
-task checksum(group: "Build", description: "Generates SHA1 hash for the distribution archive") {
-    inputs.files pluginArchive.outputs
-    outputs.file pluginArchive.outputs.files.singleFile.path + ".sha1"
-
-    doLast {
-        outputs.files.singleFile.withWriter('UTF-8') { writer ->
-            writer.write(sha1(inputs.files.singleFile))
-        }
-    }
-}
-
-build.description = "Assemble plugin compatible with latest supported Elasticsearch version ($elasticsearchVersion)"
-build.dependsOn checksum

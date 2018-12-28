@@ -1,0 +1,56 @@
+= Migration Considerations
+
+[abstract]
+Prior to version 4, the Couchbase Elasticsearch connector was implemented as an Elasticsearch plug-in.
+Here's what you need to know if you're migrating from the plug-in to the new standalone connector.
+
+In this document, version 4 of the connector is referred to as the "standalone connector" to distinguish it from the Elasticsearch plug-in of prior versions.
+
+== Upgrading from the Plug-in
+
+CAUTION: This is a major version upgrade.
+Because the plug-in and the standalone connector are so different, there is no online upgrade process.
+
+The standalone connector stores its replication state in a way that is incompatible with the plug-in.
+Unfortunately, the standalone connector cannot continue replicating from exactly where the plug-in stops.
+
+=== Upgrade with Re-streaming
+
+The *recommended approach* is to uninstall the plug-in and restart the Elasticsearch nodes for the removal to take effect.
+Then start the standalone connector and allow it to re-stream all Couchbase documents to Elasticsearch.
+
+If you intend to use the new metadata fields introduced by the new connector, this approach ensures all documents have complete metadata.
+
+=== Upgrade with Checkpoint Overlap
+
+If re-streaming is not possible for your deployment, consider this workaround.
+
+. Use the new checkpoint management tools to create a checkpoint from the current state of the bucket (with `cbes-checkpoint-clear --catch-up`).
+. Allow the plug-in to continue replicating documents until it has processed all changes that occurred prior to when you set the checkpoint.
+. Uninstall the plugin and restart the Elasticsearch nodes for the removal to take effect.
+. Start the standalone connector, which will begin streaming from the point in Couchbase history when you set the checkpoint.
+
+== Parent-Child Relationships
+
+Elasticsearch 6 no longer supports parent-child relationships.
+Because the connector is primarily focused on Elasticsearch 6 and beyond, parent-child relationships are no longer supported by the connector.
+
+== Document structure and metadata
+
+By default, Elasticsearch documents created by the standalone connector have the same structure and metadata as those created by the plug-in, with the addition of new metadata fields that can be used to build a Couchbase Mutation Token.
+
+.Metadata Fields
+|===
+| Name       | Datatype | New in 4.0?
+
+| vbucket    | integer  | ✓
+| vbuuid     | long     | ✓
+| seqno      | long     | ✓
+| revSeqno   | long     | ✓
+| cas        | long     | ✓
+| lockTime   | integer  | ✓
+| rev        | string   |
+| flags      | integer  |
+| expiration | integer  |
+| id         | string   |
+|===
