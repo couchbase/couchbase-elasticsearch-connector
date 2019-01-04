@@ -1,0 +1,43 @@
+= Contributing
+
+== Bug reports and feature requests
+
+If you come across a bug or find something unintuitive, let us know and we’ll work to fix it in an upcoming release.
+
+To file a bug report or feature request, go to the https://issues.couchbase.com[Couchbase Jira site].
+If this is your first visit, request an account using the "Jira Administrators" link below the Login form.
+
+When filing a bug report, please include:
+
+* Couchbase Server version
+* Elasticsearch version
+* Connector version
+* Operating system
+* A description of the problem
+* Detailed steps to reproduce the problem
+
+== Contributing code
+
+Whether you have a fix for a typo in a component, a bugfix, or a new feature, we love to receive code from the community!
+
+It takes a lot of work to get from a potential new bug fix or feature idea to well-tested shipping code.
+Our engineers want to help you get there.
+
+=== One-time setup
+The first step is to sign our Contributor License Agreement.
+
+NOTE: Contributor License Agreements (CLAs) are common for projects under the Apache license, and typically serve to grant control of the code to a central entity.
+Because our code is available under the Apache License, signing the CLA doesn’t prevent you from using your code however you like, but it does give Couchbase the ability to defend the source legally and build and maintain a business around the technology.
+
+Create an account on our https://review.couchbase.org/[Gerrit code review site].
+Make sure the email address you register with matches the email address on your git commits.
+You can associate additional email addresses with your Gerrit account later if needed.
+
+Fill out the agreement under **Settings > Agreements**.
+
+=== Submitting code
+
+We encourage you to submit patch sets directly to the Gerrit server.
+That makes things easier for us, but if you're new to Gerrit it might be intimidating.
+Alternatively, free to submit a pull request on GitHub.
+A robot will automatically import your change into Gerrit.
