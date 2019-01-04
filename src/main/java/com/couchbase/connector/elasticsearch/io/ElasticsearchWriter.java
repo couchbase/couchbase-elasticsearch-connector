@@ -419,8 +419,8 @@ public class ElasticsearchWriter {
 
   private BulkRequest newBulkRequest(Iterable<EventDocWriteRequest> requests) {
     final BulkRequest bulkRequest = new BulkRequest();
-    for (EventDocWriteRequest r : requests) {
-      bulkRequest.add(r);
+    for (EventDocWriteRequest request : requests) {
+      bulkRequest.add(request);
     }
     return bulkRequest;
   }

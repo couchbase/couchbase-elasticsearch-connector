@@ -102,22 +102,19 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
       return;
     }
 
-    final Map<String, Object> esDocument;
-    if (documentContentAtTopLevel) {
-      esDocument = couchbaseDocument;
-    } else {
-      esDocument = new HashMap<>();
-      esDocument.put("doc", couchbaseDocument);
+    if (couchbaseDocument.get("parent") != null) {
+      // parent and child have to be located in a same shard
+      indexRequest.routing((String)couchbaseDocument.get("parent"));
     }
 
     if (metadataFieldName != null) {
-      if (esDocument.putIfAbsent(metadataFieldName, getMetadata(event)) != null) {
+      if (couchbaseDocument.putIfAbsent(metadataFieldName, getMetadata(event)) != null) {
         LOGGER.warn("Metadata field name conflict; document {} already has field named '{}'",
             RedactableArgument.user(event), metadataFieldName);
       }
     }
 
-    indexRequest.source(esDocument, XContentType.JSON);
+    indexRequest.source(couchbaseDocument, XContentType.JSON);
   }
 
   @Nullable

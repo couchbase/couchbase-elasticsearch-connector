@@ -52,7 +52,7 @@ public class RequestFactory {
       origRequest.getEvent().release();
       return null;
     }
-    return new EventRejectionIndexRequest(rejectLogConfig.index(), rejectLogConfig.typeName(), origRequest, f);
+    return new EventRejectionIndexRequest(rejectLogConfig.index(), rejectLogConfig.typeName(), rejectLogConfig.route(), origRequest, f);
   }
 
   @Nullable
@@ -76,13 +76,13 @@ public class RequestFactory {
 
   @Nullable
   private EventDeleteRequest newDeleteRequest(final Event event, final MatchResult matchResult) {
-    return new EventDeleteRequest(matchResult.index(), matchResult.typeConfig().type(), event);
+    return new EventDeleteRequest(matchResult.index(), matchResult.typeConfig().type(), matchResult.parent(), event);
   }
 
   @Nullable
   private EventIndexRequest newIndexRequest(final Event event, final MatchResult matchResult) throws IOException {
     final Timer.Context timerContext = newIndexRequestTimer.time();
-    EventIndexRequest request = new EventIndexRequest(matchResult.index(), matchResult.typeConfig().type(), event);
+    EventIndexRequest request = new EventIndexRequest(matchResult.index(), matchResult.typeConfig().type(), matchResult.parent(), event);
     request.setPipeline(matchResult.typeConfig().pipeline());
     documentTransformer.setSourceFromEventContent(request, event);
 
@@ -94,16 +94,21 @@ public class RequestFactory {
   public interface MatchResult {
     TypeConfig typeConfig();
     String index();
+
+    @Nullable
+    String parent();
   }
 
   @Nullable // null means no match
   private MatchResult match(final Event event) {
     for (TypeConfig type : types) {
-      String index = type.matcher().getIndexIfMatches(event);
+      String index = type.indexMatcher().getIndexIfMatches(event);
+      String parent = type.parentMatcher() != null ? type.parentMatcher().getParentIfMatches(event) : null;
       if (index != null) {
         return ImmutableMatchResult.builder()
             .typeConfig(type)
             .index(index)
+            .parent(parent)
             .build();
       }
     }

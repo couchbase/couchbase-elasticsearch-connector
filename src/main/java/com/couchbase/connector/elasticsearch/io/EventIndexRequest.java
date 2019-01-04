@@ -17,6 +17,7 @@
 package com.couchbase.connector.elasticsearch.io;
 
 import com.couchbase.connector.dcp.Event;
+import com.google.common.base.Strings;
 import org.elasticsearch.action.index.IndexRequest;
 
 import static java.util.Objects.requireNonNull;
@@ -24,8 +25,10 @@ import static java.util.Objects.requireNonNull;
 public class EventIndexRequest extends IndexRequest implements EventDocWriteRequest<IndexRequest> {
   private final Event event;
 
-  public EventIndexRequest(String index, String type, Event event) {
+  public EventIndexRequest(String index, String type, String parent, Event event) {
     super(index, type, event.getKey());
+    if (Strings.isNullOrEmpty(parent) == false)
+      super.routing(parent);
     this.event = requireNonNull(event);
   }
 

@@ -29,12 +29,16 @@ public interface RejectLogConfig {
   @Nullable
   String index();
 
+  @Nullable
+  String route();
+
   String typeName();
 
   static ImmutableRejectLogConfig from(TomlTable config, String defaultTypeName) {
     expectOnly(config, "index", "typeName");
     return ImmutableRejectLogConfig.builder()
         .index(Strings.emptyToNull(config.getString("index")))
+        .route(Strings.emptyToNull(config.getString("route")))
         .typeName(config.getString("typeName", () -> defaultTypeName))
         .build();
   }

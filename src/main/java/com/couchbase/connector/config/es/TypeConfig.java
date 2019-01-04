@@ -18,10 +18,14 @@ package com.couchbase.connector.config.es;
 
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.dcp.Event;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import net.consensys.cava.toml.TomlPosition;
 import net.consensys.cava.toml.TomlTable;
 import org.immutables.value.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.util.regex.Matcher;
@@ -45,7 +49,13 @@ public interface TypeConfig {
 
   boolean ignoreDeletes();
 
-  IndexMatcher matcher();
+  @Nullable
+  String parent();
+
+  IndexMatcher indexMatcher();
+
+  @Nullable
+  ParentMatcher parentMatcher();
 
   @Value.Auxiliary
   @Nullable
@@ -53,13 +63,13 @@ public interface TypeConfig {
 
   @Value.Check
   default void check() {
-    if (!ignore() && index() == null && !(matcher() instanceof IdRegexInferredIndexMatcher)) {
+    if (!ignore() && index() == null && !(indexMatcher() instanceof IdRegexInferredIndexMatcher)) {
       throw new ConfigException("Missing 'index' (or 'regex' with capturing group named 'index') for config at " + position());
     }
   }
 
   static ImmutableTypeConfig from(TomlTable config, TomlPosition position, TypeConfig defaults) {
-    expectOnly(config, "typeName", "index", "pipeline", "ignore", "ignoreDeletes", "prefix", "regex");
+    expectOnly(config, "typeName", "index", "pipeline", "ignore", "ignoreDeletes", "prefix", "regex", "parent");
 
     final String index = Strings.emptyToNull(config.getString("index", defaults::index));
     ImmutableTypeConfig.Builder builder = ImmutableTypeConfig.builder()
@@ -68,7 +78,8 @@ public interface TypeConfig {
         .index(index)
         .pipeline(Strings.emptyToNull(config.getString("pipeline", defaults::pipeline)))
         .ignoreDeletes(config.getBoolean("ignoreDeletes", defaults::ignoreDeletes))
-        .ignore(config.getBoolean("ignore", defaults::ignore));
+        .ignore(config.getBoolean("ignore", defaults::ignore))
+        .parent(config.getString("parent", defaults::parent));
 
     final String idPrefix = config.getString("prefix");
     final String idRegex = config.getString("regex");
@@ -79,27 +90,35 @@ public interface TypeConfig {
       throw new ConfigException("Type at " + position + " must have 'prefix' or 'regex'.");
     }
     if (idPrefix != null) {
-      builder.matcher(new IdPrefixMatcher(index, idPrefix));
+      builder.indexMatcher(new IdPrefixMatcher(index, idPrefix));
     } else {
       try {
         if (idRegex.contains("(?<index>")) {
           if (config.getString("index") != null) {
             throw new ConfigException("Type at " + position + " must not have 'index' because it's inferred from named capturing group in 'regex'.");
           }
-          builder.matcher(new IdRegexInferredIndexMatcher(idRegex));
+          builder.indexMatcher(new IdRegexInferredIndexMatcher(idRegex));
         } else {
-          builder.matcher(new IdRegexMatcher(index, idRegex));
+          builder.indexMatcher(new IdRegexMatcher(index, idRegex));
         }
       } catch (PatternSyntaxException e) {
         throw new ConfigException("Invalid regex '" + idRegex + "' at " + config.inputPositionOf("regex") + " -- " + e.getMessage());
       }
     }
 
+    final String parent = config.getString("parent");
+    if (Strings.isNullOrEmpty(parent) == false)
+      builder.parentMatcher(new ValueParentMatcher(parent));
+
     return builder.build();
   }
 
   interface IndexMatcher {
     String getIndexIfMatches(Event event);
+  }
+
+  interface ParentMatcher {
+    String getParentIfMatches(Event event);
   }
 
   class IdPrefixMatcher implements IndexMatcher {
@@ -158,6 +177,32 @@ public interface TypeConfig {
     @Override
     public String toString() {
       return "regex='" + pattern + "'";
+    }
+  }
+
+  class ValueParentMatcher implements ParentMatcher {
+
+    private static final ObjectMapper mapper = new ObjectMapper();
+    private static final Logger log = LoggerFactory.getLogger(ValueParentMatcher.class);
+
+    private final String parent;
+
+    public ValueParentMatcher(String parent) {
+      this.parent = requireNonNull(parent);
+    }
+
+    @Override
+    public String getParentIfMatches(Event event) {
+      // TODO: performance improvement required, expensive readTree conversion
+      // DocumentTransformer might be used?
+      try {
+        JsonNode node = mapper.readTree(event.getContent());
+        return node.get(this.parent).textValue();
+      } catch (Exception ex) {
+        // either doc deleted or parent field couldn't parsed
+        log.info("Parent could not found. ", ex.getMessage());
+        return "";
+      }
     }
   }
 }

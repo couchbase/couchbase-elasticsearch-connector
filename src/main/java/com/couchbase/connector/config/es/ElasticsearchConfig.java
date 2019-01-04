@@ -71,7 +71,7 @@ public interface ElasticsearchConfig {
         .docStructure(DocStructureConfig.from(config.getTableOrEmpty("docStructure")));
 
     final TomlTable typeDefaults = config.getTableOrEmpty("typeDefaults");
-    expectOnly(typeDefaults, "typeName", "index", "pipeline", "ignore", "ignoreDeletes");
+    expectOnly(typeDefaults, "typeName", "index", "pipeline", "ignore", "ignoreDeletes", "parent");
 
     final TypeConfig defaultTypeConfig = ImmutableTypeConfig.builder()
         .index(typeDefaults.getString("index"))
@@ -79,7 +79,9 @@ public interface ElasticsearchConfig {
         .pipeline(typeDefaults.getString("pipeline"))
         .ignore(typeDefaults.getBoolean("ignore", () -> false))
         .ignoreDeletes(typeDefaults.getBoolean("ignoreDeletes", () -> false))
-        .matcher(s -> null)
+        .parent(typeDefaults.getString("parent"))
+        .indexMatcher(s -> null)
+        .parentMatcher(s -> null)
         .build();
 
     ImmutableList.Builder<TypeConfig> typeConfigs = ImmutableList.builder();
