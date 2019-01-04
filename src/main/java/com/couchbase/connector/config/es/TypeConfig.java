@@ -194,13 +194,15 @@ public interface TypeConfig {
     @Override
     public String getParentIfMatches(Event event) {
       // TODO: performance improvement required, expensive readTree conversion
-      // DocumentTransformer might be used?
+      // DocumentTransformer can be used?
       try {
         JsonNode node = mapper.readTree(event.getContent());
-        return node.get(this.parent).textValue();
+        if(node != null)
+          node = node.get(this.parent);
+        return node.get("parent").textValue();
       } catch (Exception ex) {
         // either doc deleted or parent field couldn't parsed
-        log.info("Parent could not found. ", ex.getMessage());
+        log.info("Join field defined but parent not found. ", ex.getMessage());
         return "";
       }
     }
