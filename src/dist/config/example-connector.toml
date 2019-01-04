@@ -162,7 +162,7 @@
   regex = '.*port_.*'
   index = 'airports'
   # parent field name
-    parent = 'my_join_feld'
+  parent = 'my_join_feld'
 
 [[elasticsearch.type]]
   # Index can be inferred from document ID by including a capturing group
