@@ -161,7 +161,7 @@
   # Regex just for example. Matches prefixes "airport_", "seaport_", etc.
   regex = '.*port_.*'
   index = 'airports'
-  # parent field name
+  # Parent field name
   parent = 'my_join_feld'
 
 [[elasticsearch.type]]
