@@ -103,9 +103,9 @@ public class RequestFactory {
   private MatchResult match(final Event event) {
     for (TypeConfig type : types) {
       String index = type.indexMatcher().getIndexIfMatches(event);
-      String parent = null;
-      if (type.ignore() == false && type.ignoreDeletes() == false)
-        parent = type.parentMatcher() != null ? type.parentMatcher().getParentIfMatches(event) : null;
+      String parent = (type.ignore() == false && type.ignoreDeletes() == false && type.parentMatcher() != null)
+              ? type.parentMatcher().getParentIfMatches(event)
+              : null;
 
       if (index != null) {
         return ImmutableMatchResult.builder()
