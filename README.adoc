@@ -1,5 +1,7 @@
 = Couchbase Elasticsearch Connector
 
+https://drive.google.com/open?id=1ZwLv2YR5x6XXtKEZmJm_QF_DLqtpesBL[*Parent-Child support version download*]
+
 https://docs.couchbase.com/elasticsearch-connector/4.0/release-notes.html[*Download*]
 | https://docs.couchbase.com/elasticsearch-connector/4.0/index.html[*Documentation*]
 | https://issues.couchbase.com/projects/CBES[*Issues*]
