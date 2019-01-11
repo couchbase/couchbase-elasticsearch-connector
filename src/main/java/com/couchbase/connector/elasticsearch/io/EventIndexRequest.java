@@ -25,10 +25,10 @@ import static java.util.Objects.requireNonNull;
 public class EventIndexRequest extends IndexRequest implements EventDocWriteRequest<IndexRequest> {
   private final Event event;
 
-  public EventIndexRequest(String index, String type, String parent, Event event) {
+  public EventIndexRequest(String index, String type, String routing, Event event) {
     super(index, type, event.getKey());
-    if (Strings.isNullOrEmpty(parent) == false)
-      super.routing(parent);
+    if (Strings.isNullOrEmpty(routing) == false)
+      super.routing(routing);
     this.event = requireNonNull(event);
   }
 

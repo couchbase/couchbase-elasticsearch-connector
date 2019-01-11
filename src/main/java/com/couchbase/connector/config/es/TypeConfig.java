@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.config.es;
 
+import com.couchbase.client.deps.io.netty.util.internal.StringUtil;
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.dcp.Event;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import net.consensys.cava.toml.TomlPosition;
 import net.consensys.cava.toml.TomlTable;
+import org.apache.commons.lang3.StringUtils;
 import org.immutables.value.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,12 +52,12 @@ public interface TypeConfig {
   boolean ignoreDeletes();
 
   @Nullable
-  String parent();
+  String routing(); // may be null, only for custom routing
 
   IndexMatcher indexMatcher();
 
   @Nullable
-  ParentMatcher parentMatcher();
+  RoutingMatcher routingMatcher(); // may be null, only for custom routing
 
   @Value.Auxiliary
   @Nullable
@@ -69,7 +71,7 @@ public interface TypeConfig {
   }
 
   static ImmutableTypeConfig from(TomlTable config, TomlPosition position, TypeConfig defaults) {
-    expectOnly(config, "typeName", "index", "pipeline", "ignore", "ignoreDeletes", "prefix", "regex", "parent");
+    expectOnly(config, "typeName", "index", "pipeline", "ignore", "ignoreDeletes", "prefix", "regex", "routing");
 
     final String index = Strings.emptyToNull(config.getString("index", defaults::index));
     ImmutableTypeConfig.Builder builder = ImmutableTypeConfig.builder()
@@ -79,7 +81,7 @@ public interface TypeConfig {
         .pipeline(Strings.emptyToNull(config.getString("pipeline", defaults::pipeline)))
         .ignoreDeletes(config.getBoolean("ignoreDeletes", defaults::ignoreDeletes))
         .ignore(config.getBoolean("ignore", defaults::ignore))
-        .parent(config.getString("parent", defaults::parent));
+        .routing(config.getString("routing", defaults::routing));
 
     final String idPrefix = config.getString("prefix");
     final String idRegex = config.getString("regex");
@@ -106,9 +108,9 @@ public interface TypeConfig {
       }
     }
 
-    final String parent = config.getString("parent");
-    if (Strings.isNullOrEmpty(parent) == false)
-      builder.parentMatcher(new ValueParentMatcher(parent));
+    final String routing = config.getString("routing");
+    if (Strings.isNullOrEmpty(routing) == false)
+      builder.routingMatcher(new ValueRoutingMatcher(routing));
 
     return builder.build();
   }
@@ -117,8 +119,8 @@ public interface TypeConfig {
     String getIndexIfMatches(Event event);
   }
 
-  interface ParentMatcher {
-    String getParentIfMatches(Event event);
+  interface RoutingMatcher {
+    String getRoutingIfMatches(Event event);
   }
 
   class IdPrefixMatcher implements IndexMatcher {
@@ -180,30 +182,31 @@ public interface TypeConfig {
     }
   }
 
-  class ValueParentMatcher implements ParentMatcher {
+  class ValueRoutingMatcher implements RoutingMatcher {
 
     private static final ObjectMapper mapper = new ObjectMapper();
-    private static final Logger log = LoggerFactory.getLogger(ValueParentMatcher.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ValueRoutingMatcher.class);
 
-    private final String parent;
+    private final String routing;
 
-    public ValueParentMatcher(String parent) {
-      this.parent = requireNonNull(parent);
+    public ValueRoutingMatcher(String routing) {
+      this.routing = requireNonNull(routing);
     }
 
     @Override
-    public String getParentIfMatches(Event event) {
+    public String getRoutingIfMatches(Event event) {
       // TODO: performance improvement required, expensive readTree conversion
       // DocumentTransformer can be used?
       try {
-        JsonNode node = mapper.readTree(event.getContent());
-        if(node != null)
-          node = node.get(this.parent);
-        return node.get("parent").textValue();
+        JsonNode node = mapper.readTree(event.getContent()).findValue(this.routing);
+        if (node == null)
+            return StringUtil.EMPTY_STRING;
+
+        return node.size() > 0 ? node.get("parent").textValue() : node.toString();
       } catch (Exception ex) {
-        // either doc deleted or parent field couldn't parsed
-        log.info("Join field defined but parent not found. ", ex.getMessage());
-        return "";
+        // either doc deleted or routing field couldn't parsed
+        LOGGER.info("Routing field defined but routing value not found. " + ex.getMessage());
+        return StringUtil.EMPTY_STRING;
       }
     }
   }

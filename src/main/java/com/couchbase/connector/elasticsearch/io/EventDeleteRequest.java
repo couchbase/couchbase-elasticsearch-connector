@@ -25,10 +25,10 @@ import static java.util.Objects.requireNonNull;
 public class EventDeleteRequest extends DeleteRequest implements EventDocWriteRequest<DeleteRequest> {
   private final Event event;
 
-  public EventDeleteRequest(String index, String type, String route, Event event) {
+  public EventDeleteRequest(String index, String type, String routing, Event event) {
     super(index, type, event.getKey());
-    if (Strings.isNullOrEmpty(route) == false)
-      super.routing(route);
+    if (Strings.isNullOrEmpty(routing) == false)
+      super.routing(routing);
     this.event = requireNonNull(event);
   }
 

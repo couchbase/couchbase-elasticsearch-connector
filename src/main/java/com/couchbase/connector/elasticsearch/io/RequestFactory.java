@@ -52,7 +52,7 @@ public class RequestFactory {
       origRequest.getEvent().release();
       return null;
     }
-    return new EventRejectionIndexRequest(rejectLogConfig.index(), rejectLogConfig.typeName(), rejectLogConfig.route(), origRequest, f);
+    return new EventRejectionIndexRequest(rejectLogConfig.index(), rejectLogConfig.typeName(), rejectLogConfig.routing(), origRequest, f);
   }
 
   @Nullable
@@ -76,13 +76,13 @@ public class RequestFactory {
 
   @Nullable
   private EventDeleteRequest newDeleteRequest(final Event event, final MatchResult matchResult) {
-    return new EventDeleteRequest(matchResult.index(), matchResult.typeConfig().type(), matchResult.parent(), event);
+    return new EventDeleteRequest(matchResult.index(), matchResult.typeConfig().type(), matchResult.routing(), event);
   }
 
   @Nullable
   private EventIndexRequest newIndexRequest(final Event event, final MatchResult matchResult) throws IOException {
     final Timer.Context timerContext = newIndexRequestTimer.time();
-    EventIndexRequest request = new EventIndexRequest(matchResult.index(), matchResult.typeConfig().type(), matchResult.parent(), event);
+    EventIndexRequest request = new EventIndexRequest(matchResult.index(), matchResult.typeConfig().type(), matchResult.routing(), event);
     request.setPipeline(matchResult.typeConfig().pipeline());
     documentTransformer.setSourceFromEventContent(request, event);
 
@@ -96,22 +96,22 @@ public class RequestFactory {
     String index();
 
     @Nullable
-    String parent();
+    String routing();
   }
 
   @Nullable // null means no match
   private MatchResult match(final Event event) {
     for (TypeConfig type : types) {
       String index = type.indexMatcher().getIndexIfMatches(event);
-      String parent = (type.ignore() == false && type.ignoreDeletes() == false && type.parentMatcher() != null)
-              ? type.parentMatcher().getParentIfMatches(event)
+      String routing = (type.ignore() == false && type.ignoreDeletes() == false && type.routingMatcher() != null)
+              ? type.routingMatcher().getRoutingIfMatches(event)
               : null;
 
       if (index != null) {
         return ImmutableMatchResult.builder()
             .typeConfig(type)
             .index(index)
-            .parent(parent)
+            .routing(routing)
             .build();
       }
     }

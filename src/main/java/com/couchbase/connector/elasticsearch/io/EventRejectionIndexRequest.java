@@ -23,13 +23,13 @@ import org.elasticsearch.common.xcontent.XContentType;
 import java.util.Map;
 
 public class EventRejectionIndexRequest extends EventIndexRequest {
-  public EventRejectionIndexRequest(String index, String type, String parent, EventDocWriteRequest origRequest, BulkItemResponse.Failure failure) {
-    super(index, type, parent, origRequest.getEvent());
+  public EventRejectionIndexRequest(String index, String type, String routing, EventDocWriteRequest origRequest, BulkItemResponse.Failure failure) {
+    super(index, type, routing, origRequest.getEvent());
 
     final Map<String, Object> content = ImmutableMap.of(
         "index", origRequest.index(),
         "type", origRequest.type(),
-        "route", origRequest.parent() != null ? origRequest.parent() : "",
+        "routing", origRequest.routing() != null ? origRequest.routing() : "",
         "action", origRequest.opType(),
         "error", failure.getMessage());
     source(content, XContentType.JSON);

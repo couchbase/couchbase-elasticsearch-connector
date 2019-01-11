@@ -30,7 +30,7 @@ public interface RejectLogConfig {
   String index();
 
   @Nullable
-  String route();
+  String routing();
 
   String typeName();
 
@@ -38,7 +38,7 @@ public interface RejectLogConfig {
     expectOnly(config, "index", "typeName");
     return ImmutableRejectLogConfig.builder()
         .index(Strings.emptyToNull(config.getString("index")))
-        .route(Strings.emptyToNull(config.getString("route")))
+        .routing(Strings.emptyToNull(config.getString("routing")))
         .typeName(config.getString("typeName", () -> defaultTypeName))
         .build();
   }
