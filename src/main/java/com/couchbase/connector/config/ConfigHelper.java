@@ -18,10 +18,12 @@ package com.couchbase.connector.config;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+import com.google.common.io.ByteStreams;
 import net.consensys.cava.toml.Toml;
 import net.consensys.cava.toml.TomlArray;
 import net.consensys.cava.toml.TomlParseResult;
 import net.consensys.cava.toml.TomlTable;
+import org.apache.commons.text.StringSubstitutor;
 import org.apache.http.HttpHost;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
@@ -40,6 +42,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.couchbase.connector.util.EnvironmentHelper.getInstallDir;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
 
 public class ConfigHelper {
@@ -123,7 +126,7 @@ public class ConfigHelper {
 
     final File passwordFile = resolveIfRelative(pathToPassword);
     try (InputStream is = new FileInputStream(passwordFile)) {
-      final TomlParseResult config = Toml.parse(is);
+      final TomlParseResult config = Toml.parse(resolveVariables(is));
 
       if (config.hasErrors()) {
         // DO NOT REPORT ERRORS, AS THAT MIGHT LEAK THE CONTENTS OF THE FILE TO AN ATTACKER
@@ -148,5 +151,15 @@ public class ConfigHelper {
   public static File resolveIfRelative(String pathToPassword) {
     final File f = new File(pathToPassword);
     return f.isAbsolute() ? f : new File(getInstallDir(), pathToPassword);
+  }
+
+  public static String resolveVariables(String s) {
+    return new StringSubstitutor(System::getenv)
+        .setValueDelimiter(":") // following Elasticsearch convention, default values are delimited by ":"
+        .replace(s);
+  }
+
+  public static String resolveVariables(InputStream is) throws IOException {
+    return resolveVariables(new String(ByteStreams.toByteArray(is), UTF_8));
   }
 }

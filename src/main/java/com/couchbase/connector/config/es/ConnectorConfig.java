@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import static com.couchbase.connector.config.ConfigHelper.expectOnly;
+import static com.couchbase.connector.config.ConfigHelper.resolveVariables;
 
 @Value.Immutable
 public interface ConnectorConfig {
@@ -62,11 +63,11 @@ public interface ConnectorConfig {
   }
 
   static ImmutableConnectorConfig from(String toml) {
-    return ConnectorConfig.from(Toml.parse(toml));
+    return ConnectorConfig.from(Toml.parse(resolveVariables(toml)));
   }
 
   static ImmutableConnectorConfig from(InputStream toml) throws IOException {
-    return ConnectorConfig.from(Toml.parse(toml));
+    return ConnectorConfig.from(Toml.parse(resolveVariables(toml)));
   }
 
   static ImmutableConnectorConfig from(File toml) throws IOException {
