@@ -34,7 +34,3 @@ build/
 src/*/generated/
 src/*/generated_tests/
 
-
-# Ignore tracking host address and password included files
-src/dist/config/default-connector.toml
-src/dist/secrets/*
