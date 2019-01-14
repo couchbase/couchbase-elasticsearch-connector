@@ -122,9 +122,7 @@
   # If true, never delete matching documents from Elasticsearch.
   ignoreDeletes = false
 
-  # Route matching documents though this field. (This fiel is used when JOIN type used for parent-child relationship)
-  # By default empty string, means "no route".
-  # IMPORTANT: works only if documentContentAtTopLevel = true
+  # Attach custom routing to doc ID, empty means no routing
   routing = ''
 
 # Sample document type definitions for the travel-sample bucket.
