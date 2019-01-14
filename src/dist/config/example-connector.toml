@@ -150,8 +150,8 @@
   # Regex just for example. Matches prefixes "airport_", "seaport_", etc.
   regex = '.*port_.*'
   index = 'airports'
-  # Routing field name
-  routing = 'my_join_feld'
+  # custom routing is attached to doc ID, example: mydocid-routing-parentdocid, routing is 'routing-' here
+  routing = 'routing-'
 
 [[elasticsearch.type]]
   # Index can be inferred from document ID by including a capturing group

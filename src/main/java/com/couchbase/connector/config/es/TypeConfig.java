@@ -19,15 +19,10 @@ package com.couchbase.connector.config.es;
 import com.couchbase.client.deps.io.netty.util.internal.StringUtil;
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.dcp.Event;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import net.consensys.cava.toml.TomlPosition;
 import net.consensys.cava.toml.TomlTable;
-import org.apache.commons.lang3.StringUtils;
 import org.immutables.value.Value;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.util.regex.Matcher;
@@ -110,7 +105,7 @@ public interface TypeConfig {
 
     final String routing = config.getString("routing");
     if (Strings.isNullOrEmpty(routing) == false)
-      builder.routingMatcher(new ValueRoutingMatcher(routing));
+      builder.routingMatcher(new IdRoutingMatcher(routing));
 
     return builder.build();
   }
@@ -182,32 +177,20 @@ public interface TypeConfig {
     }
   }
 
-  class ValueRoutingMatcher implements RoutingMatcher {
-
-    private static final ObjectMapper mapper = new ObjectMapper();
-    private static final Logger LOGGER = LoggerFactory.getLogger(ValueRoutingMatcher.class);
-
+  class IdRoutingMatcher implements RoutingMatcher {
     private final String routing;
 
-    public ValueRoutingMatcher(String routing) {
+    public IdRoutingMatcher(String routing) {
       this.routing = requireNonNull(routing);
     }
 
     @Override
     public String getRoutingIfMatches(Event event) {
-      // TODO: performance improvement required, expensive readTree conversion
-      // DocumentTransformer can be used?
-      try {
-        JsonNode node = mapper.readTree(event.getContent()).findValue(this.routing);
-        if (node == null)
-            return StringUtil.EMPTY_STRING;
-
-        return node.size() > 0 ? node.get("parent").textValue() : node.toString();
-      } catch (Exception ex) {
-        // either doc deleted or routing field couldn't parsed
-        LOGGER.info("Routing field defined but routing value not found. " + ex.getMessage());
+      if (Strings.isNullOrEmpty(event.getKey()) == true)
         return StringUtil.EMPTY_STRING;
-      }
+
+      String[] parts = event.getKey().split(this.routing);
+      return parts.length > 1 ? parts[1] : StringUtil.EMPTY_STRING;
     }
   }
 }
