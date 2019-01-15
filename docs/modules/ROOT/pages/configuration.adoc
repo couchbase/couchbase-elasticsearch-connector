@@ -344,3 +344,23 @@ Related configuration properties:
 <2> This Elasticsearch type will be assigned to the documents.
 
 TIP: If you're running multiple connector groups, you may wish to use a separate rejection log index for each group.
+
+== Environment Variables
+
+The connector configuration may reference environment variables.
+
+Variable substitution happens in a separate step before the TOML is parsed.
+Values are replaced verbatim, without regard to context.
+When using variables in string values, make sure the result conforms to the the https://github.com/toml-lang/toml#string[TOML string syntax].
+
+Here's an example with completely made up config properties, and placeholders that reference environment variables `NAME`, `AGE`, and `FAVORITE_COLOR`:
+[source,toml]
+----
+name = '${NAME}' <1>
+age = ${AGE}
+favoriteColor = '${FAVORITE_COLOR:blue}' <2>
+----
+<1> Alternatively, you could write `name = ${NAME}` and include the quotes in value of the environment variable.
+<2> A colon in the placeholder separates the environment variable name from the default value to use if the variable is not set.
+If the `FAVORITE_COLOR` environment variable is set, its value will be used.
+Otherwise, the specified default value `blue` will be used.
