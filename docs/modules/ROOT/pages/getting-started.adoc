@@ -9,6 +9,9 @@ Step-by-step instructions for installing the Couchbase Elasticsearch Connector.
 
 == Pre-requisites
 
+Linux is required for production deployments.
+macOS is fine for experimentation and development, but is not officially supported.
+
 You will need:
 
 * The xref:release-notes.adoc[latest release] of Couchbase Elasticsearch Connector.
