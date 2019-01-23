@@ -123,13 +123,10 @@ public class ElasticsearchHelper {
 
       } catch (Exception e) {
         final TimeValue delay = retryDelays.next();
-        LOGGER.debug("Failed to get Elasticsearch version", e);
-        LOGGER.warn("Elasticsearch connection failure, couldn't get version. Retrying in {}", delay);
+        LOGGER.warn("Failed to connect to Elasticsearch. Retrying in {}", delay, e);
         if (ThrowableHelper.hasCause(e, ConnectionClosedException.class)) {
           LOGGER.warn("  Troubleshooting tip: If the Elasticsearch connection failure persists," +
               " and if Elasticsearch is configured to require TLS/SSL, then make sure the connector is also configured to use secure connections.");
-        } else if (!ThrowableHelper.hasCause(e, ConnectException.class)) {
-          LOGGER.warn("Here's the root cause of the connection failure", e);
         }
 
         MILLISECONDS.sleep(delay.millis());
