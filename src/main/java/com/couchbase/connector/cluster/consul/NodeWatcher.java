@@ -30,9 +30,10 @@ import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Watches for the arrival and departure of service nodes.
@@ -43,11 +44,11 @@ class NodeWatcher implements Closeable {
   private final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
   private final QuietPeriodExecutor quietPeriodExecutor;
 
-  private final BlockingQueue<Object> eventQueue = new LinkedBlockingQueue<>();
   private final ServiceHealthCache svHealth;
   private volatile ImmutableSet<String> prevEndpointIds = ImmutableSet.of();
 
-  public NodeWatcher(Consul consul, String serviceName, Duration quietPeriod) {
+  public NodeWatcher(Consul consul, String serviceName, Duration quietPeriod, BlockingQueue<LeaderEvent> eventQueue) {
+    requireNonNull(eventQueue);
     this.quietPeriodExecutor = new QuietPeriodExecutor(quietPeriod, executorService);
     this.svHealth = ServiceHealthCache.newCache(consul.healthClient(), serviceName);
 
@@ -68,16 +69,11 @@ class NodeWatcher implements Closeable {
 
         prevEndpointIds = currentEndpointIds;
         quietPeriodExecutor.schedule(() -> {
-          eventQueue.clear(); // clear just in case nobody is draining the queue
-          eventQueue.add(new Object());
+          eventQueue.add(LeaderEvent.MEMBERSHIP_CHANGE);
         });
       }
     });
     svHealth.start();
-  }
-
-  public void waitForNodesToJoinOrLeave() throws InterruptedException {
-    eventQueue.take();
   }
 
   private static String endpointId(ServiceHealth health) {

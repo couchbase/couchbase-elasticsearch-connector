@@ -24,17 +24,22 @@ import com.google.common.base.Throwables;
 import com.orbitz.consul.Consul;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.Disposable;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.couchbase.connector.cluster.consul.ConsulHelper.listRpcEndpoints;
+import static com.couchbase.connector.cluster.consul.LeaderEvent.CONFIG_CHANGE;
+import static com.couchbase.connector.cluster.consul.LeaderEvent.FATAL_ERROR;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -74,19 +79,57 @@ public class LeaderTask {
   private void doRun() {
     LOGGER.info("Leader thread started.");
 
-    try (NodeWatcher watcher = new NodeWatcher(consul, serviceName, Duration.ofSeconds(5))) {
+    boolean hasSeenConfig = false;
+    boolean hasSeenClusterMembership = false;
+
+    final BlockingQueue<LeaderEvent> leaderEvents = new LinkedBlockingQueue<>();
+    final Disposable configChangeSubscription = ConsulReactor.watch(Consul.builder(), configKey(), Duration.ofSeconds(5))
+        .doOnNext(e -> {
+          leaderEvents.offer(CONFIG_CHANGE);
+        })
+        .doOnError(e -> {
+          LOGGER.error("panic: Config change watcher failed.", e);
+          leaderEvents.offer(FATAL_ERROR);
+        })
+        .subscribe();
+
+    try (NodeWatcher watcher = new NodeWatcher(consul, serviceName, Duration.ofSeconds(5), leaderEvents)) {
       while (true) {
         throwIfDone();
-        watcher.waitForNodesToJoinOrLeave();
-        rebalance();
+
+        final LeaderEvent event = leaderEvents.take();
+        LOGGER.info("Got leadership event: {}", event);
+
+        switch (event) {
+          case MEMBERSHIP_CHANGE:
+            hasSeenClusterMembership = true;
+            break;
+
+          case CONFIG_CHANGE:
+            hasSeenConfig = true;
+            break;
+
+          case FATAL_ERROR:
+            throw new RuntimeException("Fatal error in leader task");
+        }
+
+        // don't assign work until we've received at least one cluster membership event
+        // and the config document exists.
+        if (hasSeenClusterMembership && hasSeenConfig) {
+          LOGGER.info("Rebalance triggered by {}", event);
+          rebalance();
+        }
       }
     } catch (InterruptedException e) {
       // this is how the thread normally terminates.
       LOGGER.debug("Leader thread interrupted", e);
+
     } catch (Throwable t) {
       LOGGER.error("panic: Leader task failed", t);
-      System.exit(1);
+      System.exit(1); // todo resign instead of exiting?
+
     } finally {
+      configChangeSubscription.dispose();
       LOGGER.info("Leader thread terminated.");
     }
   }
@@ -243,8 +286,12 @@ public class LeaderTask {
     }
   }
 
+  private String configKey() {
+    return "couchbase/cbes/" + serviceName + "/config";
+  }
+
   private void rebalance() throws InterruptedException {
-    final String configLocation = "couchbase/cbes/" + serviceName + "/config";
+    final String configLocation = configKey();
     LOGGER.info("Reading connector config from Consul key: {}", configLocation);
 
     final String config = consul.keyValueClient().getValue(configLocation)
