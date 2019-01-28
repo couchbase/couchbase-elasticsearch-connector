@@ -20,6 +20,7 @@ import com.couchbase.client.core.logging.RedactableArgument;
 import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.es.ConnectorConfig;
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.orbitz.consul.Consul;
 import org.slf4j.Logger;
@@ -28,10 +29,15 @@ import reactor.core.Disposable;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -56,6 +62,8 @@ public class LeaderTask {
   private volatile boolean done;
   private volatile Thread thread;
 
+  private final ExecutorService executor = Executors.newCachedThreadPool();
+
   public LeaderTask(Consul consul, String serviceName) {
     this.consul = requireNonNull(consul);
     this.serviceName = requireNonNull(serviceName);
@@ -70,6 +78,7 @@ public class LeaderTask {
 
   public void stop() {
     done = true;
+    executor.shutdownNow();
     if (thread != null) {
       thread.interrupt();
     }
@@ -134,35 +143,6 @@ public class LeaderTask {
     }
   }
 
-  private <T> Map<RpcEndpoint, T> broadcast(Function<RpcEndpoint, T> endpointCallback) {
-    final List<RpcEndpoint> endpoints = listRpcEndpoints(consul.keyValueClient(), serviceName, Duration.ofSeconds(15));
-
-    // todo invoke in parallel so timeouts don't stack
-    final Map<RpcEndpoint, T> results = new HashMap<>();
-    for (RpcEndpoint endpoint : endpoints) {
-      try {
-        results.put(endpoint, endpointCallback.apply(endpoint));
-      } catch (Exception e) {
-        LOGGER.error("Failed to apply callback for endpoint {}", RedactableArgument.system(endpoint), e);
-      }
-    }
-    return results;
-  }
-
-  private <S, T> Map<RpcEndpoint, RpcResult<T>> broadcast(List<RpcEndpoint> endpoints, Class<S> serviceInterface, Function<S, T> endpointCallback) {
-    // todo invoke in parallel so timeouts don't stack
-    final Map<RpcEndpoint, RpcResult<T>> results = new HashMap<>();
-    for (RpcEndpoint endpoint : endpoints) {
-      try {
-        results.put(endpoint, RpcResult.newSuccess(endpointCallback.apply(endpoint.service(serviceInterface))));
-      } catch (Exception e) {
-        results.put(endpoint, RpcResult.newFailure(e));
-        LOGGER.error("Failed to apply callback for endpoint {}", RedactableArgument.system(endpoint), e);
-      }
-    }
-    return results;
-  }
-
   private static class RpcResult<T> {
     private T result;
     private Throwable failure;
@@ -205,23 +185,44 @@ public class LeaderTask {
     }
   }
 
-  private <S, T> Map<RpcEndpoint, RpcResult<Void>> broadcastVoid(Class<S> serviceInterface, Consumer<S> endpointCallback) {
-    final List<RpcEndpoint> endpoints = listRpcEndpoints(consul.keyValueClient(), serviceName, Duration.ofSeconds(15));
-    return broadcastVoid(endpoints, serviceInterface, endpointCallback);
+  private <S> Map<RpcEndpoint, RpcResult<Void>> broadcast(List<RpcEndpoint> endpoints, Class<S> serviceInterface, Consumer<S> endpointCallback) {
+    return broadcast(endpoints, serviceInterface, s -> {
+      endpointCallback.accept(s);
+      return null;
+    });
   }
 
-  private <S, T> Map<RpcEndpoint, RpcResult<Void>> broadcastVoid(List<RpcEndpoint> endpoints, Class<S> serviceInterface, Consumer<S> endpointCallback) {
-    // todo invoke in parallel so timeouts don't stack
-    final Map<RpcEndpoint, RpcResult<Void>> results = new HashMap<>();
+  private <S, T> Map<RpcEndpoint, RpcResult<T>> broadcast(List<RpcEndpoint> endpoints, Class<S> serviceInterface, Function<S, T> endpointCallback) {
+    LOGGER.info("Broadcasting to {} endpoints", endpoints.size());
+
+    final Stopwatch timer = Stopwatch.createStarted();
+
+    final List<Future<RpcResult<T>>> futures = new ArrayList<>();
     for (RpcEndpoint endpoint : endpoints) {
+      futures.add(executor.submit(
+          () -> RpcResult.newSuccess(endpointCallback.apply(endpoint.service(serviceInterface)))));
+    }
+
+    LOGGER.info("Scheduled all requests for broadcast. Awaiting responses...");
+
+    final Map<RpcEndpoint, RpcResult<T>> results = new HashMap<>();
+    for (int i = 0; i < endpoints.size(); i++) {
+      final RpcEndpoint endpoint = endpoints.get(i);
+      final Future<RpcResult<T>> f = futures.get(i);
+
       try {
-        endpointCallback.accept(endpoint.service(serviceInterface));
-        results.put(endpoint, RpcResult.newSuccess());
-      } catch (Exception e) {
+        results.put(endpoint, f.get());
+
+      } catch (Throwable e) {
+        if (e instanceof ExecutionException) {
+          e = e.getCause();
+        }
         results.put(endpoint, RpcResult.newFailure(e));
         LOGGER.error("Failed to apply callback for endpoint {}", RedactableArgument.system(endpoint), e);
       }
     }
+
+    LOGGER.info("Finished collecting broadcast responses. Broadcasting to {} endpoints took {}", endpoints.size(), timer);
     return results;
   }
 
@@ -233,7 +234,7 @@ public class LeaderTask {
       throwIfDone();
 
       final List<RpcEndpoint> endpoints = listRpcEndpoints(consul.keyValueClient(), serviceName, Duration.ofSeconds(15));
-      final Map<RpcEndpoint, RpcResult<Void>> stopResults = broadcastVoid(endpoints, WorkerService.class, WorkerService::stopStreaming);
+      final Map<RpcEndpoint, RpcResult<Void>> stopResults = broadcast(endpoints, WorkerService.class, WorkerService::stopStreaming);
 
       if (stopResults.entrySet().stream()
           .noneMatch(e -> e.getValue().isFailed())) {
