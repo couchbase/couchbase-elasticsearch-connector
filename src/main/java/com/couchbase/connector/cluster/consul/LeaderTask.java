@@ -17,17 +17,20 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.couchbase.client.core.logging.RedactableArgument;
+import com.couchbase.client.core.utils.DefaultObjectMapper;
+import com.couchbase.client.deps.com.fasterxml.jackson.databind.JsonNode;
 import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.orbitz.consul.Consul;
+import com.orbitz.consul.option.ImmutablePutOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,7 +49,11 @@ import java.util.stream.Collectors;
 import static com.couchbase.connector.cluster.consul.ConsulHelper.listRpcEndpoints;
 import static com.couchbase.connector.cluster.consul.LeaderEvent.CONFIG_CHANGE;
 import static com.couchbase.connector.cluster.consul.LeaderEvent.FATAL_ERROR;
+import static com.couchbase.connector.cluster.consul.LeaderEvent.PAUSE;
+import static com.couchbase.connector.cluster.consul.LeaderEvent.RESUME;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -90,9 +97,10 @@ public class LeaderTask {
 
     boolean hasSeenConfig = false;
     boolean hasSeenClusterMembership = false;
+    boolean paused = false;
 
     final BlockingQueue<LeaderEvent> leaderEvents = new LinkedBlockingQueue<>();
-    final Disposable configChangeSubscription = ConsulReactor.watch(Consul.builder(), configKey(), Duration.ofSeconds(5))
+    final Disposable configSubscription = ConsulReactor.watch(Consul.builder(), configKey(), Duration.ofSeconds(5))
         .doOnNext(e -> {
           leaderEvents.offer(CONFIG_CHANGE);
         })
@@ -102,9 +110,28 @@ public class LeaderTask {
         })
         .subscribe();
 
+    final Disposable controlSubscription = ConsulReactor.watch(Consul.builder(), controlKey(), Duration.ofSeconds(5))
+        .doOnNext(e -> {
+          LOGGER.debug("Got control document: {}", e);
+          final JsonNode control = readTreeOrElseEmptyObject(e);
+          if (control.path("paused").asBoolean(false)) {
+            leaderEvents.offer(PAUSE);
+          } else {
+            leaderEvents.offer(RESUME);
+          }
+        })
+        .doOnError(e -> {
+          LOGGER.error("panic: Control change watcher failed.", e);
+          leaderEvents.offer(FATAL_ERROR);
+        })
+        .subscribe();
+
     try (NodeWatcher watcher = new NodeWatcher(consul, serviceName, Duration.ofSeconds(5), leaderEvents)) {
       while (true) {
         throwIfDone();
+
+        // So we can quickly respond to changes withing having to poll for document existence.
+        createControlDocumentIfDoesNotExist();
 
         final LeaderEvent event = leaderEvents.take();
         LOGGER.info("Got leadership event: {}", event);
@@ -118,15 +145,36 @@ public class LeaderTask {
             hasSeenConfig = true;
             break;
 
+          case PAUSE:
+            LOGGER.info("Pausing connector activity.");
+            paused = true;
+            stopStreaming();
+            break;
+
+          case RESUME:
+            LOGGER.info("Resuming connector activity.");
+            paused = false;
+            break;
+
           case FATAL_ERROR:
             throw new RuntimeException("Fatal error in leader task");
         }
 
         // don't assign work until we've received at least one cluster membership event
         // and the config document exists.
-        if (hasSeenClusterMembership && hasSeenConfig) {
+        if (hasSeenClusterMembership && hasSeenConfig && !paused) {
           LOGGER.info("Rebalance triggered by {}", event);
           rebalance();
+        } else {
+          if (!hasSeenClusterMembership) {
+            LOGGER.info("Waiting for initial cluster membership event before streaming can start.");
+          }
+          if (!hasSeenConfig) {
+            LOGGER.info("Waiting for connector configuration document to exist before streaming can start.");
+          }
+          if (paused) {
+            LOGGER.info("Connector is paused; waiting for 'resume' control signal before streaming can start.");
+          }
         }
       }
     } catch (InterruptedException e) {
@@ -138,8 +186,22 @@ public class LeaderTask {
       System.exit(1); // todo resign instead of exiting?
 
     } finally {
-      configChangeSubscription.dispose();
+      configSubscription.dispose();
+      controlSubscription.dispose();
       LOGGER.info("Leader thread terminated.");
+    }
+  }
+
+  private void createControlDocumentIfDoesNotExist() {
+    final String defaultControlDoc = "{\"paused\":false}";
+    consul.keyValueClient().putValue(controlKey(), defaultControlDoc, 0, ImmutablePutOptions.builder().cas(0).build(), UTF_8);
+  }
+
+  private static JsonNode readTreeOrElseEmptyObject(String s) {
+    try {
+      return DefaultObjectMapper.readTree(isNullOrEmpty(s) ? "{}" : s);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Failed to parse JSON", e);
     }
   }
 
@@ -291,13 +353,17 @@ public class LeaderTask {
     return "couchbase/cbes/" + serviceName + "/config";
   }
 
+  private String controlKey() {
+    return "couchbase/cbes/" + serviceName + "/control";
+  }
+
   private void rebalance() throws InterruptedException {
     final String configLocation = configKey();
     LOGGER.info("Reading connector config from Consul key: {}", configLocation);
 
     final String config = consul.keyValueClient().getValue(configLocation)
         .orElseThrow(() -> new ConfigException("missing Consul config key: " + configLocation))
-        .getValueAsString(StandardCharsets.UTF_8)
+        .getValueAsString(UTF_8)
         .orElseThrow(() -> new ConfigException("missing value for Consul key: " + configLocation));
 
     // Sanity check, validate the config.

@@ -19,5 +19,7 @@ package com.couchbase.connector.cluster.consul;
 public enum LeaderEvent {
   CONFIG_CHANGE,
   MEMBERSHIP_CHANGE,
+  PAUSE,
+  RESUME,
   FATAL_ERROR
 }
