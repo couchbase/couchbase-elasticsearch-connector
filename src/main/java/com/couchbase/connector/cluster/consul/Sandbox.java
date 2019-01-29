@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.cluster.consul;
 
+import com.couchbase.connector.cluster.consul.rpc.RpcServerTask;
 import com.github.therapi.core.MethodRegistry;
 import com.github.therapi.jsonrpc.DefaultExceptionTranslator;
 import com.github.therapi.jsonrpc.JsonRpcDispatcher;

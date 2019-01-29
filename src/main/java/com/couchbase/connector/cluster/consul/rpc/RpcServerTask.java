@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.cluster.consul;
+package com.couchbase.connector.cluster.consul.rpc;
 
+import com.couchbase.connector.cluster.consul.AbstractLongPollTask;
+import com.couchbase.connector.cluster.consul.ConsulHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -33,7 +35,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import static com.couchbase.connector.cluster.consul.ConsulHelper.rpcEndpointKey;
+import static com.couchbase.connector.cluster.consul.rpc.RpcHelper.rpcEndpointKey;
 import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;

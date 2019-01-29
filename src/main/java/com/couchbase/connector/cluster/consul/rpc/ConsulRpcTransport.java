@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.cluster.consul;
+package com.couchbase.connector.cluster.consul.rpc;
 
 import com.couchbase.client.core.logging.RedactableArgument;
+import com.couchbase.connector.cluster.consul.ConsulHelper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;

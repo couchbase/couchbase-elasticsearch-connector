@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.cluster.consul;
+package com.couchbase.connector.cluster.consul.rpc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.therapi.jsonrpc.client.ServiceFactory;

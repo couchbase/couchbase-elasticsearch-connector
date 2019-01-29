@@ -16,14 +16,14 @@
 
 package com.couchbase.connector.cluster.consul;
 
-import com.couchbase.client.core.logging.RedactableArgument;
 import com.couchbase.client.core.utils.DefaultObjectMapper;
 import com.couchbase.client.deps.com.fasterxml.jackson.databind.JsonNode;
 import com.couchbase.connector.cluster.Membership;
+import com.couchbase.connector.cluster.consul.rpc.Broadcaster;
+import com.couchbase.connector.cluster.consul.rpc.RpcEndpoint;
+import com.couchbase.connector.cluster.consul.rpc.RpcResult;
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.es.ConnectorConfig;
-import com.google.common.base.Stopwatch;
-import com.google.common.base.Throwables;
 import com.orbitz.consul.Consul;
 import com.orbitz.consul.option.ImmutablePutOptions;
 import org.slf4j.Logger;
@@ -32,25 +32,17 @@ import reactor.core.Disposable;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.couchbase.connector.cluster.consul.ConsulHelper.listRpcEndpoints;
 import static com.couchbase.connector.cluster.consul.LeaderEvent.CONFIG_CHANGE;
 import static com.couchbase.connector.cluster.consul.LeaderEvent.FATAL_ERROR;
 import static com.couchbase.connector.cluster.consul.LeaderEvent.PAUSE;
 import static com.couchbase.connector.cluster.consul.LeaderEvent.RESUME;
+import static com.couchbase.connector.cluster.consul.rpc.RpcHelper.listRpcEndpoints;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -69,7 +61,7 @@ public class LeaderTask {
   private volatile boolean done;
   private volatile Thread thread;
 
-  private final ExecutorService executor = Executors.newCachedThreadPool();
+  private final Broadcaster broadcaster = new Broadcaster();
 
   public LeaderTask(Consul consul, String serviceName) {
     this.consul = requireNonNull(consul);
@@ -85,7 +77,7 @@ public class LeaderTask {
 
   public void stop() {
     done = true;
-    executor.shutdownNow();
+    broadcaster.close();
     if (thread != null) {
       thread.interrupt();
     }
@@ -205,89 +197,6 @@ public class LeaderTask {
     }
   }
 
-  private static class RpcResult<T> {
-    private T result;
-    private Throwable failure;
-
-    public static <T> RpcResult<T> newSuccess(T value) {
-      return new RpcResult<>(value, null);
-    }
-
-    public static <Void> RpcResult<Void> newSuccess() {
-      return new RpcResult<>(null, null);
-    }
-
-    public static <T> RpcResult<T> newFailure(Throwable t) {
-      return new RpcResult<>(null, t);
-    }
-
-    private RpcResult(T result, Throwable failure) {
-      this.result = result;
-      this.failure = failure;
-    }
-
-    public T get() {
-      if (failure != null) {
-        Throwables.throwIfUnchecked(failure);
-        throw new RuntimeException(failure);
-      }
-      return result;
-    }
-
-    public boolean isFailed() {
-      return failure != null;
-    }
-
-    @Override
-    public String toString() {
-      return "BroadcastResult{" +
-          "result=" + result +
-          ", failure=" + failure +
-          '}';
-    }
-  }
-
-  private <S> Map<RpcEndpoint, RpcResult<Void>> broadcast(List<RpcEndpoint> endpoints, Class<S> serviceInterface, Consumer<S> endpointCallback) {
-    return broadcast(endpoints, serviceInterface, s -> {
-      endpointCallback.accept(s);
-      return null;
-    });
-  }
-
-  private <S, T> Map<RpcEndpoint, RpcResult<T>> broadcast(List<RpcEndpoint> endpoints, Class<S> serviceInterface, Function<S, T> endpointCallback) {
-    LOGGER.info("Broadcasting to {} endpoints", endpoints.size());
-
-    final Stopwatch timer = Stopwatch.createStarted();
-
-    final List<Future<RpcResult<T>>> futures = new ArrayList<>();
-    for (RpcEndpoint endpoint : endpoints) {
-      futures.add(executor.submit(
-          () -> RpcResult.newSuccess(endpointCallback.apply(endpoint.service(serviceInterface)))));
-    }
-
-    LOGGER.info("Scheduled all requests for broadcast. Awaiting responses...");
-
-    final Map<RpcEndpoint, RpcResult<T>> results = new HashMap<>();
-    for (int i = 0; i < endpoints.size(); i++) {
-      final RpcEndpoint endpoint = endpoints.get(i);
-      final Future<RpcResult<T>> f = futures.get(i);
-
-      try {
-        results.put(endpoint, f.get());
-
-      } catch (Throwable e) {
-        if (e instanceof ExecutionException) {
-          e = e.getCause();
-        }
-        results.put(endpoint, RpcResult.newFailure(e));
-        LOGGER.error("Failed to apply callback for endpoint {}", RedactableArgument.system(endpoint), e);
-      }
-    }
-
-    LOGGER.info("Finished collecting broadcast responses. Broadcasting to {} endpoints took {}", endpoints.size(), timer);
-    return results;
-  }
-
   private void stopStreaming() throws InterruptedException {
     int attempt = 1;
 
@@ -296,7 +205,7 @@ public class LeaderTask {
       throwIfDone();
 
       final List<RpcEndpoint> endpoints = listRpcEndpoints(consul.keyValueClient(), serviceName, Duration.ofSeconds(15));
-      final Map<RpcEndpoint, RpcResult<Void>> stopResults = broadcast(endpoints, WorkerService.class, WorkerService::stopStreaming);
+      final Map<RpcEndpoint, RpcResult<Void>> stopResults = broadcaster.broadcast(endpoints, WorkerService.class, WorkerService::stopStreaming);
 
       if (stopResults.entrySet().stream()
           .noneMatch(e -> e.getValue().isFailed())) {

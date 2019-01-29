@@ -16,11 +16,12 @@
 
 package com.couchbase.connector.cluster.consul;
 
+import com.couchbase.connector.cluster.consul.rpc.RpcEndpoint;
 import com.orbitz.consul.Consul;
 
 import java.time.Duration;
 
-import static com.couchbase.connector.cluster.consul.ConsulHelper.listRpcEndpoints;
+import static com.couchbase.connector.cluster.consul.rpc.RpcHelper.listRpcEndpoints;
 
 
 public class RpcSandbox {
