@@ -28,8 +28,8 @@ A connector group is defined by configuring one or more connector instances to u
 <1> Each connector group must be assigned a unique name (in order to keep its replication checkpoints separate).
 The group name is required even if there is only one connector instance in the group.
 
-TIP: Renaming a group invalidates its replication status checkpoint.
-To preserve the checkpoint, run the `cbes-checkpoint-backup` command before renaming, and `cbes-checkpoint-restore` afterwards.
+TIP: Renaming a group invalidates its replication status checkpoint causing the connector to start a new replication from the beginning. 
+To preserve the checkpoint (i.e the replication progress), run the `cbes-checkpoint-backup` command before renaming, and `cbes-checkpoint-restore` afterwards.
 
 === Sharing the load
 
