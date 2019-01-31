@@ -21,8 +21,6 @@ import com.orbitz.consul.Consul;
 
 import java.time.Duration;
 
-import static com.couchbase.connector.cluster.consul.rpc.RpcHelper.listRpcEndpoints;
-
 
 public class RpcSandbox {
 
@@ -40,7 +38,9 @@ public class RpcSandbox {
 //          serviceHealth.getService().getId());
 //      final String endpointKey = rpcEndpointKey(Sandbox.serviceName, endpointId);
 
-    for (RpcEndpoint endpoint : listRpcEndpoints(consul.keyValueClient(), Sandbox.serviceName, defaultTimeout)) {
+    DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), Sandbox.serviceName);
+
+    for (RpcEndpoint endpoint : keys.listRpcEndpoints(defaultTimeout)) {
       System.out.println(endpoint);
 
       final WorkerService follower = endpoint.service(WorkerService.class);

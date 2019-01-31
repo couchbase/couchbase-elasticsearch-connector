@@ -32,15 +32,15 @@ public class LeaderElectionTask extends AbstractLongPollTask<LeaderElectionTask>
   private final Consumer<Throwable> fatalErrorConsumer;
   private final LeaderController leaderController;
 
-  public LeaderElectionTask(KeyValueClient kv, String serviceName, String sessionId, Consumer<Throwable> fatalErrorConsumer, LeaderController leaderController) {
-    super(kv, "leader-election-", serviceName, sessionId);
+  public LeaderElectionTask(KeyValueClient kv, DocumentKeys documentKeys, String sessionId, Consumer<Throwable> fatalErrorConsumer, LeaderController leaderController) {
+    super(kv, "leader-election-", documentKeys, sessionId);
     this.candidateUuid = requireNonNull(sessionId);
     this.fatalErrorConsumer = requireNonNull(fatalErrorConsumer);
     this.leaderController = requireNonNull(leaderController);
   }
 
-  protected void doRun(KeyValueClient kv, String serviceName, String sessionId) {
-    final String leaderKey = "couchbase/cbes/" + serviceName + "/leader";
+  protected void doRun(KeyValueClient kv, DocumentKeys documentKeys, String sessionId) {
+    final String leaderKey = documentKeys.leader();
     LOGGER.info("Leader key: {}", leaderKey);
 
     try {

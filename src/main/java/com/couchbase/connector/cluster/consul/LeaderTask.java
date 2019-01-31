@@ -42,7 +42,6 @@ import static com.couchbase.connector.cluster.consul.LeaderEvent.CONFIG_CHANGE;
 import static com.couchbase.connector.cluster.consul.LeaderEvent.FATAL_ERROR;
 import static com.couchbase.connector.cluster.consul.LeaderEvent.PAUSE;
 import static com.couchbase.connector.cluster.consul.LeaderEvent.RESUME;
-import static com.couchbase.connector.cluster.consul.rpc.RpcHelper.listRpcEndpoints;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -60,12 +59,14 @@ public class LeaderTask {
   private String serviceName;
   private volatile boolean done;
   private volatile Thread thread;
+  private final DocumentKeys keys;
 
   private final Broadcaster broadcaster = new Broadcaster();
 
-  public LeaderTask(Consul consul, String serviceName) {
+  public LeaderTask(Consul consul, String serviceName, DocumentKeys documentKeys) {
     this.consul = requireNonNull(consul);
     this.serviceName = requireNonNull(serviceName);
+    this.keys = requireNonNull(documentKeys);
   }
 
   public LeaderTask start() {
@@ -92,7 +93,7 @@ public class LeaderTask {
     boolean paused = false;
 
     final BlockingQueue<LeaderEvent> leaderEvents = new LinkedBlockingQueue<>();
-    final Disposable configSubscription = ConsulReactor.watch(Consul.builder(), configKey(), Duration.ofSeconds(5))
+    final Disposable configSubscription = ConsulReactor.watch(Consul.builder(), keys.config(), Duration.ofSeconds(5))
         .doOnNext(e -> {
           leaderEvents.offer(CONFIG_CHANGE);
         })
@@ -102,7 +103,7 @@ public class LeaderTask {
         })
         .subscribe();
 
-    final Disposable controlSubscription = ConsulReactor.watch(Consul.builder(), controlKey(), Duration.ofSeconds(5))
+    final Disposable controlSubscription = ConsulReactor.watch(Consul.builder(), keys.control(), Duration.ofSeconds(5))
         .doOnNext(e -> {
           LOGGER.debug("Got control document: {}", e);
           final JsonNode control = readTreeOrElseEmptyObject(e);
@@ -186,7 +187,7 @@ public class LeaderTask {
 
   private void createControlDocumentIfDoesNotExist() {
     final String defaultControlDoc = "{\"paused\":false}";
-    consul.keyValueClient().putValue(controlKey(), defaultControlDoc, 0, ImmutablePutOptions.builder().cas(0).build(), UTF_8);
+    consul.keyValueClient().putValue(keys.control(), defaultControlDoc, 0, ImmutablePutOptions.builder().cas(0).build(), UTF_8);
   }
 
   private static JsonNode readTreeOrElseEmptyObject(String s) {
@@ -204,7 +205,7 @@ public class LeaderTask {
     while (true) {
       throwIfDone();
 
-      final List<RpcEndpoint> endpoints = listRpcEndpoints(consul.keyValueClient(), serviceName, Duration.ofSeconds(15));
+      final List<RpcEndpoint> endpoints = keys.listRpcEndpoints(Duration.ofSeconds(15));
       final Map<RpcEndpoint, RpcResult<Void>> stopResults = broadcaster.broadcast(endpoints, WorkerService.class, WorkerService::stopStreaming);
 
       if (stopResults.entrySet().stream()
@@ -236,7 +237,7 @@ public class LeaderTask {
     while (true) {
       throwIfDone();
 
-      final List<RpcEndpoint> allEndpoints = listRpcEndpoints(consul.keyValueClient(), serviceName, Duration.ofSeconds(15));
+      final List<RpcEndpoint> allEndpoints = keys.listRpcEndpoints(Duration.ofSeconds(15));
 
       final List<RpcEndpoint> readyEndpoints = allEndpoints.stream()
           .filter(rpcEndpoint -> {
@@ -258,16 +259,8 @@ public class LeaderTask {
     }
   }
 
-  private String configKey() {
-    return "couchbase/cbes/" + serviceName + "/config";
-  }
-
-  private String controlKey() {
-    return "couchbase/cbes/" + serviceName + "/control";
-  }
-
   private void rebalance() throws InterruptedException {
-    final String configLocation = configKey();
+    final String configLocation = keys.config();
     LOGGER.info("Reading connector config from Consul key: {}", configLocation);
 
     final String config = consul.keyValueClient().getValue(configLocation)

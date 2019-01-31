@@ -18,6 +18,7 @@ package com.couchbase.connector.cluster.consul.rpc;
 
 import com.couchbase.connector.cluster.consul.AbstractLongPollTask;
 import com.couchbase.connector.cluster.consul.ConsulHelper;
+import com.couchbase.connector.cluster.consul.DocumentKeys;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -35,7 +36,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import static com.couchbase.connector.cluster.consul.rpc.RpcHelper.rpcEndpointKey;
 import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
@@ -61,19 +61,19 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
   private final String sessionId;
   private final JsonRpcDispatcher dispatcher;
 
-  public RpcServerTask(JsonRpcDispatcher dispatcher, KeyValueClient kv, String serviceName, String sessionId, String endpointId, Consumer<Throwable> fatalErrorConsumer) {
-    super(kv, "rpc-server-", serviceName, sessionId);
+  public RpcServerTask(JsonRpcDispatcher dispatcher, KeyValueClient kv, DocumentKeys documentKeys, String sessionId, String endpointId, Consumer<Throwable> fatalErrorConsumer) {
+    super(kv, "rpc-server-", documentKeys, sessionId);
     this.kv = requireNonNull(kv);
     this.sessionId = requireNonNull(sessionId);
     this.fatalErrorConsumer = requireNonNull(fatalErrorConsumer);
     this.dispatcher = requireNonNull(dispatcher);
 
     this.endpointId = requireNonNull(endpointId);
-    this.endpointKey = rpcEndpointKey(serviceName, endpointId);
+    this.endpointKey = documentKeys.rpcEndpoint(endpointId);
   }
 
   @Override
-  protected void doRun(KeyValueClient kv, String serviceName, String sessionId) {
+  protected void doRun(KeyValueClient kv, DocumentKeys documentKeys, String sessionId) {
     try {
       bind();
 

@@ -55,6 +55,7 @@ public class Sandbox {
     };
 
     final Consul consul = Consul.newClient();
+    final DocumentKeys documentKeys = new DocumentKeys(consul.keyValueClient(), serviceName);
     Thread shutdownHook = null;
 
     final Member member = consul.agentClient().getAgent().getMember();
@@ -89,7 +90,7 @@ public class Sandbox {
       @Override
       public void startLeading() {
         checkState(leader == null, "Already leading");
-        leader = new LeaderTask(consul, Sandbox.serviceName).start();
+        leader = new LeaderTask(consul, Sandbox.serviceName, documentKeys).start();
       }
 
       @Override
@@ -105,10 +106,10 @@ public class Sandbox {
              new SessionTask(consul, serviceName, serviceId, errorConsumer).start();
 
          RpcServerTask rpc =
-             new RpcServerTask(dispatcher, consul.keyValueClient(), serviceName, session.sessionId(), endpointId, errorConsumer).start();
+             new RpcServerTask(dispatcher, consul.keyValueClient(), documentKeys, session.sessionId(), endpointId, errorConsumer).start();
 
          LeaderElectionTask election =
-             new LeaderElectionTask(consul.keyValueClient(), serviceName, session.sessionId(), errorConsumer, leaderController).start()) {
+             new LeaderElectionTask(consul.keyValueClient(), documentKeys, session.sessionId(), errorConsumer, leaderController).start()) {
 
       waitForMe.add(election);
       waitForMe.add(rpc);
