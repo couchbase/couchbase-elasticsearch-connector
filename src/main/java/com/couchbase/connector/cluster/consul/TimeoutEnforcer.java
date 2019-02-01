@@ -50,6 +50,10 @@ class TimeoutEnforcer {
     return convertRoundUp(nanosLeft, NANOSECONDS, timeUnit);
   }
 
+  public void throwIfExpired() throws TimeoutException {
+    remaining(TimeUnit.SECONDS);
+  }
+
   private static long convertRoundUp(long sourceDuration, TimeUnit sourceUnit, TimeUnit destUnit) {
     checkArgument(sourceDuration >= 0, "Duration must be non-negative");
     long nanos = sourceUnit.toNanos(sourceDuration);

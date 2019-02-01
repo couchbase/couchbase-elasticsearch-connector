@@ -206,7 +206,7 @@ public class LeaderTask {
       throwIfDone();
 
       final List<RpcEndpoint> endpoints = keys.listRpcEndpoints(Duration.ofSeconds(15));
-      final Map<RpcEndpoint, RpcResult<Void>> stopResults = broadcaster.broadcast(endpoints, WorkerService.class, WorkerService::stopStreaming);
+      final Map<RpcEndpoint, RpcResult<Void>> stopResults = broadcaster.broadcast("stop", endpoints, WorkerService.class, WorkerService::stopStreaming);
 
       if (stopResults.entrySet().stream()
           .noneMatch(e -> e.getValue().isFailed())) {

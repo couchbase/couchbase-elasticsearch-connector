@@ -39,15 +39,15 @@ public class Broadcaster implements Closeable {
 
   private final ExecutorService executor = Executors.newCachedThreadPool();
 
-  public <S> Map<RpcEndpoint, RpcResult<Void>> broadcast(List<RpcEndpoint> endpoints, Class<S> serviceInterface, Consumer<S> endpointCallback) {
-    return broadcast(endpoints, serviceInterface, s -> {
+  public <S> Map<RpcEndpoint, RpcResult<Void>> broadcast(String description, List<RpcEndpoint> endpoints, Class<S> serviceInterface, Consumer<S> endpointCallback) {
+    return broadcast(description, endpoints, serviceInterface, s -> {
       endpointCallback.accept(s);
       return null;
     });
   }
 
-  public <S, T> Map<RpcEndpoint, RpcResult<T>> broadcast(List<RpcEndpoint> endpoints, Class<S> serviceInterface, Function<S, T> endpointCallback) {
-    LOGGER.info("Broadcasting to {} endpoints", endpoints.size());
+  public <S, T> Map<RpcEndpoint, RpcResult<T>> broadcast(String description, List<RpcEndpoint> endpoints, Class<S> serviceInterface, Function<S, T> endpointCallback) {
+    LOGGER.info("Broadcasting '{}' request to {} endpoints", description, endpoints.size());
 
     final Stopwatch timer = Stopwatch.createStarted();
 
@@ -57,7 +57,7 @@ public class Broadcaster implements Closeable {
           () -> RpcResult.newSuccess(endpointCallback.apply(endpoint.service(serviceInterface)))));
     }
 
-    LOGGER.info("Scheduled all requests for broadcast. Awaiting responses...");
+    LOGGER.info("Scheduled all '{}' requests for broadcast. Awaiting responses...", description);
 
     final Map<RpcEndpoint, RpcResult<T>> results = new HashMap<>();
     for (int i = 0; i < endpoints.size(); i++) {
@@ -72,11 +72,11 @@ public class Broadcaster implements Closeable {
           e = e.getCause();
         }
         results.put(endpoint, RpcResult.newFailure(e));
-        LOGGER.error("Failed to apply callback for endpoint {}", RedactableArgument.system(endpoint), e);
+        LOGGER.error("Failed to apply '{}' callback for endpoint {}", description, RedactableArgument.system(endpoint), e);
       }
     }
 
-    LOGGER.info("Finished collecting broadcast responses. Broadcasting to {} endpoints took {}", endpoints.size(), timer);
+    LOGGER.info("Finished collecting '{}' broadcast responses. Broadcasting to {} endpoints took {}", description, endpoints.size(), timer);
     LOGGER.debug("Broadcast results: {}", results);
     return results;
   }

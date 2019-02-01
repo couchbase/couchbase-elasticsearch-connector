@@ -16,17 +16,10 @@
 
 package com.couchbase.connector.elasticsearch.cli;
 
-import com.couchbase.client.core.utils.DefaultObjectMapper;
 import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.consul.DocumentKeys;
-import com.couchbase.connector.cluster.consul.WorkerService;
-import com.couchbase.connector.cluster.consul.rpc.Broadcaster;
-import com.couchbase.connector.cluster.consul.rpc.RpcEndpoint;
-import com.couchbase.connector.cluster.consul.rpc.RpcResult;
 import com.couchbase.connector.config.es.ConnectorConfig;
-import com.couchbase.connector.util.ThrowableHelper;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import com.orbitz.consul.Consul;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -37,20 +30,17 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 
-import static com.couchbase.connector.elasticsearch.cli.MainCommand.validateGroup;
+import static com.couchbase.connector.elasticsearch.cli.ConsulCli.validateGroup;
 import static com.google.common.base.Throwables.throwIfUnchecked;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static picocli.CommandLine.Model.UsageMessageSpec.SECTION_KEY_COMMAND_LIST;
 
 @Command(name = "cbes-consul",
-    description = "Couchbase Elasticsearch Connector",
+    description = "Couchbase Elasticsearch Connector commands for coordinated mode with Consul",
     mixinStandardHelpOptions = true,
-    versionProvider = MainCommand.class,
+    versionProvider = ConsulCli.class,
     subcommands = {
         ResumeCommand.class,
         PauseCommand.class,
@@ -58,7 +48,7 @@ import static picocli.CommandLine.Model.UsageMessageSpec.SECTION_KEY_COMMAND_LIS
         CheckpointClearCommand.class,
         CheckpointBackupCommand.class
     })
-public class MainCommand implements IVersionProvider {
+public class ConsulCli implements IVersionProvider {
 
   // Init Log4J. This must happen first before logger is declared.
   static {
@@ -96,9 +86,9 @@ public class MainCommand implements IVersionProvider {
   }
 
   public static void main(String[] args) {
-    CommandLine cmd = new CommandLine(new MainCommand());
+    CommandLine cmd = new CommandLine(new ConsulCli());
 
-    cmd.getHelpSectionMap().put(SECTION_KEY_COMMAND_LIST, new MyCommandListRenderer());
+    //cmd.getHelpSectionMap().put(SECTION_KEY_COMMAND_LIST, new MyCommandListRenderer());
 
     try {
       List<Object> result = cmd.parseWithHandler(new CommandLine.RunLast(), args);
@@ -162,10 +152,9 @@ class CheckpointClearCommand implements Runnable {
 
     validateGroup(group);
     final Consul consul = Consul.builder().build();
-
     final String configKey = new DocumentKeys(consul.keyValueClient(), group).config();
-    System.out.println("Reading connector configuration from Consul document: " + configKey);
 
+    final DocumentKeys documentKeys = new DocumentKeys(consul.keyValueClient(), group);
 
     final String configString = consul.keyValueClient().getValueAsString(configKey, UTF_8).orElse(null);
     if (Strings.isNullOrEmpty(configString)) {
@@ -175,8 +164,20 @@ class CheckpointClearCommand implements Runnable {
 
     final ConnectorConfig config = ConnectorConfig.from(configString);
     try {
+      System.out.println("Pausing connector prior to clearing checkpoints...");
+      final boolean wasPausedAlready = documentKeys.pause();
+
+      System.out.println("Clearing checkpoints...");
       CheckpointClear.clear(config);
-    } catch (IOException e) {
+      if (!wasPausedAlready) {
+        System.out.println("Resuming connector...");
+        documentKeys.resume();
+      }
+
+      System.out.println("Checkpoint cleared.");
+
+    } catch (Exception e) {
+      throwIfUnchecked(e);
       throw new RuntimeException(e);
     }
   }
@@ -209,7 +210,7 @@ class CheckpointBackupCommand implements Runnable {
 }
 
 @Command(name = "resume",
-    description = "Resume the connector.")
+    description = "Resume the connector if it is paused.")
 class ResumeCommand implements Runnable {
 
   @Option(names = {"-g", "--group"}, required = true,
@@ -220,17 +221,12 @@ class ResumeCommand implements Runnable {
   public void run() {
     try {
       validateGroup(group);
+      System.out.println("Attempting to resume connector group: " + group);
 
       final Consul consul = Consul.builder().build();
       final DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), group);
 
-      final String newValue = DefaultObjectMapper.writeValueAsString(ImmutableMap.of("paused", false));
-      final boolean success = consul.keyValueClient().putValue(keys.control(), newValue, UTF_8);
-      if (!success) {
-        throw new RuntimeException("Failed to update control document: " + keys.control());
-      }
-
-
+      keys.resume();
       System.out.println("Connector group '" + group + "' is now resumed.");
 
     } catch (Exception e) {
@@ -251,61 +247,18 @@ class PauseCommand implements Runnable {
 
   @Override
   public void run() {
+    validateGroup(group);
+    System.out.println("Attempting to pause connector group: " + group);
+
+    final Consul consul = Consul.builder().build();
+    final DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), group);
+
     try {
-      validateGroup(group);
-      System.out.println("Attempting to pause connector group: " + group);
-
-      final Consul consul = Consul.builder().build();
-      final DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), group);
-
-      final RpcEndpoint leaderEndpoint = keys.leaderEndpoint().orElse(null);
-      if (leaderEndpoint == null) {
-        System.out.println("There is currently no leader.");
-      } else {
-        System.out.println("Pinging leader endpoint: " + leaderEndpoint.toString());
-        try {
-          leaderEndpoint.service(WorkerService.class).ping();
-        } catch (Exception e) {
-          if (ThrowableHelper.hasCause(e, TimeoutException.class)) {
-            System.out.println("Leader is unresponsive :-(");
-          }
-        }
-        System.out.println("Leader is responsive.");
-      }
-
-
-      final String newValue = DefaultObjectMapper.writeValueAsString(ImmutableMap.of("paused", true));
-      final boolean success = consul.keyValueClient().putValue(keys.control(), newValue, UTF_8);
-      if (!success) {
-        throw new RuntimeException("Failed to update control document: " + keys.control());
-      }
-
-      try (Broadcaster broadcaster = new Broadcaster()) {
-        while (true) {
-          final List<RpcEndpoint> allEndpoints = keys.listRpcEndpoints();
-          final Map<RpcEndpoint, RpcResult<Boolean>> results =
-              broadcaster.broadcast(allEndpoints, WorkerService.class, WorkerService::stopped);
-
-          boolean stopped = true;
-          for (Map.Entry<RpcEndpoint, RpcResult<Boolean>> e : results.entrySet()) {
-            if (e.getValue().isFailed()) {
-              System.err.println("Status request failed for endpoint " + e.getKey());
-              stopped = false;
-            } else if (!e.getValue().get()) {
-              System.out.println("Endpoint is still working: " + e.getKey());
-              stopped = false;
-            }
-          }
-          if (stopped) {
-            System.out.println("Connector group '" + group + "' is now paused.");
-            break;
-          }
-
-          System.out.println("Retrying in just a moment...");
-          SECONDS.sleep(2);
-        }
-      }
-
+      keys.pause();
+      System.out.println("Connector group '" + group + "' is now paused.");
+    } catch (TimeoutException e) {
+      System.err.println("Pause failed; timed out waiting for cluster to quiesce.");
+      System.exit(1);
     } catch (Exception e) {
       throwIfUnchecked(e);
       throw new RuntimeException(e);

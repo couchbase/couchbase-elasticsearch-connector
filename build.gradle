@@ -123,7 +123,7 @@ def extraStartScripts = [
     'cbes-checkpoint-backup' : 'com.couchbase.connector.elasticsearch.cli.CheckpointBackup',
     'cbes-checkpoint-restore': 'com.couchbase.connector.elasticsearch.cli.CheckpointRestore',
     'cbes-checkpoint-clear'  : 'com.couchbase.connector.elasticsearch.cli.CheckpointClear',
-    'cbes-consul'  : 'com.couchbase.connector.elasticsearch.cli.MainCommand'
+    'cbes-consul'            : 'com.couchbase.connector.elasticsearch.cli.ConsulCli'
 ]
 
 extraStartScripts.each { scriptName, driverClass ->
