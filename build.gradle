@@ -66,6 +66,7 @@ dependencies {
   compile 'org.apache.commons:commons-text:1.6'
   compile 'net.consensys.cava:cava-toml:0.3.1'
   compile 'net.sf.jopt-simple:jopt-simple:5.0.4'
+  compile 'info.picocli:picocli:3.9.2'
 
   testCompile 'junit:junit:4.12'
   testCompile("org.assertj:assertj-core:3.11.1")
@@ -121,7 +122,8 @@ startScripts {
 def extraStartScripts = [
     'cbes-checkpoint-backup' : 'com.couchbase.connector.elasticsearch.cli.CheckpointBackup',
     'cbes-checkpoint-restore': 'com.couchbase.connector.elasticsearch.cli.CheckpointRestore',
-    'cbes-checkpoint-clear'  : 'com.couchbase.connector.elasticsearch.cli.CheckpointClear'
+    'cbes-checkpoint-clear'  : 'com.couchbase.connector.elasticsearch.cli.CheckpointClear',
+    'cbes-consul'  : 'com.couchbase.connector.elasticsearch.cli.MainCommand'
 ]
 
 extraStartScripts.each { scriptName, driverClass ->

@@ -69,4 +69,8 @@ public interface WorkerService {
       Thread.currentThread().interrupt();
     }
   }
+
+  default boolean stopped() {
+    return status().getMembership() == null;
+  }
 }

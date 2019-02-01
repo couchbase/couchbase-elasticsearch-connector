@@ -32,9 +32,9 @@ public class LeaderElectionTask extends AbstractLongPollTask<LeaderElectionTask>
   private final Consumer<Throwable> fatalErrorConsumer;
   private final LeaderController leaderController;
 
-  public LeaderElectionTask(KeyValueClient kv, DocumentKeys documentKeys, String sessionId, Consumer<Throwable> fatalErrorConsumer, LeaderController leaderController) {
+  public LeaderElectionTask(KeyValueClient kv, DocumentKeys documentKeys, String sessionId, String endpointId, Consumer<Throwable> fatalErrorConsumer, LeaderController leaderController) {
     super(kv, "leader-election-", documentKeys, sessionId);
-    this.candidateUuid = requireNonNull(sessionId);
+    this.candidateUuid = requireNonNull(endpointId);
     this.fatalErrorConsumer = requireNonNull(fatalErrorConsumer);
     this.leaderController = requireNonNull(leaderController);
   }

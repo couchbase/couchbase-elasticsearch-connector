@@ -77,6 +77,7 @@ public class Broadcaster implements Closeable {
     }
 
     LOGGER.info("Finished collecting broadcast responses. Broadcasting to {} endpoints took {}", endpoints.size(), timer);
+    LOGGER.debug("Broadcast results: {}", results);
     return results;
   }
 

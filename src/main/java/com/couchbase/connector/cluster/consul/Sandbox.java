@@ -34,16 +34,13 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
+import static com.couchbase.connector.cluster.consul.DocumentKeys.endpointId;
 import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
 import static com.google.common.base.Preconditions.checkState;
 
 public class Sandbox {
   private static final Logger LOGGER = LoggerFactory.getLogger(Sandbox.class);
-  public static final String serviceName = "service-registration-test";
-
-  private static String endpointId(Member member, String serviceId) {
-    return member.getName() + "::" + member.getAddress() + "::" + serviceId;
-  }
+  public static final String serviceName = "default";
 
   public static void main(String[] args) throws Exception {
     final String serviceId = args.length == 0 ? Sandbox.serviceName : args[0];
@@ -109,7 +106,7 @@ public class Sandbox {
              new RpcServerTask(dispatcher, consul.keyValueClient(), documentKeys, session.sessionId(), endpointId, errorConsumer).start();
 
          LeaderElectionTask election =
-             new LeaderElectionTask(consul.keyValueClient(), documentKeys, session.sessionId(), errorConsumer, leaderController).start()) {
+             new LeaderElectionTask(consul.keyValueClient(), documentKeys, session.sessionId(), endpointId, errorConsumer, leaderController).start()) {
 
       waitForMe.add(election);
       waitForMe.add(rpc);

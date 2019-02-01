@@ -165,7 +165,7 @@ public class ConsulHelper {
     boolean success = kv.putValue(key, newValue, 0, options, UTF_8);
 
     if (!success) {
-      LOGGER.info("Failed to put new document (optimistic locking failure?); reloading and retrying");
+      LOGGER.debug("Failed to put new document (optimistic locking failure?); reloading and retrying");
       atomicUpdate(kv, key, mutator);
     }
   }
