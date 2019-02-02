@@ -20,6 +20,7 @@ import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.consul.DocumentKeys;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.google.common.base.Strings;
+import com.google.common.io.Files;
 import com.orbitz.consul.Consul;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -43,6 +44,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
     versionProvider = ConsulCli.class,
     subcommands = {
         ResumeCommand.class,
+        ConfigureCommand.class,
+        GetConfigCommand.class,
         PauseCommand.class,
         GroupsCommand.class,
         CheckpointClearCommand.class,
@@ -71,7 +74,12 @@ public class ConsulCli implements IVersionProvider {
 
     if (!configuredGroups.contains(group)) {
       System.err.println("There is no configured group called '" + group + "'.");
-      System.err.println("Configure the group first, or target an existing configured group: " + configuredGroups);
+      System.err.println("Configure the group first using the 'configure' command, or target an existing configured group.");
+      if (configuredGroups.isEmpty()) {
+        System.err.println("  (there are no existing groups)");
+      } else {
+        configuredGroups.forEach(groupName -> System.err.println("  " + groupName));
+      }
       System.exit(1);
     }
   }
@@ -236,6 +244,74 @@ class ResumeCommand implements Runnable {
   }
 }
 
+
+@Command(name = "configure",
+    description = "Define a new connector group by uploading a configuration file." +
+        " The name of the group is determined by the 'group' property in the config file.")
+class ConfigureCommand implements Runnable {
+
+  @Option(names = {"-i", "--input"}, paramLabel = "<config.toml>", required = true,
+      description = "Configuration file to upload.")
+  private File input;
+
+  @Override
+  public void run() {
+    try {
+      final Consul consul = Consul.builder().build();
+      final String configString = Files.asCharSource(input, UTF_8).read();
+      final ConnectorConfig parsed = ConnectorConfig.from(configString);
+      final String group = parsed.group().name();
+      System.out.println("Updating config for connector group '" + group + "'...");
+
+      final DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), group);
+      boolean success = consul.keyValueClient().putValue(keys.config(), configString, UTF_8);
+      if (!success) {
+        throw new IOException("Failed to write config document to Consul.");
+      }
+
+      System.out.println("Configuration updated for connector group '" + group + "'.");
+
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+}
+
+@Command(name = "get-config",
+    description = "Retrieve the configuration for a connector group and save it to a file on the local filesystem.")
+class GetConfigCommand implements Runnable {
+
+  @Option(names = {"-o", "--output"}, paramLabel = "<config.toml>", required = true,
+      description = "File to create.")
+  private File output;
+
+  @Option(names = {"-g", "--group"}, required = true,
+      description = "The name of the connector group to operate on.")
+  private String group;
+
+
+  @Override
+  public void run() {
+    try {
+      validateGroup(group);
+
+      final Consul consul = Consul.builder().build();
+      final DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), group);
+
+      String config = consul.keyValueClient().getValueAsString(keys.config(), UTF_8)
+          .orElseThrow(() -> new IOException("missing config document in consul"));
+
+      CheckpointBackup.atomicWrite(output, file -> {
+        Files.write(config.getBytes(UTF_8), file);
+      });
+
+      System.out.println("Configuration for connector group '" + group + "' written to file " + output.getAbsolutePath());
+
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+}
 
 @Command(name = "pause",
     description = "Pauses the connector.")

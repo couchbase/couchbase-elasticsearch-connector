@@ -94,7 +94,7 @@ public class CheckpointBackup extends AbstractCliCommand {
   }
 
   @FunctionalInterface
-  private interface FileConsumer {
+  public interface FileConsumer {
     void accept(File f) throws IOException;
   }
 
@@ -104,7 +104,7 @@ public class CheckpointBackup extends AbstractCliCommand {
    * file is written completely (otherwise an error during the write might leave the
    * output file in a weird state).
    */
-  private static void atomicWrite(File destFile, FileConsumer tempFileWriter) throws IOException {
+  public static void atomicWrite(File destFile, FileConsumer tempFileWriter) throws IOException {
     final File outputDir = destFile.getAbsoluteFile().getParentFile();
     if (!outputDir.exists() && !outputDir.mkdirs()) {
       throw new IOException("Failed to create output directory: " + outputDir);
