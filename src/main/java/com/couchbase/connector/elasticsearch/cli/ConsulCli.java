@@ -49,7 +49,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
         PauseCommand.class,
         GroupsCommand.class,
         CheckpointClearCommand.class,
-        CheckpointBackupCommand.class
+        CheckpointBackupCommand.class,
+        CheckpointRestoreCommand.class,
+        CheckpointCatchUpCommand.class
     })
 public class ConsulCli implements IVersionProvider {
 
@@ -73,8 +75,8 @@ public class ConsulCli implements IVersionProvider {
     Collection<String> configuredGroups = keys.configuredGroups();
 
     if (!configuredGroups.contains(group)) {
-      System.err.println("There is no configured group called '" + group + "'.");
-      System.err.println("Configure the group first using the 'configure' command, or target an existing configured group.");
+      System.err.println("ERROR: There is no configured group called '" + group + "'.");
+      System.err.println("Configure the group first using the 'configure' command, or target an existing configured group:");
       if (configuredGroups.isEmpty()) {
         System.err.println("  (there are no existing groups)");
       } else {
@@ -166,7 +168,7 @@ class CheckpointClearCommand implements Runnable {
 
     final String configString = consul.keyValueClient().getValueAsString(configKey, UTF_8).orElse(null);
     if (Strings.isNullOrEmpty(configString)) {
-      System.err.println("Failed to clear checkpoint. Connector configuration document does not exist, or is empty.");
+      System.err.println("ERROR: Failed to clear checkpoint. Connector configuration document does not exist, or is empty.");
       System.exit(1);
     }
 
@@ -191,6 +193,49 @@ class CheckpointClearCommand implements Runnable {
   }
 }
 
+@Command(name = "checkpoint-catch-up",
+    description = "Set the checkpoint to the current state of the Couchbase bucket.")
+class CheckpointCatchUpCommand implements Runnable {
+
+  @Option(names = {"-g", "--group"}, required = true,
+      description = "The name of the connector group to operate on.")
+  private String group;
+
+  @Override
+  public void run() {
+    validateGroup(group);
+    final Consul consul = Consul.builder().build();
+    final String configKey = new DocumentKeys(consul.keyValueClient(), group).config();
+
+    final DocumentKeys documentKeys = new DocumentKeys(consul.keyValueClient(), group);
+
+    final String configString = consul.keyValueClient().getValueAsString(configKey, UTF_8).orElse(null);
+    if (Strings.isNullOrEmpty(configString)) {
+      System.err.println("ERROR: Failed to modify checkpoint. Connector configuration document does not exist, or is empty.");
+      System.exit(1);
+    }
+
+    final ConnectorConfig config = ConnectorConfig.from(configString);
+    try {
+      System.out.println("Pausing connector prior to modifying checkpoint...");
+      final boolean wasPausedAlready = documentKeys.pause();
+
+      System.out.println("Catching up checkpoint...");
+      CheckpointClear.catchUp(config);
+      if (!wasPausedAlready) {
+        System.out.println("Resuming connector...");
+        documentKeys.resume();
+      }
+
+      System.out.println("Connector caught up.");
+
+    } catch (Exception e) {
+      throwIfUnchecked(e);
+      throw new RuntimeException(e);
+    }
+  }
+}
+
 @Command(name = "groups",
     description = "Prints the name of each configured connector group.")
 class GroupsCommand implements Runnable {
@@ -201,10 +246,13 @@ class GroupsCommand implements Runnable {
   }
 }
 
-
 @Command(name = "checkpoint-backup",
     description = "Saves the replication checkpoint to a file on the local filesystem.")
 class CheckpointBackupCommand implements Runnable {
+
+  @Option(names = {"-g", "--group"}, required = true,
+      description = "The name of the connector group to operate on.")
+  private String group;
 
   @Option(names = {"-o", "--output"}, paramLabel = "<checkpoint.json>", required = true,
       description = "Checkpoint file to create. Tip: On Unix-like systems," +
@@ -213,7 +261,72 @@ class CheckpointBackupCommand implements Runnable {
 
   @Override
   public void run() {
-    System.out.println("Running the backup command, file = " + output.getAbsolutePath());
+
+    validateGroup(group);
+    final Consul consul = Consul.builder().build();
+    final String configKey = new DocumentKeys(consul.keyValueClient(), group).config();
+
+    final DocumentKeys documentKeys = new DocumentKeys(consul.keyValueClient(), group);
+
+    final String configString = consul.keyValueClient().getValueAsString(configKey, UTF_8).orElse(null);
+    if (Strings.isNullOrEmpty(configString)) {
+      System.err.println("ERROR: Connector configuration document does not exist, or is empty.");
+      System.exit(1);
+    }
+
+    final ConnectorConfig config = ConnectorConfig.from(configString);
+
+    try {
+      CheckpointBackup.backup(config, output);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+}
+
+@Command(name = "checkpoint-restore",
+    description = "Sets the replication checkpoint from a backup file.")
+class CheckpointRestoreCommand implements Runnable {
+
+  @Option(names = {"-g", "--group"}, required = true,
+      description = "The name of the connector group to operate on.")
+  private String group;
+
+  @Option(names = {"-i", "--input"}, paramLabel = "<checkpoint.json>", required = true,
+      description = "Checkpoint file to restore.")
+  private File input;
+
+  @Override
+  public void run() {
+
+    validateGroup(group);
+    final Consul consul = Consul.builder().build();
+    final DocumentKeys documentKeys = new DocumentKeys(consul.keyValueClient(), group);
+    final String configKey = documentKeys.config();
+
+    final String configString = consul.keyValueClient().getValueAsString(configKey, UTF_8).orElse(null);
+    if (Strings.isNullOrEmpty(configString)) {
+      System.err.println("ERROR: Connector configuration document does not exist, or is empty.");
+      System.exit(1);
+    }
+
+    final ConnectorConfig config = ConnectorConfig.from(configString);
+
+    try {
+      System.out.println("Pausing connector prior to restoring checkpoints...");
+      final boolean wasPausedAlready = documentKeys.pause();
+
+      CheckpointRestore.restore(config, input);
+
+      if (!wasPausedAlready) {
+        System.out.println("Resuming connector...");
+        documentKeys.resume();
+      }
+
+    } catch (Exception e) {
+      throwIfUnchecked(e);
+      throw new RuntimeException(e);
+    }
   }
 }
 
@@ -333,7 +446,7 @@ class PauseCommand implements Runnable {
       keys.pause();
       System.out.println("Connector group '" + group + "' is now paused.");
     } catch (TimeoutException e) {
-      System.err.println("Pause failed; timed out waiting for cluster to quiesce.");
+      System.err.println("ERROR: Pause failed; timed out waiting for cluster to quiesce.");
       System.exit(1);
     } catch (Exception e) {
       throwIfUnchecked(e);

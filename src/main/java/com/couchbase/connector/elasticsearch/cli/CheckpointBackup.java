@@ -67,7 +67,10 @@ public class CheckpointBackup extends AbstractCliCommand {
 
     System.out.println("Reading connector configuration from " + configFile.getAbsoluteFile());
     final ConnectorConfig config = ConnectorConfig.from(configFile);
+    backup(config, outputFile);
+  }
 
+  public static void backup(ConnectorConfig config, File outputFile) throws IOException {
     final Bucket bucket = CouchbaseHelper.openBucket(config.couchbase(), config.trustStore());
     final CouchbaseBucketConfig bucketConfig = getBucketConfig(bucket);
     final String bucketUuid = ""; // don't care bucketConfig.uuid();

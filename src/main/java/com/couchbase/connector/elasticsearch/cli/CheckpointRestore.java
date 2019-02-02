@@ -31,6 +31,7 @@ import joptsimple.OptionSpec;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 
@@ -49,14 +50,18 @@ public class CheckpointRestore extends AbstractCliCommand {
     final File configFile = options.valueOf(parser.configFile);
     System.out.println("Reading connector configuration from " + configFile.getAbsoluteFile());
     final ConnectorConfig config = ConnectorConfig.from(configFile);
+    final File inputFile = options.valueOf(parser.inputFile);
 
+    restore(config, inputFile);
+  }
+
+  public static void restore(ConnectorConfig config, File inputFile) throws IOException {
     final Bucket bucket = CouchbaseHelper.openBucket(config.couchbase(), config.trustStore());
     final CouchbaseBucketConfig bucketConfig = getBucketConfig(bucket);
 
     final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(bucket, config.group().name());
 
     final ObjectMapper mapper = new ObjectMapper();
-    final File inputFile = options.valueOf(parser.inputFile);
     try (InputStream is = new FileInputStream(inputFile)) {
       final JsonNode json = mapper.readTree(is);
       final int formatVersion = json.path("formatVersion").intValue();
@@ -82,6 +87,6 @@ public class CheckpointRestore extends AbstractCliCommand {
       checkpointDao.save("", checkpoints);
     }
 
-    System.out.println("Restore checkpoint for connector '" + config.group().name() + "' from file " + inputFile);
+    System.out.println("Restored checkpoint for connector '" + config.group().name() + "' from file " + inputFile);
   }
 }
