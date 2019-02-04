@@ -17,6 +17,7 @@
 package com.couchbase.connector.elasticsearch.cli;
 
 import com.couchbase.connector.VersionHelper;
+import com.couchbase.connector.cluster.consul.ConsulConnector;
 import com.couchbase.connector.cluster.consul.DocumentKeys;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.google.common.base.Strings;
@@ -43,6 +44,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
     mixinStandardHelpOptions = true,
     versionProvider = ConsulCli.class,
     subcommands = {
+        RunCommand.class,
         ResumeCommand.class,
         ConfigureCommand.class,
         GetConfigCommand.class,
@@ -145,6 +147,30 @@ public class ConsulCli implements IVersionProvider {
 //    subcommands = {Clear.class, Backup.class})
 //class CheckpointCommand {
 //}
+
+@Command(name = "run",
+    description = "Run a connector worker process.")
+class RunCommand implements Runnable {
+
+  @Option(names = {"-g", "--group"}, required = true,
+      description = "The name of the connector group to join.")
+  private String group;
+
+  @Option(names = {"-i", "--service-id"},
+      description = "The Consul service ID to assign to the worker. Required if you want to run multiple workers in the same group on the same host.")
+  private String serviceId;
+
+  @Override
+  public void run() {
+    try {
+      validateGroup(group);
+      ConsulConnector.run(group, serviceId);
+    } catch (Exception e) {
+      throwIfUnchecked(e);
+      throw new RuntimeException(e);
+    }
+  }
+}
 
 @Command(name = "checkpoint-clear",
     description = "Clears the replication checkpoint for the specified group, causing the connector to replicate from the beginning.")

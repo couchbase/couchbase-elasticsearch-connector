@@ -23,6 +23,7 @@ import java.time.Duration;
 
 
 public class RpcSandbox {
+  private static final String SERVICE_NAME = "default";
 
   public static void main(String[] args) {
     final Consul consul = Consul.newClient();
@@ -38,7 +39,7 @@ public class RpcSandbox {
 //          serviceHealth.getService().getId());
 //      final String endpointKey = rpcEndpointKey(Sandbox.serviceName, endpointId);
 
-    DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), Sandbox.serviceName);
+    DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), SERVICE_NAME);
 
     for (RpcEndpoint endpoint : keys.listRpcEndpoints(defaultTimeout)) {
       System.out.println(endpoint);

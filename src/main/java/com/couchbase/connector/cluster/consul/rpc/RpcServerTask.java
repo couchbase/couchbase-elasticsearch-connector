@@ -48,7 +48,7 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
   private static final ObjectMapper mapper = newLenientObjectMapper();
   private static final ObjectWriter objectWriter = mapper.writerWithDefaultPrettyPrinter();
 
-  static class EndpointAlreadyInUseException extends Exception {
+  public static class EndpointAlreadyInUseException extends Exception {
     public EndpointAlreadyInUseException(String message) {
       super(message);
     }

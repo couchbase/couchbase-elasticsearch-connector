@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
@@ -38,12 +39,17 @@ import static com.couchbase.connector.cluster.consul.DocumentKeys.endpointId;
 import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
 import static com.google.common.base.Preconditions.checkState;
 
-public class Sandbox {
-  private static final Logger LOGGER = LoggerFactory.getLogger(Sandbox.class);
-  public static final String serviceName = "default";
+public class ConsulConnector {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ConsulConnector.class);
 
   public static void main(String[] args) throws Exception {
-    final String serviceId = args.length == 0 ? Sandbox.serviceName : args[0];
+    final String serviceName = args[0];
+    final String serviceId = args.length == 1 ? null : args[1];
+    run(serviceName, serviceId);
+  }
+
+  public static void run(String serviceName, String serviceIdOrNull) throws Exception {
+    final String serviceId = Optional.ofNullable(serviceIdOrNull).orElse(serviceName);
     final BlockingQueue<Throwable> fatalErrorQueue = new LinkedBlockingQueue<>();
 
     final Consumer<Throwable> errorConsumer = e -> {
@@ -62,7 +68,18 @@ public class Sandbox {
 
     final MethodRegistry methodRegistry = new MethodRegistry(newLenientObjectMapper());
     methodRegistry.scan(new WorkerServiceImpl(e -> {
-      e.printStackTrace();
+      LOGGER.error("Got fatal error", e);
+
+      if (e instanceof java.net.BindException) {
+        System.err.println();
+        System.err.println("ERROR: " + e);
+        System.err.println();
+        System.err.println("  This may occur if multiple connector workers running on the same host");
+        System.err.println("  all try to start an HTTP server on the same port. Try setting the");
+        System.err.println("  'httpPort' config option to 0 to use an ephemeral port instead.");
+        System.err.println();
+      }
+
       System.exit(1);
     }));
 
@@ -87,7 +104,7 @@ public class Sandbox {
       @Override
       public void startLeading() {
         checkState(leader == null, "Already leading");
-        leader = new LeaderTask(consul, Sandbox.serviceName, documentKeys).start();
+        leader = new LeaderTask(consul, serviceName, documentKeys).start();
       }
 
       @Override
@@ -98,6 +115,8 @@ public class Sandbox {
         leader = null;
       }
     };
+
+    Throwable fatalError;
 
     try (SessionTask session =
              new SessionTask(consul, serviceName, serviceId, errorConsumer).start();
@@ -130,7 +149,7 @@ public class Sandbox {
       });
       Runtime.getRuntime().addShutdownHook(shutdownHook);
 
-      fatalErrorQueue.take();
+      fatalError = fatalErrorQueue.take();
 
     } finally {
       if (shutdownHook != null) {
@@ -146,6 +165,21 @@ public class Sandbox {
       }
     }
 
-    System.out.println("Done");
+    if (fatalError instanceof RpcServerTask.EndpointAlreadyInUseException) {
+      System.err.println();
+      System.err.println("ERROR: " + fatalError);
+      System.err.println();
+      System.err.println("  This may occur if this worker previously terminated before it could");
+      System.err.println("  gracefully end its Consul session. In that case, wait for the Consul");
+      System.err.println("  lock delay to elapse (15 seconds by default) and try again.");
+      System.err.println();
+      System.err.println("  This can also happen if you're trying to run more than one connector");
+      System.err.println("  worker on the same host without assigning each worker a unique Consul");
+      System.err.println("  service ID. Specify a unique ID with the --service-id command line option.");
+      System.err.println();
+
+    }
+
+    System.exit(1);
   }
 }
