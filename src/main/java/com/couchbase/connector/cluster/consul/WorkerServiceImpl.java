@@ -23,11 +23,17 @@ import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
-public class WorkerServiceImpl implements WorkerService {
+public class WorkerServiceImpl implements WorkerService, Closeable {
   private static final Logger LOGGER = LoggerFactory.getLogger(WorkerServiceImpl.class);
 
   private volatile Status status = Status.IDLE;
@@ -36,12 +42,43 @@ public class WorkerServiceImpl implements WorkerService {
 
   private final Consumer<Throwable> fatalErrorListener;
 
+  private ScheduledFuture killSwitch;
+
+  private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
   public WorkerServiceImpl(Consumer<Throwable> fatalErrorListener) {
     this.fatalErrorListener = requireNonNull(fatalErrorListener);
   }
 
+  public synchronized void resetKillSwitchTimer() {
+    if (killSwitch != null) {
+      LOGGER.debug("Resetting kill switch.");
+      stopKillSwitchTimer();
+      startKillSwitchTimer();
+    }
+  }
+
+  public synchronized void stopKillSwitchTimer() {
+    if (killSwitch != null) {
+      boolean cancelledSuccessfully = killSwitch.cancel(false);
+      killSwitch = null;
+    }
+  }
+
+  public synchronized void startKillSwitchTimer() {
+    checkState(killSwitch == null, "kill switch timer already active");
+    LOGGER.debug("Starting kill switch timer.");
+
+    this.killSwitch = executor.schedule(() -> {
+      LOGGER.error("Failed to renew Consul session; terminating.");
+      System.exit(1); // todo go into "degraded" mode and try to recover instead of exiting
+    }, 20, TimeUnit.SECONDS);
+  }
+
   @Override
   public synchronized void stopStreaming() {
+    stopKillSwitchTimer();
+
     if (connectorTask != null) {
       try {
         connectorTask.close();
@@ -61,6 +98,8 @@ public class WorkerServiceImpl implements WorkerService {
   public synchronized void startStreaming(Membership membership, String config) {
     stopStreaming();
 
+    startKillSwitchTimer();
+
     final ImmutableConnectorConfig originalConfig = ConnectorConfig.from(config);
 
     // Plug in the appropriate group membership. Ick.
@@ -76,5 +115,10 @@ public class WorkerServiceImpl implements WorkerService {
   @Override
   public synchronized Status status() {
     return status;
+  }
+
+  @Override
+  public void close() {
+    executor.shutdownNow();
   }
 }

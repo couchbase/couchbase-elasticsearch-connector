@@ -47,6 +47,7 @@ public class SessionTask implements AutoCloseable {
   private final String serviceId;
   private final String serviceUuid = UUID.randomUUID().toString();
   private final String sessionId;
+  private final Runnable runWhenHealthCheckPassed;
   private final Consumer<Throwable> fatalErrorConsumer;
   private volatile boolean shouldPassHealthCheck = true;
   private final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
@@ -54,11 +55,12 @@ public class SessionTask implements AutoCloseable {
 
   private static final int HEALTH_CHECK_INTERVAL_SECONDS = 15;
 
-  public SessionTask(Consul consul, String serviceName, String serviceId, Consumer<Throwable> fatalErrorConsumer) {
+  public SessionTask(Consul consul, String serviceName, String serviceId, Runnable runWhenHealthCheckPassed, Consumer<Throwable> fatalErrorConsumer) {
     serviceId = defaultIfNull(serviceId, serviceName);
     this.serviceId = serviceId;
     this.serviceName = requireNonNull(serviceName);
     this.consul = requireNonNull(consul);
+    this.runWhenHealthCheckPassed = requireNonNull(runWhenHealthCheckPassed);
     this.fatalErrorConsumer = requireNonNull(fatalErrorConsumer);
 
     try {
@@ -118,6 +120,13 @@ public class SessionTask implements AutoCloseable {
 
     try {
       consul.agentClient().pass(serviceId, "(" + serviceId + ") OK");
+
+      try {
+        runWhenHealthCheckPassed.run();
+      } catch (Throwable t) {
+        LOGGER.error("Callback failed for passed health check", t);
+      }
+
       LOGGER.debug("Passed health check.");
 
     } catch (Throwable t) {

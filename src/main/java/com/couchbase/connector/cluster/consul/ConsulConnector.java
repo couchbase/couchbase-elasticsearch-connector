@@ -64,10 +64,9 @@ public class ConsulConnector {
     final Member member = consul.agentClient().getAgent().getMember();
     final String endpointId = endpointId(member, serviceId);
 
-    List<AbstractLongPollTask> waitForMe = new ArrayList<>();
+    final List<AbstractLongPollTask> waitForMe = new ArrayList<>();
 
-    final MethodRegistry methodRegistry = new MethodRegistry(newLenientObjectMapper());
-    methodRegistry.scan(new WorkerServiceImpl(e -> {
+    final WorkerServiceImpl workerService = new WorkerServiceImpl(e -> {
       LOGGER.error("Got fatal error", e);
 
       if (e instanceof java.net.BindException) {
@@ -81,7 +80,10 @@ public class ConsulConnector {
       }
 
       System.exit(1);
-    }));
+    });
+
+    final MethodRegistry methodRegistry = new MethodRegistry(newLenientObjectMapper());
+    methodRegistry.scan(workerService);
 
     LOGGER.info("Registered JSON-RPC methods: {}", methodRegistry.getMethods());
 
@@ -119,7 +121,7 @@ public class ConsulConnector {
     Throwable fatalError;
 
     try (SessionTask session =
-             new SessionTask(consul, serviceName, serviceId, errorConsumer).start();
+             new SessionTask(consul, serviceName, serviceId, workerService::resetKillSwitchTimer, errorConsumer).start();
 
          RpcServerTask rpc =
              new RpcServerTask(dispatcher, consul.keyValueClient(), documentKeys, session.sessionId(), endpointId, errorConsumer).start();
@@ -152,6 +154,8 @@ public class ConsulConnector {
       fatalError = fatalErrorQueue.take();
 
     } finally {
+      workerService.close();
+
       if (shutdownHook != null) {
         Runtime.getRuntime().removeShutdownHook(shutdownHook);
       }
@@ -174,7 +178,7 @@ public class ConsulConnector {
       System.err.println("  lock delay to elapse (15 seconds by default) and try again.");
       System.err.println();
       System.err.println("  This can also happen if you're trying to run more than one connector");
-      System.err.println("  worker on the same host without assigning each worker a unique Consul");
+      System.err.println("  worker in the same group on the same host without assigning each worker a unique Consul");
       System.err.println("  service ID. Specify a unique ID with the --service-id command line option.");
       System.err.println();
 
