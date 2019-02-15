@@ -56,7 +56,10 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
@@ -94,32 +97,38 @@ public class BasicReplicationTest {
     final boolean exhaustive = Boolean.valueOf(System.getProperty("com.couchbase.integrationTest.exhaustive"));
 
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
-//        "enterprise-6.0.1",
-//        "enterprise-5.5.1",
-//        "enterprise-5.5.0",
-//        "enterprise-5.1.1",
-//        "community-6.0.0",
-//        "community-5.1.1",
-//        "enterprise-5.1.0",
-//        "enterprise-5.0.1",
+        "enterprise-6.0.1",
+        "enterprise-5.5.1",
+        "enterprise-5.5.0",
+        "enterprise-5.1.1",
+        "community-6.0.0",
+        "community-5.1.1",
+        "enterprise-5.1.0",
+        "enterprise-5.0.1",
         "community-5.0.1");
 
-    final ImmutableSet<String> elasticsearchVersions = ImmutableSet.of(
-//        "7.0.0-beta1",
-//        "6.6.0",
-//        "6.5.4",
-//        "6.4.3",
-//        "6.3.2",
-//        "6.2.4",
-//        "6.1.4",
-//        "6.0.1",
-//        "5.6.11",
-//        "5.5.3",
-//        "5.4.3",
-//        "5.3.3",
-          "5.3.3"
-//        "5.2.2"
-    );
+    final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
+        "7.0.0-beta1",
+        "6.6.0",
+        "6.5.4",
+        "6.4.3",
+        "6.3.2",
+        "6.2.4",
+        "6.1.4",
+        "6.0.1",
+        "5.6.11",
+        "5.5.3",
+        "5.4.3"
+    ));
+
+    // Elasticsearch versions prior to 5.4 don't support "single-node" discovery.
+    // Because the docker scheme has them bind to a non-loopback address, they run in production mode
+    // and perform bootstrap checks. Some of the checks fail on the Jenkins workers :-(
+    final boolean runningInJenkins = System.getenv("JENKINS_URL") != null;
+    if (!runningInJenkins) {
+      elasticsearchVersions.add("5.3.3");
+      elasticsearchVersions.add("5.2.2");
+    }
 
     if (!exhaustive) {
       // just test the most recent versions
