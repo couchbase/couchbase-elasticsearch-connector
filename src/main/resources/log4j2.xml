@@ -13,6 +13,6 @@
         <Root level="info">
             <AppenderRef ref="Console"/>
         </Root>
-        <Logger name="org.testcontainers" level="trace"/>
+        <!--<Logger name="org.testcontainers" level="trace"/>-->
     </Loggers>
 </Configuration>
