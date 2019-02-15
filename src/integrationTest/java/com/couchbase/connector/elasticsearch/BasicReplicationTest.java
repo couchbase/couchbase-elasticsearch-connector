@@ -44,7 +44,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
@@ -92,29 +94,29 @@ public class BasicReplicationTest {
     final boolean exhaustive = Boolean.valueOf(System.getProperty("com.couchbase.integrationTest.exhaustive"));
 
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
-        "enterprise-6.0.1",
-        "enterprise-5.5.1",
-        "enterprise-5.5.0",
-        "enterprise-5.1.1",
-        "community-6.0.0",
-        "community-5.1.1",
-        "enterprise-5.1.0",
-        "enterprise-5.0.1",
+//        "enterprise-6.0.1",
+//        "enterprise-5.5.1",
+//        "enterprise-5.5.0",
+//        "enterprise-5.1.1",
+//        "community-6.0.0",
+//        "community-5.1.1",
+//        "enterprise-5.1.0",
+//        "enterprise-5.0.1",
         "community-5.0.1");
 
     final ImmutableSet<String> elasticsearchVersions = ImmutableSet.of(
-        "7.0.0-beta1",
-        "6.6.0",
-        "6.5.4",
-        "6.4.3",
-        "6.3.2",
-        "6.2.4",
-        "6.1.4",
-        "6.0.1",
-        "5.6.11",
-        "5.5.3",
-        "5.4.3",
-        "5.3.3",
+//        "7.0.0-beta1",
+//        "6.6.0",
+//        "6.5.4",
+//        "6.4.3",
+//        "6.3.2",
+//        "6.2.4",
+//        "6.1.4",
+//        "6.0.1",
+//        "5.6.11",
+//        "5.5.3",
+//        "5.4.3",
+//        "5.3.3",
         "5.2.1");
 
     if (!exhaustive) {
@@ -168,7 +170,8 @@ public class BasicReplicationTest {
           " listening at " + elasticsearch.getHost());
     } else {
       stop(elasticsearch);
-      elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion));
+      elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
+          .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")));
       elasticsearch.start();
       System.out.println("Elasticsearch listening at " + elasticsearch.getHost());
       cachedElasticsearchContainerVersion = elasticsearchVersion;
