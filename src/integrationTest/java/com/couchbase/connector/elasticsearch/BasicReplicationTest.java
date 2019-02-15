@@ -117,7 +117,9 @@ public class BasicReplicationTest {
 //        "5.5.3",
 //        "5.4.3",
 //        "5.3.3",
-        "5.2.1");
+          "5.3.3"
+//        "5.2.2"
+    );
 
     if (!exhaustive) {
       // just test the most recent versions
