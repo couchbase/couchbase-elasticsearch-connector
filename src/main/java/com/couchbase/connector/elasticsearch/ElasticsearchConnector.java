@@ -162,7 +162,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       Metrics.gauge("writeQueue", () -> workers::getQueueSize);
       Metrics.gauge("esWaitMs", () -> workers::getCurrentRequestMillis); // High value indicates the connector has stalled
 
-      final Client dcpClient = DcpHelper.newClient(config.couchbase(), config.trustStore());
+      final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), config.trustStore());
 
       final SnapshotMarker[] snapshots = new SnapshotMarker[2048]; // sized to accommodate max number of vbuckets
       initControlHandler(dcpClient, coordinator, snapshots);

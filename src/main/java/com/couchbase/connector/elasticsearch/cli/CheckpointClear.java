@@ -102,7 +102,7 @@ public class CheckpointClear extends AbstractCliCommand {
   }
 
   private static void setCheckpointToNow(ConnectorConfig config, CheckpointDao checkpointDao) throws IOException {
-    final Client dcpClient = DcpHelper.newClient(config.couchbase(), config.trustStore());
+    final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), config.trustStore());
     try {
       dcpClient.connect().await();
 

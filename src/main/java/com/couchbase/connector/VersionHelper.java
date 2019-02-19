@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.util.Optional;
 import java.util.Properties;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -29,35 +30,44 @@ public class VersionHelper {
     throw new AssertionError("not instantiable");
   }
 
-  private static final String versionString;
+  private static final String version;
+  private static final String gitInfo;
 
   static {
-    String tempVersion = "<unknown>";
+    String tempVersion = "unknown";
+    String tempGitInfo = "unknown";
+
     try {
-      tempVersion = loadVersionString();
+      final String versionResource = "version.properties";
+      try (InputStream is = VersionHelper.class.getResourceAsStream(versionResource)) {
+        if (is == null) {
+          throw new IOException("missing version properties resource: " + versionResource);
+        }
+        try (Reader r = new InputStreamReader(is, UTF_8)) {
+          final Properties props = new Properties();
+          props.load(r);
+          tempVersion = (String) props.getOrDefault("version", "unknown");
+          tempGitInfo = (String) props.getOrDefault("git", "unknown");
+        }
+      }
     } catch (Exception e) {
       e.printStackTrace();
     }
-    versionString = tempVersion;
+
+    version = tempVersion;
+    gitInfo = tempGitInfo;
   }
 
   public static String getVersionString() {
-    return versionString;
+    final String gitInfo = getGetInfo().orElse(null);
+    return gitInfo == null ? version : version + "(" + gitInfo + ")";
   }
 
-  private static String loadVersionString() throws IOException {
-    final String versionResource = "version.properties";
-    try (InputStream is = VersionHelper.class.getResourceAsStream(versionResource)) {
-      if (is == null) {
-        throw new IOException("missing version properties resource: " + versionResource);
-      }
-      try (Reader r = new InputStreamReader(is, UTF_8)) {
-        final Properties props = new Properties();
-        props.load(r);
-        final String version = props.getProperty("version");
-        final String git = props.getProperty("git");
-        return version.equals(git) ? version : version + " (" + git + ")";
-      }
-    }
+  public static String getVersion() {
+    return version;
+  }
+
+  public static Optional<String> getGetInfo() {
+    return version.equals(gitInfo) ? Optional.empty() : Optional.of(gitInfo);
   }
 }

@@ -16,8 +16,8 @@
 
 package com.couchbase.connector.dcp;
 
-import com.couchbase.client.core.utils.ConnectionString;
 import com.couchbase.client.dcp.Client;
+import com.couchbase.client.dcp.DefaultConnectionNameGenerator;
 import com.couchbase.client.dcp.StreamFrom;
 import com.couchbase.client.dcp.StreamTo;
 import com.couchbase.client.dcp.config.DcpControl;
@@ -33,6 +33,7 @@ import com.couchbase.client.dcp.state.SessionState;
 import com.couchbase.client.dcp.transport.netty.ChannelFlowController;
 import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
 import com.couchbase.client.deps.io.netty.util.IllegalReferenceCountException;
+import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.Coordinator;
 import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.google.common.collect.ImmutableList;
@@ -82,10 +83,11 @@ public class DcpHelper {
     buffer.release();
   }
 
-  public static Client newClient(CouchbaseConfig config, Supplier<KeyStore> keystore) {
+  public static Client newClient(String groupName, CouchbaseConfig config, Supplier<KeyStore> keystore) {
     final Client.Builder builder = Client.configure()
+        .connectionNameGenerator(DefaultConnectionNameGenerator.forProduct("elasticsearch-connector", VersionHelper.getVersion(), groupName))
         .connectTimeout(config.dcp().connectTimeout().millis())
-        .connectionString(ConnectionString.DEFAULT_SCHEME + String.join(",", config.hosts()))
+        .hostnames(config.hosts())
         .bucket(config.bucket())
 //          .poolBuffers(true)
         .username(config.username())
