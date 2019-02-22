@@ -24,6 +24,7 @@ import java.util.List;
 import static com.couchbase.connector.config.ConfigHelper.expectOnly;
 import static com.couchbase.connector.config.ConfigHelper.getStrings;
 import static com.couchbase.connector.config.ConfigHelper.readPassword;
+import static com.google.common.base.Strings.isNullOrEmpty;
 
 @Value.Immutable
 public interface CouchbaseConfig {
@@ -36,15 +37,21 @@ public interface CouchbaseConfig {
 
   String bucket();
 
+  String metadataBucket();
+
   boolean secureConnection();
 
   DcpConfig dcp();
 
   static ImmutableCouchbaseConfig from(TomlTable config) {
-    expectOnly(config, "bucket", "hosts", "username", "pathToPassword", "dcp", "secureConnection");
+    expectOnly(config, "bucket", "metadataBucket", "hosts", "username", "pathToPassword", "dcp", "secureConnection");
+
+    final String sourceBucket = config.getString("bucket", () -> "default");
+    final String metadataBucket = config.getString("metadataBucket", () -> "");
 
     return ImmutableCouchbaseConfig.builder()
-        .bucket(config.getString("bucket", () -> "default"))
+        .bucket(sourceBucket)
+        .metadataBucket(isNullOrEmpty(metadataBucket) ? sourceBucket : metadataBucket)
         .hosts(getStrings(config, "hosts"))
         .username(config.getString("username", () -> ""))
         .password(readPassword(config, "couchbase", "pathToPassword"))

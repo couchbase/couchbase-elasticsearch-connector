@@ -141,11 +141,14 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       // Wait for couchbase server to come online, then open the bucket.
       final Bucket bucket = CouchbaseHelper.waitForBucket(cluster, config.couchbase().bucket());
 
+      final boolean storeMetadataInSourceBucket = config.couchbase().metadataBucket().equals(config.couchbase().bucket());
+      final Bucket metadataBucket = storeMetadataInSourceBucket ? bucket : CouchbaseHelper.waitForBucket(cluster, config.couchbase().metadataBucket());
+
       // Do this after waiting for the bucket, because waitForBucket has nicer retry backoff.
       // Checkpoint metadata is stored using Extended Attributes, a feature introduced in 5.0.
       LOGGER.info("Couchbase Server version {}", requireCouchbaseVersion(cluster, new Version(5, 0, 0)));
 
-      final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(bucket, config.group().name());
+      final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(metadataBucket, config.group().name());
 
       final String bucketUuid = ""; // todo get this from dcp client
       final CheckpointService checkpointService = new CheckpointService(bucketUuid, checkpointDao);

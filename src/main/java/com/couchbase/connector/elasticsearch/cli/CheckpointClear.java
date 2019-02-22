@@ -78,7 +78,7 @@ public class CheckpointClear extends AbstractCliCommand {
     final CouchbaseEnvironment env = environmentBuilder(config.couchbase(), config.trustStore()).build();
     final CouchbaseCluster cluster = createCluster(config.couchbase(), env);
     try {
-      final Bucket bucket = cluster.openBucket(config.couchbase().bucket());
+      final Bucket bucket = cluster.openBucket(config.couchbase().metadataBucket());
       final CouchbaseBucketConfig bucketConfig = getBucketConfig(bucket);
 
       final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(bucket, config.group().name());

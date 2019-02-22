@@ -45,8 +45,14 @@
   hosts = ['localhost']
   bucket = 'travel-sample'
 
-  # At a minimum, the Couchbase user must have the "Data Reader",
-  # "Data Writer", and "Data DCP Reader" roles for the bucket.
+  # By default the connector stores replication checkpoint documents
+  # in the source bucket. If you'd rather store those documents in a
+  # separate existing bucket, put that bucket's name here.
+  metadataBucket = ''
+
+  # At a minimum, the Couchbase user must have the "Data DCP Reader"
+  # role for the source bucket, and "Data Reader" & "Data Writer"
+  # roles for the bucket where replication checkpoints are stored.
   username = 'Administrator'
 
   # Path to a separate TOML file with a single 'password' key.

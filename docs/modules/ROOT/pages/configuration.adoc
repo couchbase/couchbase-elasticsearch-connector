@@ -96,17 +96,19 @@ Here's where the Couchbase connection parameters and credentials are specified.
 [couchbase]
   hosts = ['localhost'] <1>
   bucket = 'travel-sample' <2>
-  username = 'Administrator' <3>
-  pathToPassword = 'secrets/couchbase-password.toml' <4>
-  secureConnection = false <5>
+  metadataBucket = '' <3>
+  username = 'Administrator' <4>
+  pathToPassword = 'secrets/couchbase-password.toml' <5>
+  secureConnection = false <6>
 ----
 <1> A list of bootstrap nodes for the Couchbase cluster.
 Multiple nodes can be specified like `['host1','host2']`.
-<2> The bucket to replicate from.
-<3> At a minimum, the Couchbase user must have the "Data Reader", "Data Writer", and "Data DCP Reader" roles for the bucket.
-<4> Path to a separate TOML file with a single 'password' key.
+<2> The source bucket to replicate from.
+<3> The bucket for storing metadata like replication checkpoint documents. Empty string means store metadata in the source bucket.
+<4> At a minimum, the Couchbase user must have the "Data DCP Reader" role for the source bucket, and "Data Reader" & "Data Writer" roles for the metadata bucket.
+<5> Path to a separate TOML file with a single 'password' key.
 The base for a relative path is the connector installation directory.
-<5> If you have configured the <<truststore,Trust Store>> section, set this to `true` to encrypt the Couchbase connections.
+<6> If you have configured the <<truststore,Trust Store>> section, set this to `true` to encrypt the Couchbase connections.
 
 TIP: If you want to replicate from multiple buckets, you can run a separate connector group for each bucket.
 

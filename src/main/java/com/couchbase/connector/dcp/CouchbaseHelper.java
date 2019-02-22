@@ -91,10 +91,10 @@ public class CouchbaseHelper {
    * @deprecated Leaks the environment. Probably shouldn't use this.
    */
   @Deprecated
-  public static Bucket openBucket(CouchbaseConfig config, Supplier<KeyStore> keystore) {
+  public static Bucket openMetadataBucket(CouchbaseConfig config, Supplier<KeyStore> keystore) {
     // xxx there's no way to shut down this environment :-/
     final CouchbaseEnvironment env = environmentBuilder(config, keystore).build();
-    return createCluster(config, env).openBucket(config.bucket());
+    return createCluster(config, env).openBucket(config.metadataBucket());
   }
 
   public static CouchbaseBucketConfig getBucketConfig(Bucket bucket) {
