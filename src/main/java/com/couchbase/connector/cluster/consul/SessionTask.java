@@ -17,7 +17,6 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.google.common.base.Throwables;
-import com.orbitz.consul.Consul;
 import com.orbitz.consul.model.session.ImmutableSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +32,6 @@ import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 
 /**
@@ -42,9 +40,7 @@ import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 public class SessionTask implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(SessionTask.class);
 
-  private final Consul consul;
-  private final String serviceName;
-  private final String serviceId;
+  private final ConsulContext ctx;
   private final String serviceUuid = UUID.randomUUID().toString();
   private final String sessionId;
   private final Runnable runWhenHealthCheckPassed;
@@ -55,11 +51,8 @@ public class SessionTask implements AutoCloseable {
 
   private static final int HEALTH_CHECK_INTERVAL_SECONDS = 15;
 
-  public SessionTask(Consul consul, String serviceName, String serviceId, Runnable runWhenHealthCheckPassed, Consumer<Throwable> fatalErrorConsumer) {
-    serviceId = defaultIfNull(serviceId, serviceName);
-    this.serviceId = serviceId;
-    this.serviceName = requireNonNull(serviceName);
-    this.consul = requireNonNull(consul);
+  public SessionTask(ConsulContext consulContext, Runnable runWhenHealthCheckPassed, Consumer<Throwable> fatalErrorConsumer) {
+    this.ctx = requireNonNull(consulContext);
     this.runWhenHealthCheckPassed = requireNonNull(runWhenHealthCheckPassed);
     this.fatalErrorConsumer = requireNonNull(fatalErrorConsumer);
 
@@ -69,15 +62,15 @@ public class SessionTask implements AutoCloseable {
 
       // todo catch exception, retry with backoff (wait for consul agent to start)
       final int sessionTtlSeconds = HEALTH_CHECK_INTERVAL_SECONDS * 2;
-      consul.agentClient().register(0, sessionTtlSeconds, this.serviceName, this.serviceId, tags, meta);
+      ctx.consul().agentClient().register(0, sessionTtlSeconds, ctx.serviceName(), ctx.serviceId(), tags, meta);
 
       passHealthCheck();
 
-      this.sessionId = consul.sessionClient().createSession(ImmutableSession.builder()
-          .name("couchbase:cbes:" + this.serviceId)
+      this.sessionId = ctx.consul().sessionClient().createSession(ImmutableSession.builder()
+          .name("couchbase:cbes:" + ctx.serviceId())
           .behavior("delete")
           .lockDelay("15s")
-          .addChecks("service:" + this.serviceId) // consul client library names the health check "service:<serviceId>"
+          .addChecks("service:" + ctx.serviceId()) // consul client library names the health check "service:<serviceId>"
           .build()
       ).getId();
 
@@ -119,7 +112,7 @@ public class SessionTask implements AutoCloseable {
     }
 
     try {
-      consul.agentClient().pass(serviceId, "(" + serviceId + ") OK");
+      ctx.consul().agentClient().pass(ctx.serviceId(), "(" + ctx.serviceId() + ") OK");
 
       try {
         runWhenHealthCheckPassed.run();

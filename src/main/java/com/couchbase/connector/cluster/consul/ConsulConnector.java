@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
@@ -44,12 +43,15 @@ public class ConsulConnector {
 
   public static void main(String[] args) throws Exception {
     final String serviceName = args[0];
-    final String serviceId = args.length == 1 ? null : args[1];
-    run(serviceName, serviceId);
+    final String serviceIdOrNull = args.length == 1 ? null : args[1];
+    run(new ConsulContext(Consul.builder(), serviceName, serviceIdOrNull));
   }
 
   public static void run(String serviceName, String serviceIdOrNull) throws Exception {
-    final String serviceId = Optional.ofNullable(serviceIdOrNull).orElse(serviceName);
+    run(new ConsulContext(Consul.builder(), serviceName, serviceIdOrNull));
+  }
+
+  public static void run(ConsulContext ctx) throws Exception {
     final BlockingQueue<Throwable> fatalErrorQueue = new LinkedBlockingQueue<>();
 
     final Consumer<Throwable> errorConsumer = e -> {
@@ -57,12 +59,11 @@ public class ConsulConnector {
       fatalErrorQueue.add(e);
     };
 
-    final Consul consul = Consul.newClient();
-    final DocumentKeys documentKeys = new DocumentKeys(consul.keyValueClient(), serviceName);
+    final Consul consul = ctx.consul();
     Thread shutdownHook = null;
 
     final Member member = consul.agentClient().getAgent().getMember();
-    final String endpointId = endpointId(member, serviceId);
+    final String endpointId = endpointId(member, ctx.serviceId());
 
     final List<AbstractLongPollTask> waitForMe = new ArrayList<>();
 
@@ -106,7 +107,7 @@ public class ConsulConnector {
       @Override
       public void startLeading() {
         checkState(leader == null, "Already leading");
-        leader = new LeaderTask(consul, serviceName, documentKeys).start();
+        leader = new LeaderTask(ctx).start();
       }
 
       @Override
@@ -121,13 +122,13 @@ public class ConsulConnector {
     Throwable fatalError;
 
     try (SessionTask session =
-             new SessionTask(consul, serviceName, serviceId, workerService::resetKillSwitchTimer, errorConsumer).start();
+             new SessionTask(ctx, workerService::resetKillSwitchTimer, errorConsumer).start();
 
          RpcServerTask rpc =
-             new RpcServerTask(dispatcher, consul.keyValueClient(), documentKeys, session.sessionId(), endpointId, errorConsumer).start();
+             new RpcServerTask(dispatcher, ctx.consul().keyValueClient(), ctx.keys(), session.sessionId(), endpointId, errorConsumer).start();
 
          LeaderElectionTask election =
-             new LeaderElectionTask(consul.keyValueClient(), documentKeys, session.sessionId(), endpointId, errorConsumer, leaderController).start()) {
+             new LeaderElectionTask(ctx.consul().keyValueClient(), ctx.keys(), session.sessionId(), endpointId, errorConsumer, leaderController).start()) {
 
       waitForMe.add(election);
       waitForMe.add(rpc);
@@ -142,7 +143,8 @@ public class ConsulConnector {
           consul.destroy();
           election.awaitTermination();
 
-          Consul.newClient().agentClient().fail(serviceId, "(" + serviceId + ") Connector process terminated.");
+          // create new consul client; primary one may have been shut down.
+          ctx.consulBuilder().build().agentClient().fail(ctx.serviceId(), "(" + ctx.serviceId() + ") Connector process terminated.");
 
         } catch (Exception e) {
           System.err.println("Failed to report termination to Consul agent.");
@@ -178,10 +180,10 @@ public class ConsulConnector {
       System.err.println("  lock delay to elapse (15 seconds by default) and try again.");
       System.err.println();
       System.err.println("  This can also happen if you're trying to run more than one connector");
-      System.err.println("  worker in the same group on the same host without assigning each worker a unique Consul");
-      System.err.println("  service ID. Specify a unique ID with the --service-id command line option.");
+      System.err.println("  worker in the same group using the same Consul agent without assigning");
+      System.err.println("  each worker a unique Consul service ID. Specify a unique ID with the");
+      System.err.println("  --service-id command line option.");
       System.err.println();
-
     }
 
     System.exit(1);

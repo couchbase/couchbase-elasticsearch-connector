@@ -18,10 +18,12 @@ package com.couchbase.connector.elasticsearch.cli;
 
 import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.consul.ConsulConnector;
+import com.couchbase.connector.cluster.consul.ConsulContext;
 import com.couchbase.connector.cluster.consul.DocumentKeys;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
+import com.google.common.net.HostAndPort;
 import com.orbitz.consul.Consul;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -70,8 +72,12 @@ public class ConsulCli implements IVersionProvider {
     }
   }
 
-  public static void validateGroup(String group) {
-    final Consul consul = Consul.builder().build();
+  public static void validateGroup(ConsulContext ctx) {
+    validateGroup(ctx.consul(), ctx.serviceName());
+  }
+
+  public static void validateGroup(Consul consul, String group) {
+
     final DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), group);
 
     Collection<String> configuredGroups = keys.configuredGroups();
@@ -150,21 +156,22 @@ public class ConsulCli implements IVersionProvider {
 
 @Command(name = "run",
     description = "Run a connector worker process.")
-class RunCommand implements Runnable {
+class RunCommand extends ConsulCommand implements Runnable {
 
   @Option(names = {"-g", "--group"}, required = true,
       description = "The name of the connector group to join.")
   private String group;
 
   @Option(names = {"-i", "--service-id"},
-      description = "The Consul service ID to assign to the worker. Required if you want to run multiple workers in the same group on the same host.")
+      description = "The Consul service ID to assign to the worker. Required if you want to run multiple workers in the same group using the same Consul agent.")
   private String serviceId;
 
   @Override
   public void run() {
     try {
-      validateGroup(group);
-      ConsulConnector.run(group, serviceId);
+      ConsulContext ctx = new ConsulContext(consulBuilder(), group, serviceId);
+      validateGroup(ctx);
+      ConsulConnector.run(ctx);
     } catch (Exception e) {
       throwIfUnchecked(e);
       throw new RuntimeException(e);
@@ -174,7 +181,7 @@ class RunCommand implements Runnable {
 
 @Command(name = "checkpoint-clear",
     description = "Clears the replication checkpoint for the specified group, causing the connector to replicate from the beginning.")
-class CheckpointClearCommand implements Runnable {
+class CheckpointClearCommand extends ConsulCommand implements Runnable {
 
   @Option(names = {"-g", "--group"}, required = true,
       description = "The name of the connector group to operate on.")
@@ -185,9 +192,10 @@ class CheckpointClearCommand implements Runnable {
 
   @Override
   public void run() {
+    final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
+    validateGroup(ctx);
 
-    validateGroup(group);
-    final Consul consul = Consul.builder().build();
+    final Consul consul = ctx.consul();
     final String configKey = new DocumentKeys(consul.keyValueClient(), group).config();
 
     final DocumentKeys documentKeys = new DocumentKeys(consul.keyValueClient(), group);
@@ -219,9 +227,19 @@ class CheckpointClearCommand implements Runnable {
   }
 }
 
+abstract class ConsulCommand {
+  @Option(names = {"-a", "--consul-agent"}, paramLabel = "host[:port]",
+      description = "The hostname and port of the Consul agent to connect to. Defaults to localhost:8500")
+  protected String consulAgentAddress = "localhost:8500";
+
+  protected Consul.Builder consulBuilder() {
+    return Consul.builder().withHostAndPort(HostAndPort.fromString(consulAgentAddress));
+  }
+}
+
 @Command(name = "checkpoint-catch-up",
     description = "Set the checkpoint to the current state of the Couchbase bucket.")
-class CheckpointCatchUpCommand implements Runnable {
+class CheckpointCatchUpCommand extends ConsulCommand implements Runnable {
 
   @Option(names = {"-g", "--group"}, required = true,
       description = "The name of the connector group to operate on.")
@@ -229,28 +247,25 @@ class CheckpointCatchUpCommand implements Runnable {
 
   @Override
   public void run() {
-    validateGroup(group);
-    final Consul consul = Consul.builder().build();
-    final String configKey = new DocumentKeys(consul.keyValueClient(), group).config();
+    final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
+    validateGroup(ctx);
 
-    final DocumentKeys documentKeys = new DocumentKeys(consul.keyValueClient(), group);
+    final ConnectorConfig config = ctx.keys().getConfig(ConnectorConfig::from).orElse(null);
 
-    final String configString = consul.keyValueClient().getValueAsString(configKey, UTF_8).orElse(null);
-    if (Strings.isNullOrEmpty(configString)) {
+    if (config == null) {
       System.err.println("ERROR: Failed to modify checkpoint. Connector configuration document does not exist, or is empty.");
       System.exit(1);
     }
 
-    final ConnectorConfig config = ConnectorConfig.from(configString);
     try {
       System.out.println("Pausing connector prior to modifying checkpoint...");
-      final boolean wasPausedAlready = documentKeys.pause();
+      final boolean wasPausedAlready = ctx.keys().pause();
 
       System.out.println("Catching up checkpoint...");
       CheckpointClear.catchUp(config);
       if (!wasPausedAlready) {
         System.out.println("Resuming connector...");
-        documentKeys.resume();
+        ctx.keys().resume();
       }
 
       System.out.println("Connector caught up.");
@@ -264,17 +279,17 @@ class CheckpointCatchUpCommand implements Runnable {
 
 @Command(name = "groups",
     description = "Prints the name of each configured connector group.")
-class GroupsCommand implements Runnable {
+class GroupsCommand extends ConsulCommand implements Runnable {
   @Override
   public void run() {
-    final Consul consul = Consul.builder().build();
+    final Consul consul = consulBuilder().build();
     new DocumentKeys(consul.keyValueClient(), "").configuredGroups().forEach(System.out::println);
   }
 }
 
 @Command(name = "checkpoint-backup",
     description = "Saves the replication checkpoint to a file on the local filesystem.")
-class CheckpointBackupCommand implements Runnable {
+class CheckpointBackupCommand extends ConsulCommand implements Runnable {
 
   @Option(names = {"-g", "--group"}, required = true,
       description = "The name of the connector group to operate on.")
@@ -287,12 +302,11 @@ class CheckpointBackupCommand implements Runnable {
 
   @Override
   public void run() {
+    final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
+    validateGroup(ctx);
 
-    validateGroup(group);
-    final Consul consul = Consul.builder().build();
-    final String configKey = new DocumentKeys(consul.keyValueClient(), group).config();
-
-    final DocumentKeys documentKeys = new DocumentKeys(consul.keyValueClient(), group);
+    final Consul consul = ctx.consul();
+    final String configKey = ctx.keys().config();
 
     final String configString = consul.keyValueClient().getValueAsString(configKey, UTF_8).orElse(null);
     if (Strings.isNullOrEmpty(configString)) {
@@ -312,7 +326,7 @@ class CheckpointBackupCommand implements Runnable {
 
 @Command(name = "checkpoint-restore",
     description = "Sets the replication checkpoint from a backup file.")
-class CheckpointRestoreCommand implements Runnable {
+class CheckpointRestoreCommand extends ConsulCommand implements Runnable {
 
   @Option(names = {"-g", "--group"}, required = true,
       description = "The name of the connector group to operate on.")
@@ -324,11 +338,11 @@ class CheckpointRestoreCommand implements Runnable {
 
   @Override
   public void run() {
+    final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
+    validateGroup(ctx);
 
-    validateGroup(group);
-    final Consul consul = Consul.builder().build();
-    final DocumentKeys documentKeys = new DocumentKeys(consul.keyValueClient(), group);
-    final String configKey = documentKeys.config();
+    final Consul consul = ctx.consul();
+    final String configKey = ctx.keys().config();
 
     final String configString = consul.keyValueClient().getValueAsString(configKey, UTF_8).orElse(null);
     if (Strings.isNullOrEmpty(configString)) {
@@ -340,13 +354,13 @@ class CheckpointRestoreCommand implements Runnable {
 
     try {
       System.out.println("Pausing connector prior to restoring checkpoints...");
-      final boolean wasPausedAlready = documentKeys.pause();
+      final boolean wasPausedAlready = ctx.keys().pause();
 
       CheckpointRestore.restore(config, input);
 
       if (!wasPausedAlready) {
         System.out.println("Resuming connector...");
-        documentKeys.resume();
+        ctx.keys().resume();
       }
 
     } catch (Exception e) {
@@ -358,7 +372,7 @@ class CheckpointRestoreCommand implements Runnable {
 
 @Command(name = "resume",
     description = "Resume the connector if it is paused.")
-class ResumeCommand implements Runnable {
+class ResumeCommand extends ConsulCommand implements Runnable {
 
   @Option(names = {"-g", "--group"}, required = true,
       description = "The name of the connector group to operate on.")
@@ -367,10 +381,13 @@ class ResumeCommand implements Runnable {
   @Override
   public void run() {
     try {
-      validateGroup(group);
+      final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
+      validateGroup(ctx);
+
+      final Consul consul = ctx.consul();
+
       System.out.println("Attempting to resume connector group: " + group);
 
-      final Consul consul = Consul.builder().build();
       final DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), group);
 
       keys.resume();
@@ -387,7 +404,7 @@ class ResumeCommand implements Runnable {
 @Command(name = "configure",
     description = "Define a new connector group by uploading a configuration file." +
         " The name of the group is determined by the 'group' property in the config file.")
-class ConfigureCommand implements Runnable {
+class ConfigureCommand extends ConsulCommand implements Runnable {
 
   @Option(names = {"-i", "--input"}, paramLabel = "<config.toml>", required = true,
       description = "Configuration file to upload.")
@@ -396,13 +413,15 @@ class ConfigureCommand implements Runnable {
   @Override
   public void run() {
     try {
-      final Consul consul = Consul.builder().build();
       final String configString = Files.asCharSource(input, UTF_8).read();
       final ConnectorConfig parsed = ConnectorConfig.from(configString);
       final String group = parsed.group().name();
       System.out.println("Updating config for connector group '" + group + "'...");
 
-      final DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), group);
+      final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
+      final Consul consul = ctx.consul();
+
+      final DocumentKeys keys = ctx.keys();
       boolean success = consul.keyValueClient().putValue(keys.config(), configString, UTF_8);
       if (!success) {
         throw new IOException("Failed to write config document to Consul.");
@@ -418,7 +437,7 @@ class ConfigureCommand implements Runnable {
 
 @Command(name = "get-config",
     description = "Retrieve the configuration for a connector group and save it to a file on the local filesystem.")
-class GetConfigCommand implements Runnable {
+class GetConfigCommand extends ConsulCommand implements Runnable {
 
   @Option(names = {"-o", "--output"}, paramLabel = "<config.toml>", required = true,
       description = "File to create.")
@@ -432,10 +451,11 @@ class GetConfigCommand implements Runnable {
   @Override
   public void run() {
     try {
-      validateGroup(group);
+      final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
+      validateGroup(ctx);
 
-      final Consul consul = Consul.builder().build();
-      final DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), group);
+      final Consul consul = ctx.consul();
+      final DocumentKeys keys = ctx.keys();
 
       String config = consul.keyValueClient().getValueAsString(keys.config(), UTF_8)
           .orElseThrow(() -> new IOException("missing config document in consul"));
@@ -454,7 +474,7 @@ class GetConfigCommand implements Runnable {
 
 @Command(name = "pause",
     description = "Pauses the connector.")
-class PauseCommand implements Runnable {
+class PauseCommand extends ConsulCommand implements Runnable {
 
   @Option(names = {"-g", "--group"}, required = true,
       description = "The name of the connector group to operate on.")
@@ -462,70 +482,22 @@ class PauseCommand implements Runnable {
 
   @Override
   public void run() {
-    validateGroup(group);
+    final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
+    validateGroup(ctx);
+
     System.out.println("Attempting to pause connector group: " + group);
 
-    final Consul consul = Consul.builder().build();
-    final DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), group);
-
     try {
-      keys.pause();
+      ctx.keys().pause();
       System.out.println("Connector group '" + group + "' is now paused.");
+
     } catch (TimeoutException e) {
       System.err.println("ERROR: Pause failed; timed out waiting for cluster to quiesce.");
       System.exit(1);
+
     } catch (Exception e) {
       throwIfUnchecked(e);
       throw new RuntimeException(e);
     }
-  }
-}
-
-
-class MyCommandListRenderer implements CommandLine.IHelpSectionRenderer {
-  //@Override
-  public String render(CommandLine.Help help) {
-    CommandLine.Model.CommandSpec spec = help.commandSpec();
-    if (spec.subcommands().isEmpty()) {
-      return "";
-    }
-
-    // prepare layout: two columns
-    // the left column overflows, the right column wraps if text is too long
-    CommandLine.Help.TextTable textTable = CommandLine.Help.TextTable.forColumns(help.ansi(),
-        new CommandLine.Help.Column(15, 2, CommandLine.Help.Column.Overflow.SPAN),
-        new CommandLine.Help.Column(spec.usageMessage().width() - 15, 2, CommandLine.Help.Column.Overflow.WRAP));
-
-    for (CommandLine subcommand : spec.subcommands().values()) {
-      addHierarchy(subcommand, textTable, "");
-    }
-    return textTable.toString();
-  }
-
-  private void addHierarchy(CommandLine cmd, CommandLine.Help.TextTable textTable, String indent) {
-    // create comma-separated list of command name and aliases
-    String names = cmd.getCommandSpec().names().toString();
-    names = names.substring(1, names.length() - 1); // remove leading '[' and trailing ']'
-
-    // command description is taken from header or description
-    String description = description(cmd.getCommandSpec().usageMessage());
-
-    // add a line for this command to the layout
-    textTable.addRowValues(indent + names, description);
-
-    // add its subcommands (if any)
-    for (CommandLine sub : cmd.getSubcommands().values()) {
-      addHierarchy(sub, textTable, indent + "   ");
-    }
-  }
-
-  private String description(CommandLine.Model.UsageMessageSpec usageMessage) {
-    if (usageMessage.header().length > 0) {
-      return usageMessage.header()[0];
-    }
-    if (usageMessage.description().length > 0) {
-      return usageMessage.description()[0];
-    }
-    return "";
   }
 }

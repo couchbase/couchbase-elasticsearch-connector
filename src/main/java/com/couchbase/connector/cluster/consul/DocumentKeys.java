@@ -20,6 +20,7 @@ import com.couchbase.client.core.utils.DefaultObjectMapper;
 import com.couchbase.connector.cluster.consul.rpc.Broadcaster;
 import com.couchbase.connector.cluster.consul.rpc.RpcEndpoint;
 import com.couchbase.connector.cluster.consul.rpc.RpcResult;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.orbitz.consul.KeyValueClient;
 import com.orbitz.consul.model.agent.Member;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Throwables.propagateIfPossible;
@@ -181,5 +183,13 @@ public class DocumentKeys {
       throw new IOException("Failed to update control document: " + control());
     }
     return true;
+  }
+
+  public <T> Optional<T> getConfig(Function<String, T> parser) {
+    final String configString = kv.getValueAsString(config(), UTF_8).orElse(null);
+    if (Strings.isNullOrEmpty(configString)) {
+      return Optional.empty();
+    }
+    return Optional.ofNullable(parser.apply(configString));
   }
 }
