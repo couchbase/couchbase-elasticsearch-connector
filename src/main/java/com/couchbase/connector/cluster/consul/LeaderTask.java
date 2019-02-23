@@ -24,7 +24,6 @@ import com.couchbase.connector.cluster.consul.rpc.RpcEndpoint;
 import com.couchbase.connector.cluster.consul.rpc.RpcResult;
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.es.ConnectorConfig;
-import com.orbitz.consul.option.ImmutablePutOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -88,9 +87,11 @@ public class LeaderTask {
     boolean paused = false;
 
     final BlockingQueue<LeaderEvent> leaderEvents = new LinkedBlockingQueue<>();
-    final Disposable configSubscription = ConsulReactor.watch(ctx.consulBuilder(), ctx.keys().config(), Duration.ofSeconds(5))
+    final Disposable configSubscription = ctx.watchConfig()
         .doOnNext(e -> {
-          leaderEvents.offer(CONFIG_CHANGE);
+          if (e.isPresent()) {
+            leaderEvents.offer(CONFIG_CHANGE);
+          }
         })
         .doOnError(e -> {
           LOGGER.error("panic: Config change watcher failed.", e);
@@ -98,10 +99,10 @@ public class LeaderTask {
         })
         .subscribe();
 
-    final Disposable controlSubscription = ConsulReactor.watch(ctx.consulBuilder(), ctx.keys().control(), Duration.ofSeconds(5))
+    final Disposable controlSubscription = ctx.watchControl()
         .doOnNext(e -> {
           LOGGER.debug("Got control document: {}", e);
-          final JsonNode control = readTreeOrElseEmptyObject(e);
+          final JsonNode control = readTreeOrElseEmptyObject(e.orElse(""));
           if (control.path("paused").asBoolean(false)) {
             leaderEvents.offer(PAUSE);
           } else {
@@ -117,9 +118,6 @@ public class LeaderTask {
     try (NodeWatcher watcher = new NodeWatcher(ctx.consul(), ctx.serviceName(), Duration.ofSeconds(5), leaderEvents)) {
       while (true) {
         throwIfDone();
-
-        // So we can quickly respond to changes withing having to poll for document existence.
-        createControlDocumentIfDoesNotExist();
 
         final LeaderEvent event = leaderEvents.take();
         LOGGER.info("Got leadership event: {}", event);
@@ -140,6 +138,10 @@ public class LeaderTask {
             break;
 
           case RESUME:
+            if (!paused) {
+              LOGGER.debug("Ignoring redundant resume signal.");
+              continue;
+            }
             LOGGER.info("Resuming connector activity.");
             paused = false;
             break;
@@ -178,11 +180,6 @@ public class LeaderTask {
       controlSubscription.dispose();
       LOGGER.info("Leader thread terminated.");
     }
-  }
-
-  private void createControlDocumentIfDoesNotExist() {
-    final String defaultControlDoc = "{\"paused\":false}";
-    ctx.consul().keyValueClient().putValue(ctx.keys().control(), defaultControlDoc, 0, ImmutablePutOptions.builder().cas(0).build(), UTF_8);
   }
 
   private static JsonNode readTreeOrElseEmptyObject(String s) {

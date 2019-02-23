@@ -17,6 +17,7 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.orbitz.consul.Consul;
+import reactor.core.publisher.Flux;
 
 import java.util.Optional;
 
@@ -56,5 +57,13 @@ public class ConsulContext {
 
   public String serviceId() {
     return serviceId;
+  }
+
+  public Flux<Optional<String>> watchConfig() {
+    return ConsulReactor.watch(consulBuilder(), keys().config());
+  }
+
+  public Flux<Optional<String>> watchControl() {
+    return ConsulReactor.watch(consulBuilder(), keys().control());
   }
 }
