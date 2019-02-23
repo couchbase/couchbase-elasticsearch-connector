@@ -70,7 +70,9 @@ public class SessionTask implements AutoCloseable {
           .name("couchbase:cbes:" + ctx.serviceId())
           .behavior("delete")
           .lockDelay("15s")
-          .addChecks("service:" + ctx.serviceId()) // consul client library names the health check "service:<serviceId>"
+          .addChecks(
+              "serfHealth", // Must include "serfHealth", otherwise session never expires if Consul agent fails.
+              "service:" + ctx.serviceId()) // Consul client library uses this name for the app's pass/fail check.
           .build()
       ).getId();
 
