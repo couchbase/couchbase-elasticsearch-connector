@@ -18,9 +18,11 @@ package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.document.json.JsonObject;
 import com.couchbase.client.java.env.CouchbaseEnvironment;
+import com.couchbase.client.java.error.TemporaryFailureException;
 import com.couchbase.connector.config.common.ImmutableCouchbaseConfig;
 import com.couchbase.connector.config.common.ImmutableMetricsConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
@@ -57,6 +59,7 @@ import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
@@ -259,11 +262,11 @@ public class BasicReplicationTest {
         // Create two documents in the same vbucket to make sure we're not conflating seqno and revision number.
         // This first one has a seqno and revision number that are the same... not useful for the test.
         final String firstKeyInVbucket = forceKeyToPartition("createdFirst", 0, 1024).get();
-        bucket.upsert(JsonDocument.create(firstKeyInVbucket, JsonObject.create()));
+        upsertWithRetry(bucket, JsonDocument.create(firstKeyInVbucket, JsonObject.create()));
 
         // Here's the document we're going to test! Its seqno should be different than document revision.
         final String blueKey = forceKeyToPartition("color:blue", 0, 1024).get();
-        final JsonDocument doc = bucket.upsert(JsonDocument.create(blueKey, JsonObject.create().put("hex", "0000ff")));
+        final JsonDocument doc = upsertWithRetry(bucket, JsonDocument.create(blueKey, JsonObject.create().put("hex", "0000ff")));
         final JsonNode content = es.waitForDocument("etc", blueKey);
 
         System.out.println(content);
@@ -292,7 +295,7 @@ public class BasicReplicationTest {
 
         // Create an incompatible document (different type for "hex" field, Object instead of String)
         final String redKey = "color:red";
-        bucket.upsert(JsonDocument.create(redKey, JsonObject.create()
+        upsertWithRetry(bucket, JsonDocument.create(redKey, JsonObject.create()
             .put("hex", JsonObject.create()
                 .put("red", "ff")
                 .put("green", "00")
@@ -310,8 +313,8 @@ public class BasicReplicationTest {
    * Verify the type definition that infers index from ID is working as expected.
    */
   private void assertIndexInferredFromDocumentId(Bucket bucket, TestEsClient es) throws Exception {
-    bucket.upsert(JsonDocument.create("widget::123", JsonObject.create()));
-    bucket.upsert(JsonDocument.create("widget::foo::bar", JsonObject.create()));
+    upsertWithRetry(bucket, JsonDocument.create("widget::123", JsonObject.create()));
+    upsertWithRetry(bucket, JsonDocument.create("widget::foo::bar", JsonObject.create()));
     es.waitForDocument("widget", "widget::123");
     es.waitForDocument("widget", "widget::foo::bar");
   }
@@ -354,5 +357,25 @@ public class BasicReplicationTest {
       String config = sb.toString().replace("'_doc'", "'doc'");
       return ConnectorConfig.from(new ByteArrayInputStream(config.getBytes(UTF_8)));
     }
+  }
+
+  private static <D extends Document<?>> D upsertWithRetry(Bucket bucket, D document) throws Exception {
+    return callWithRetry(() -> bucket.upsert(document));
+  }
+
+  private static <R> R callWithRetry(Callable<R> callable) throws Exception {
+    final int maxAttempts = 10;
+    TemporaryFailureException deferred = null;
+    for (int attempt = 0; attempt <= maxAttempts; attempt++) {
+      if (attempt != 0) {
+        SECONDS.sleep(1);
+      }
+      try {
+        return callable.call();
+      } catch (TemporaryFailureException e) {
+        deferred = e;
+      }
+    }
+    throw deferred;
   }
 }
