@@ -31,7 +31,6 @@ import com.couchbase.connector.elasticsearch.cli.CheckpointClear;
 import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
 import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -53,8 +52,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -215,7 +212,7 @@ public class BasicReplicationTest {
   private static ImmutableConnectorConfig patchConfigForTesting(ImmutableConnectorConfig config,
                                                                 CustomCouchbaseContainer couchbase,
                                                                 ElasticsearchContainer elasticsearch) {
-    final String dockerHost = getDockerHost();
+    final String dockerHost = DockerHelper.getDockerHost();
 
     return config
         .withMetrics(ImmutableMetricsConfig.builder()
@@ -229,19 +226,6 @@ public class BasicReplicationTest {
             ImmutableCouchbaseConfig.copyOf(config.couchbase())
                 .withHosts(dockerHost + ":" + couchbase.getMappedPort(8091))
         );
-  }
-
-  private static String getDockerHost() {
-    final String env = System.getenv("DOCKER_HOST");
-    if (Strings.isNullOrEmpty(env)) {
-      return "localhost";
-    }
-
-    try {
-      return env.contains("://") ? new URI(env).getHost() : env;
-    } catch (URISyntaxException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   private static ImmutableConnectorConfig withBucketName(ImmutableConnectorConfig config, String bucketName) {
