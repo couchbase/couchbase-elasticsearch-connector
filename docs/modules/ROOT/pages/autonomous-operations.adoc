@@ -87,7 +87,7 @@ Open a new terminal window and run this command:
 
 [source,console]
 ----
-$ cbes-consul run --group=my-ao-group --service-id=number-two <1>
+$ cbes-consul run --group=my-ao-group --service-id=second <1>
 ----
 <1> Because both workers are talking to the same Consul agent and using the same group name, we need to assign the second worker an explicit service ID.
 
