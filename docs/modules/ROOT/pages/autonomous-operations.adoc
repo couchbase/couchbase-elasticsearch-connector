@@ -1,4 +1,4 @@
-= Autonomous Operations Mode
+= Autonomous Operations
 
 [abstract]
 Deploy the connector in AO mode for centralized management and resilient response to node failures and network partitions.
