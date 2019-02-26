@@ -1,0 +1,182 @@
+= Autonomous Operations Mode
+
+[abstract]
+Deploy the connector in AO mode for centralized management and resilient response to node failures and network partitions.
+
+In Autonomous Operations (AO) mode the connector workers communicate with each other using a coordination service.
+If the machine hosting a worker fails, that worker is automatically removed from the group and the workload is redistributed among remaining workers.
+
+Group configuration is stored in a central location so the entire group can be easily reconfigured on-the-fly.
+Command line tools let you pause and resume all workers at once.
+In this mode you can modify replication checkpoints without having to manually stop and restart all workers.
+
+== Coordination with Consul
+
+The coordination service used by the connector is https://www.consul.io[HashiCorp Consul].
+
+Installing and managing a production Consul cluster is beyond the scope of this guide, but we'll show how to quickly and easily set up a Consul server in development mode.
+
+== AO Quickstart Guide
+
+[abstract]
+For demonstration purposes, this guide shows how to run the Consul agent & server and multiple connector workers on the same physical machine.
+
+=== Pre-requisites
+
+* Please review the xref:getting-started.adoc[Getting Started] documentation for basic connector configuration and operation.
+Make sure you are successful with a single worker before proceeding.
+
+* You'll need a Consul executable for your platform.
+Visit the https://www.consul.io[Consul web site] and navigate to the download page.
+Download Consul 1.4.2 (other versions may work, but this is the one we currently test and support).
+Install the Consul binary by moving it to a directory in your `PATH`.
+
+=== Start the Consul Server
+
+Run this command to start a single-node Consul cluster in development mode:
+
+[source,console]
+----
+$ consul agent -dev
+----
+
+Visit the Consul web interface at http://localhost:8500 to view the state of the cluster and verify the node is healthy.
+
+=== Configure the Connector Group
+
+Make a copy of the connector configuration file you customized for the xref:getting-started.adoc[Getting Started] guide.
+Let's call the new config file `ao-quickstart-config.toml`.
+
+Our new connector group needs a name.
+Edit the `[group]` section so it looks like this:
+
+[source,toml]
+----
+[group]
+  name = 'my-ao-group' <1>
+----
+<1> The name can be anything you want, but this is the value assumed by the rest of this guide.
+
+Next, make sure there won't be any port conflicts when running multiple workers on the same machine.
+Search for the `[metrics]` section and set the `httpPort` property to `-1` to disable the embedded HTTP server.
+
+Save the changes.
+Now let's upload the configuration to Consul with this command:
+
+[source,console]
+----
+$ cbes-consul configure --input=ao-quickstart-config.toml
+----
+
+The config file should now be present in Consul's Key/Value store which you can inspect using the http://localhost:8500[web interface].
+
+NOTE: One limitation of running Consul in development mode is that data is not persisted between runs.
+You'll need to re-run the connector configuration command after every Consul restart.
+
+=== Run Connector Workers
+
+Use this command to start a connector worker using the configuration defined in Consul:
+
+[source,console]
+----
+$ cbes-consul run --group=my-ao-group
+----
+
+Now let's start a second worker.
+Open a new terminal window and run this command:
+
+[source,console]
+----
+$ cbes-consul run --group=my-ao-group --service-id=number-two <1>
+----
+<1> Because both workers are talking to the same Consul agent and using the same group name, we need to assign the second worker an explicit service ID.
+
+TIP: Service IDs must be unique among all workers using the same Consul agent.
+If you don't specify a service ID it defaults to the name of the group.
+
+One of the connectors in the group was elected the leader (probably the first one, since it started first).
+The leader watches for group membership changes and rebalances the workload accordingly.
+
+Add a third worker to the group and watch the output of the connectors to see how they respond.
+Pay particular attention to the leader's output, since it will be the one telling the others what to do.
+
+Now stop the leader by sending it an interrupt signal (type `control-c` in its terminal window).
+This forces a leader election, which one of the remaining workers wins.
+
+If you like, edit the `ao-quickstart-config.toml` file and modify one of the properties in the `[elasticsearch.bulkRequestLimits]` section.
+Re-run the `cbes-consul configure` command from earlier to see the new configuration take effect immediately.
+
+=== Connector Management Commands
+
+Run `cbes-consul` without any arguments to see a list of sub-commands.
+Here are some highlights:
+
+.List the names of all configured connector groups
+[source,console]
+----
+$ cbes-consul groups
+----
+
+.Restart the replication stream (reindex all documents)
+[source,console]
+----
+$ cbes-consul checkpoint-clear --group=my-ao-group
+----
+
+.Ignore changes from before the current time
+[source,console]
+----
+$ cbes-consul checkpoint-catch-up --group=my-ao-group
+----
+
+.Save a snapshot of the replication checkpoint to the local filesystem
+[source,console]
+----
+$ cbes-consul checkpoint-backup --group=my-ao-group --output=<checkpoint.json>
+----
+
+.Restore the checkpoint from a snapshot file
+[source,console]
+----
+$ cbes-consul checkpoint-restore --group=my-ao-group --input=<checkpoint.json>
+----
+
+.Pause the connector
+[source,console]
+----
+$ cbes-consul pause --group=my-ao-group
+----
+
+.Get back to work!
+[source,console]
+----
+$ cbes-consul resume --group=my-ao-group
+----
+
+== Migrating to Autonomous Operations
+
+Replication checkpoint documents created in AO mode are 100% compatible with checkpoints created in other modes.
+If you're migrating to AO mode, use the same group name and your replication checkpoint will be preserved.
+
+Just make sure to stop all non-AO workers for a group before running the AO workers.
+
+== Tips & Tricks
+
+* All of the `cbes-consul checkpoint-\*` commands may be performed at any time, even when workers are running.
+Just be careful not confuse them with the `cbes-checkpoint-*` commands, which should only be used when all workers in the group are stopped.
+* By default all of the CLI commands talk to Consul via the local agent.
+If there's no local Consul agent, you can use a remote agent by passing `--consul-agent=<host:port>` (where `port` is usually 8500).
+* Configuration is not _completely_ centralized.
+Sensitive properties like passwords must be still be configured on each worker's filesystem.
+* You can edit a group's configuration directly in the Consul web interface.
+The new configuration will go into effect as soon as the changes are saved.
+If you choose to do this, *the one property you must not change is the group name*.
+
+== From Development to Production
+
+In a production environment, the recommended topology is to spread the connector workers over several machines,
+and to run the Consul agent on each machine that hosts a worker.
+
+You'll also need at least one Consul agent running in server mode; the recommended number of servers is 3 or 5.
+
+Please see the Consul documentation for detailed information about administering a production Consul cluster.

@@ -1,6 +1,7 @@
 .xref:index.adoc[Elasticsearch Connector]
 * xref:getting-started.adoc[Getting Started]
 * xref:configuration.adoc[Configuration]
+* xref:autonomous-operations.adoc[Autonomous Operations]
 * xref:monitoring.adoc[Monitoring]
 * xref:secure-connections.adoc[Secure Connections]
 * xref:migration.adoc[Migration]
