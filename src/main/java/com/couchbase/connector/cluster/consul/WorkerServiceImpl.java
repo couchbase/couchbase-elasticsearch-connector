@@ -20,6 +20,7 @@ import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.config.common.ImmutableGroupConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableConnectorConfig;
+import com.couchbase.connector.elasticsearch.ElasticsearchConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +39,7 @@ public class WorkerServiceImpl implements WorkerService, Closeable {
 
   private volatile Status status = Status.IDLE;
 
-  private volatile ConnectorTask connectorTask;
+  private volatile AsyncTask connectorTask;
 
   private final Consumer<Throwable> fatalErrorListener;
 
@@ -107,7 +108,7 @@ public class WorkerServiceImpl implements WorkerService, Closeable {
         .withGroup(ImmutableGroupConfig.copyOf(originalConfig.group())
             .withStaticMembership(membership));
 
-    connectorTask = new ConnectorTask(patchedConfig, fatalErrorListener).start();
+    connectorTask = AsyncTask.run(() -> ElasticsearchConnector.run(patchedConfig), fatalErrorListener);
 
     this.status = new Status(membership);
   }

@@ -16,8 +16,6 @@
 
 package com.couchbase.connector.cluster.consul;
 
-import com.couchbase.connector.config.es.ConnectorConfig;
-import com.couchbase.connector.elasticsearch.ElasticsearchConnector;
 import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,20 +28,42 @@ import java.util.function.Consumer;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-public class ConnectorTask implements AutoCloseable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ConnectorTask.class);
+/**
+ * Helper for running interruptible tasks in a separate thread.
+ */
+public class AsyncTask implements AutoCloseable {
+  private static final Logger LOGGER = LoggerFactory.getLogger(AsyncTask.class);
 
   private static final AtomicInteger threadCounter = new AtomicInteger();
+
+  @FunctionalInterface
+  public interface Interruptible {
+    /**
+     * When the thread executing this method is interrupted,
+     * the method should throw InterruptedException to indicate clean termination.
+     */
+    void run() throws Throwable;
+  }
 
   private final Thread thread;
   private final AtomicReference<Throwable> connectorException = new AtomicReference<>();
 
-  public ConnectorTask(ConnectorConfig config, Consumer<Throwable> fatalErrorListener) {
+  public static AsyncTask run(Interruptible task, Consumer<Throwable> fatalErrorListener) {
+    return new AsyncTask(task, fatalErrorListener).start();
+  }
+
+  public static AsyncTask run(Interruptible task) {
+    return run(task, t -> {
+    });
+  }
+
+  private AsyncTask(Interruptible task, Consumer<Throwable> fatalErrorListener) {
+    requireNonNull(task);
     requireNonNull(fatalErrorListener);
 
     thread = new Thread(() -> {
       try {
-        ElasticsearchConnector.run(config);
+        task.run();
       } catch (Throwable t) {
         connectorException.set(t);
         if (t instanceof InterruptedException) {
@@ -56,7 +76,7 @@ public class ConnectorTask implements AutoCloseable {
     }, "connector-main-" + threadCounter.getAndIncrement());
   }
 
-  public ConnectorTask start() {
+  private AsyncTask start() {
     try {
       thread.start();
       LOGGER.info("Thread {} started.", thread.getName());

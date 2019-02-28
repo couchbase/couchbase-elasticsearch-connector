@@ -69,6 +69,7 @@ dependencies {
   compile 'info.picocli:picocli:3.9.2'
 
   testCompile 'junit:junit:4.12'
+  testCompile 'org.apache.commons:commons-lang3:3.8.1'
   testCompile("org.assertj:assertj-core:3.11.1")
   integrationTestCompile 'com.jayway.jsonpath:json-path:2.3.0'
 

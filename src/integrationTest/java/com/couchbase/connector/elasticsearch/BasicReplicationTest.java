@@ -23,11 +23,10 @@ import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.document.json.JsonObject;
 import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.client.java.error.TemporaryFailureException;
+import com.couchbase.connector.cluster.consul.AsyncTask;
 import com.couchbase.connector.config.common.ImmutableCouchbaseConfig;
-import com.couchbase.connector.config.common.ImmutableMetricsConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableConnectorConfig;
-import com.couchbase.connector.config.es.ImmutableElasticsearchConfig;
 import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.elasticsearch.cli.CheckpointClear;
 import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
@@ -36,10 +35,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.io.CharStreams;
-import org.apache.http.HttpHost;
 import org.elasticsearch.Version;
-import org.elasticsearch.common.unit.TimeValue;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
@@ -49,11 +45,6 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 
-import java.io.ByteArrayInputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -64,9 +55,9 @@ import java.util.concurrent.TimeoutException;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
+import static com.couchbase.connector.elasticsearch.TestConfigHelper.readConfig;
 import static com.couchbase.connector.testcontainers.CustomCouchbaseContainer.newCouchbaseCluster;
 import static com.couchbase.connector.testcontainers.Poller.poll;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -188,7 +179,7 @@ public class BasicReplicationTest {
       cachedElasticsearchContainerVersion = elasticsearchVersion;
     }
 
-    commonConfig = patchConfigForTesting(loadConfig(), couchbase, elasticsearch);
+    commonConfig = ConnectorConfig.from(readConfig(couchbase, elasticsearch));
     CheckpointClear.clear(commonConfig);
 
     try (TestEsClient es = new TestEsClient(commonConfig)) {
@@ -210,25 +201,6 @@ public class BasicReplicationTest {
         c.stop();
       }
     }
-  }
-
-  private static ImmutableConnectorConfig patchConfigForTesting(ImmutableConnectorConfig config,
-                                                                CustomCouchbaseContainer couchbase,
-                                                                ElasticsearchContainer elasticsearch) {
-    final String dockerHost = DockerHelper.getDockerHost();
-
-    return config
-        .withMetrics(ImmutableMetricsConfig.builder()
-            .httpPort(-1)
-            .logInterval(TimeValue.ZERO)
-            .build())
-        .withElasticsearch(
-            ImmutableElasticsearchConfig.copyOf(config.elasticsearch())
-                .withHosts(new HttpHost(dockerHost, elasticsearch.getHost().getPort())))
-        .withCouchbase(
-            ImmutableCouchbaseConfig.copyOf(config.couchbase())
-                .withHosts(dockerHost + ":" + couchbase.getMappedPort(8091))
-        );
   }
 
   private static ImmutableConnectorConfig withBucketName(ImmutableConnectorConfig config, String bucketName) {
@@ -253,7 +225,7 @@ public class BasicReplicationTest {
       ImmutableConnectorConfig config = withBucketName(commonConfig, tempBucket.name());
 
       try (TestEsClient es = new TestEsClient(config);
-           TestConnector connector = new TestConnector(config).start()) {
+           AsyncTask connector = AsyncTask.run(() -> ElasticsearchConnector.run(config))) {
 
         final Bucket bucket = cluster.openBucket(tempBucket.name());
 
@@ -334,7 +306,7 @@ public class BasicReplicationTest {
   @Test
   public void canReplicateTravelSample() throws Throwable {
     try (TestEsClient es = new TestEsClient(commonConfig);
-         TestConnector connector = new TestConnector(commonConfig).start()) {
+         AsyncTask connector = AsyncTask.run(() -> ElasticsearchConnector.run(commonConfig))) {
 
       final int expectedAirlineCount = 187;
       final int expectedAirportCount = 1968;
@@ -346,16 +318,6 @@ public class BasicReplicationTest {
 
       assertEquals(expectedAirlineCount, es.getDocumentCount("airlines"));
       assertEquals(expectedAirportCount, es.getDocumentCount("airports"));
-    }
-  }
-
-  private static ImmutableConnectorConfig loadConfig() throws IOException {
-    try (InputStream is = new FileInputStream("src/dist/config/example-connector.toml")) {
-      // rewrite the document type config for compatibility with ES 5.x
-      StringBuilder sb = new StringBuilder();
-      CharStreams.copy(new InputStreamReader(is, UTF_8), sb);
-      String config = sb.toString().replace("'_doc'", "'doc'");
-      return ConnectorConfig.from(new ByteArrayInputStream(config.getBytes(UTF_8)));
     }
   }
 
