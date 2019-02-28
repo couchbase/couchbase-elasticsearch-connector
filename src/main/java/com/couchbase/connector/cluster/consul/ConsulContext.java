@@ -29,10 +29,12 @@ public class ConsulContext {
   private final DocumentKeys keys;
   private final String serviceName;
   private final String serviceId;
+  private final ConsulDocumentWatcher documentWatcher;
 
   public ConsulContext(Consul.Builder clientBuilder, String serviceName, String serviceIdOrNull) {
     this.clientBuilder = requireNonNull(clientBuilder);
     this.primaryClient = clientBuilder.build();
+    this.documentWatcher = new ConsulDocumentWatcher(clientBuilder);
 
     this.keys = new DocumentKeys(primaryClient.keyValueClient(), serviceName);
     this.serviceName = requireNonNull(serviceName);
@@ -60,10 +62,10 @@ public class ConsulContext {
   }
 
   public Flux<Optional<String>> watchConfig() {
-    return ConsulReactor.watch(consulBuilder(), keys().config());
+    return documentWatcher.watch(keys().config());
   }
 
   public Flux<Optional<String>> watchControl() {
-    return ConsulReactor.watch(consulBuilder(), keys().control());
+    return documentWatcher.watch(keys().control());
   }
 }

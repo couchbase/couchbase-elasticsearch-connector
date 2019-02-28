@@ -16,7 +16,7 @@
 
 package com.couchbase.connector.elasticsearch;
 
-import com.couchbase.connector.cluster.consul.ConsulReactor;
+import com.couchbase.connector.cluster.consul.ConsulDocumentWatcher;
 import com.orbitz.consul.Consul;
 import com.orbitz.consul.KeyValueClient;
 import org.junit.AfterClass;
@@ -34,7 +34,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-public class ConsulReactorTest {
+public class ConsulDocumentWatcherTest {
 
   private static ConsulCluster consulCluster;
 
@@ -63,7 +63,7 @@ public class ConsulReactorTest {
     final KeyValueClient kv = clientBuilder.build().keyValueClient();
 
     final BlockingQueue<Optional<String>> result = new LinkedBlockingQueue<>();
-    final Disposable watch = ConsulReactor.watch(clientBuilder, key)
+    final Disposable watch = new ConsulDocumentWatcher(clientBuilder).watch(key)
         .doOnNext(result::add)
         .subscribe();
 
@@ -97,7 +97,7 @@ public class ConsulReactorTest {
     kv.putValue(key, "exists");
 
     final BlockingQueue<Optional<String>> result = new LinkedBlockingQueue<>();
-    final Disposable watch = ConsulReactor.watch(clientBuilder, key)
+    final Disposable watch = new ConsulDocumentWatcher(clientBuilder).watch(key)
         .doOnNext(result::add)
         .subscribe();
     try {
