@@ -115,7 +115,7 @@ public class LeaderTask {
         })
         .subscribe();
 
-    try (NodeWatcher watcher = new NodeWatcher(ctx.consul(), ctx.serviceName(), Duration.ofSeconds(5), leaderEvents)) {
+    try (NodeWatcher watcher = new NodeWatcher(ctx.consulBuilder(), ctx.serviceName(), Duration.ofSeconds(5), leaderEvents)) {
       while (true) {
         throwIfDone();
 

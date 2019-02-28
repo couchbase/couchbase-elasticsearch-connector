@@ -46,9 +46,11 @@ class NodeWatcher implements Closeable {
 
   private final ServiceHealthCache svHealth;
   private volatile ImmutableSet<String> prevEndpointIds = ImmutableSet.of();
+  private final Consul consul;
 
-  public NodeWatcher(Consul consul, String serviceName, Duration quietPeriod, BlockingQueue<LeaderEvent> eventQueue) {
+  public NodeWatcher(Consul.Builder consulBuilder, String serviceName, Duration quietPeriod, BlockingQueue<LeaderEvent> eventQueue) {
     requireNonNull(eventQueue);
+    this.consul = consulBuilder.build();
     this.quietPeriodExecutor = new QuietPeriodExecutor(quietPeriod, executorService);
     this.svHealth = ServiceHealthCache.newCache(consul.healthClient(), serviceName);
 
@@ -84,5 +86,6 @@ class NodeWatcher implements Closeable {
   public void close() {
     svHealth.stop();
     executorService.shutdownNow();
+    consul.destroy();
   }
 }
