@@ -119,6 +119,7 @@ public class WorkerServiceImpl implements WorkerService, Closeable {
 
   @Override
   public void close() {
+    stopStreaming();
     executor.shutdownNow();
   }
 }

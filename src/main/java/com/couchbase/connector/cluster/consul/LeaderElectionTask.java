@@ -80,6 +80,8 @@ public class LeaderElectionTask extends AbstractLongPollTask<LeaderElectionTask>
 
     } finally {
       try {
+        leaderController.stopLeading();
+
         // Abdicate (delete leadership document); only succeeds if we own the lock. This lets another node acquire
         // the lock immediately. If we don't do this, the lock will be auto-released when the session ends,
         // but the lock won't be eligible for acquisition until the Consul lock delay has elapsed.

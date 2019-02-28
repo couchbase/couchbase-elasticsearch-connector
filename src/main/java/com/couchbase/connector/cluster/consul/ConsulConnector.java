@@ -47,10 +47,6 @@ public class ConsulConnector {
     run(new ConsulContext(Consul.builder(), serviceName, serviceIdOrNull));
   }
 
-  public static void run(String serviceName, String serviceIdOrNull) throws Exception {
-    run(new ConsulContext(Consul.builder(), serviceName, serviceIdOrNull));
-  }
-
   public static void run(ConsulContext ctx) throws Exception {
     final BlockingQueue<Throwable> fatalErrorQueue = new LinkedBlockingQueue<>();
 
@@ -112,9 +108,9 @@ public class ConsulConnector {
 
       @Override
       public void stopLeading() {
-        checkState(leader != null, "Wasn't leading");
-        // todo interrupt the leader thread.
-        leader.stop();
+        if (leader != null) {
+          leader.stop();
+        }
         leader = null;
       }
     };
@@ -144,7 +140,9 @@ public class ConsulConnector {
           election.awaitTermination();
 
           // create new consul client; primary one may have been shut down.
-          ctx.consulBuilder().build().agentClient().fail(ctx.serviceId(), "(" + ctx.serviceId() + ") Connector process terminated.");
+          Consul exitConsul = ctx.consulBuilder().build();
+          exitConsul.agentClient().fail(ctx.serviceId(), "(" + ctx.serviceId() + ") Connector process terminated.");
+          exitConsul.destroy();
 
         } catch (Exception e) {
           System.err.println("Failed to report termination to Consul agent.");
