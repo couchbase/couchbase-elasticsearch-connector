@@ -28,18 +28,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static com.couchbase.connector.cluster.consul.LeaderEvent.CONFIG_CHANGE;
 import static com.couchbase.connector.cluster.consul.LeaderEvent.FATAL_ERROR;
 import static com.couchbase.connector.cluster.consul.LeaderEvent.PAUSE;
 import static com.couchbase.connector.cluster.consul.LeaderEvent.RESUME;
+import static com.couchbase.connector.cluster.consul.ReactorHelper.asCloseable;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -87,35 +90,11 @@ public class LeaderTask {
     boolean paused = false;
 
     final BlockingQueue<LeaderEvent> leaderEvents = new LinkedBlockingQueue<>();
-    final Disposable configSubscription = ctx.watchConfig()
-        .doOnNext(e -> {
-          if (e.isPresent()) {
-            leaderEvents.offer(CONFIG_CHANGE);
-          }
-        })
-        .doOnError(e -> {
-          LOGGER.error("panic: Config change watcher failed.", e);
-          leaderEvents.offer(FATAL_ERROR);
-        })
-        .subscribe();
 
-    final Disposable controlSubscription = ctx.watchControl()
-        .doOnNext(e -> {
-          LOGGER.debug("Got control document: {}", e);
-          final JsonNode control = readTreeOrElseEmptyObject(e.orElse(""));
-          if (control.path("paused").asBoolean(false)) {
-            leaderEvents.offer(PAUSE);
-          } else {
-            leaderEvents.offer(RESUME);
-          }
-        })
-        .doOnError(e -> {
-          LOGGER.error("panic: Control change watcher failed.", e);
-          leaderEvents.offer(FATAL_ERROR);
-        })
-        .subscribe();
 
-    try (NodeWatcher watcher = new NodeWatcher(ctx.consulBuilder(), ctx.serviceName(), Duration.ofSeconds(5), leaderEvents)) {
+    try (Closeable configWatch = asCloseable(subscribeConfig(leaderEvents::add));
+         Closeable controlWatch = asCloseable(subscribeControl(leaderEvents::add));
+         Closeable membershipWatch = asCloseable(subscribeMembershipEvents(leaderEvents::add))) {
       while (true) {
         throwIfDone();
 
@@ -176,8 +155,6 @@ public class LeaderTask {
       System.exit(1); // todo resign instead of exiting?
 
     } finally {
-      configSubscription.dispose();
-      controlSubscription.dispose();
       LOGGER.info("Leader thread terminated.");
     }
   }
@@ -300,5 +277,47 @@ public class LeaderTask {
     if (done) {
       throw new InterruptedException("Leader termination requested.");
     }
+  }
+
+  private Disposable subscribeConfig(Consumer<LeaderEvent> eventSink) {
+    return ctx.watchConfig()
+        .doOnNext(e -> {
+          if (e.isPresent()) {
+            eventSink.accept(CONFIG_CHANGE);
+          }
+        })
+        .doOnError(e -> {
+          LOGGER.error("panic: Config change watcher failed.", e);
+          eventSink.accept(FATAL_ERROR);
+        })
+        .subscribe();
+  }
+
+  private Disposable subscribeControl(Consumer<LeaderEvent> eventSink) {
+    return ctx.watchControl()
+        .doOnNext(e -> {
+          LOGGER.debug("Got control document: {}", e);
+          final JsonNode control = readTreeOrElseEmptyObject(e.orElse(""));
+          if (control.path("paused").asBoolean(false)) {
+            eventSink.accept(PAUSE);
+          } else {
+            eventSink.accept(RESUME);
+          }
+        })
+        .doOnError(e -> {
+          LOGGER.error("panic: Control change watcher failed.", e);
+          eventSink.accept(FATAL_ERROR);
+        })
+        .subscribe();
+  }
+
+  private Disposable subscribeMembershipEvents(Consumer<LeaderEvent> eventSink) {
+    return ctx.watchServiceHealth(Duration.ofSeconds(5))
+        .doOnNext(membership -> eventSink.accept(LeaderEvent.MEMBERSHIP_CHANGE))
+        .doOnError(e -> {
+          LOGGER.error("panic: Service health watcher failed.", e);
+          eventSink.accept(FATAL_ERROR);
+        })
+        .subscribe();
   }
 }

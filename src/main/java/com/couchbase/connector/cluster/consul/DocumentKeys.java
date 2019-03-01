@@ -23,7 +23,6 @@ import com.couchbase.connector.cluster.consul.rpc.RpcResult;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.orbitz.consul.KeyValueClient;
-import com.orbitz.consul.model.agent.Member;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,11 +115,6 @@ public class DocumentKeys {
     final String endpointId = kv.getValueAsString(leader(), UTF_8).orElse(null);
     return endpointId == null ? Optional.empty() : Optional.of(
         new RpcEndpoint(kv, watcher, rpcEndpoint(endpointId), DEFAULT_ENDPOINT_TIMEOUT));
-  }
-
-  // consul-specific
-  public static String endpointId(Member member, String serviceId) {
-    return member.getName() + "::" + member.getAddress() + "::" + serviceId;
   }
 
   public boolean pause() throws TimeoutException, IOException {

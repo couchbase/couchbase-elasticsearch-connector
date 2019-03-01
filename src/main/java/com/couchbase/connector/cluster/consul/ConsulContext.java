@@ -16,9 +16,11 @@
 
 package com.couchbase.connector.cluster.consul;
 
+import com.google.common.collect.ImmutableSet;
 import com.orbitz.consul.Consul;
 import reactor.core.publisher.Flux;
 
+import java.time.Duration;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -71,5 +73,9 @@ public class ConsulContext {
 
   public ConsulDocumentWatcher documentWatcher() {
     return documentWatcher;
+  }
+
+  public Flux<ImmutableSet<String>> watchServiceHealth(Duration quietPeriod) {
+    return ConsulHelper.watchServiceHealth(clientBuilder, serviceName, quietPeriod);
   }
 }

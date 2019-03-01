@@ -17,8 +17,10 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.google.common.base.Throwables;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 
+import java.io.Closeable;
 import java.io.InterruptedIOException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
@@ -30,10 +32,17 @@ public class ReactorHelper {
   }
 
   /**
+   * Wraps the given Disposable in a Closeable for use in try-with-resources blocks.
+   */
+  public static Closeable asCloseable(Disposable d) {
+    return d::dispose;
+  }
+
+  /**
    * Subscribes to the flux and blocks until an item matching the predicate is emitted
    * or the thread is interrupted.
    *
-   * @return The first item matching the predicate.
+   * @return The first item matching the predicate, or {@code null} if the flux completes without a match.
    * @throws InterruptedException if the thread is interrupted.
    */
   public static <T> T await(Flux<T> flux, Predicate<? super T> condition)
@@ -50,10 +59,10 @@ public class ReactorHelper {
   }
 
   /**
-   * Subscribes to the flux and blocks until an item matching the predicate is emitted
-   * or the thread is interrupted or the timeout expires.
+   * Subscribes to the flux and blocks until an item matching the predicate is emitted,
+   * thread is interrupted, or the timeout expires.
    *
-   * @return The first item matching the predicate.
+   * @return The first item matching the predicate, or {@code null} if the flux completes without a match.
    * @throws InterruptedException if the thread is interrupted.
    * @throws TimeoutException     if the flux does not emit a matching item before the timeout expires.
    */

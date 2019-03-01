@@ -34,7 +34,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
-import static com.couchbase.connector.cluster.consul.DocumentKeys.endpointId;
+import static com.couchbase.connector.cluster.consul.ConsulHelper.endpointId;
 import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
 import static com.google.common.base.Preconditions.checkState;
 
