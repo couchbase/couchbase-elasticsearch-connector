@@ -48,8 +48,8 @@ public class ConsulDocumentWatcherTest {
 
   private static final long TIMEOUT_MILLIS = 20_000;
 
-  // true means assume consul is already running on default port
-  private static final boolean NATIVE_CONSUL = true;
+  // true means assume consul is already running on default port, don't bother with Docker
+  private static final boolean NATIVE_CONSUL = false;
 
   private static ConsulCluster consulCluster;
   private static Consul.Builder consulBuilder;
