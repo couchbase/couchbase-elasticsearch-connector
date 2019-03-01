@@ -72,24 +72,6 @@ public class ConsulHelper {
     }
   }
 
-  public static void awaitRemoval(KeyValueClient kv, String key) {
-    BigInteger index = BigInteger.ZERO;
-
-    while (true) {
-      final ConsulResponse<Value> response = kv.getConsulResponseWithValue(key,
-          ImmutableQueryOptions.builder()
-              .index(index)
-              .wait("5m")
-              .build())
-          .orElse(null);
-      if (response == null) {
-        return;
-      }
-
-      index = response.getIndex();
-    }
-  }
-
   private static final String missingDocumentValue = "";
 
   private static void atomicUpdate(KeyValueClient kv, String key, Function<String, String> mutator) throws IOException {
@@ -187,53 +169,6 @@ public class ConsulHelper {
         LOGGER.debug("Long poll timed out, polling again for {}", key);
       } else {
         return response;
-      }
-    }
-  }
-
-  public static String awaitCondition(KeyValueClient kv, String key, Predicate<String> condition) {
-    try {
-      return awaitCondition(kv, key, null, value -> value, condition);
-    } catch (TimeoutException e) {
-      throw new AssertionError("unexpected timeout", e);
-    }
-  }
-
-  /**
-   * @param timeout nullable
-   */
-  public static <T> T awaitCondition(KeyValueClient kv, String key, Duration timeout, Function<String, T> mapper, Predicate<T> condition) throws TimeoutException {
-    requireNonNull(condition);
-
-    final TimeoutEnforcer timeoutEnforcer = new TimeoutEnforcer(timeout);
-
-    BigInteger index = BigInteger.ZERO;
-
-    while (true) {
-      final long waitSeconds = Math.min(300, timeoutEnforcer.remaining(SECONDS));
-
-      final ConsulResponse<Value> response = kv.getConsulResponseWithValue(key,
-          ImmutableQueryOptions.builder()
-              .index(index)
-              .wait(waitSeconds + "s")
-              .build())
-          .orElse(null);
-      if (response == null) {
-        LOGGER.debug("Document does not exist: {}", key);
-        return null;
-      }
-
-      if (index.equals(response.getIndex())) {
-        LOGGER.debug("Long poll timed out, polling again for {}", key);
-      } else {
-        final String valueAsString = response.getResponse().getValueAsString(UTF_8).orElse(null);
-        final T mappedValue = mapper.apply(valueAsString);
-        if (condition.test(mappedValue)) {
-          LOGGER.debug("New value for key {}: {}", key, valueAsString);
-          return mappedValue;
-        }
-
-        index = response.getIndex();
       }
     }
   }

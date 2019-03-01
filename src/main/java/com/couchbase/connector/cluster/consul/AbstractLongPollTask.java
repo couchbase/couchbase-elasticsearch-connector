@@ -31,14 +31,13 @@ public abstract class AbstractLongPollTask<SELF extends AbstractLongPollTask> im
   private final Thread thread;
   private volatile boolean closed;
 
-  public AbstractLongPollTask(KeyValueClient kv, String threadNamePrefix, DocumentKeys documentKeys, String sessionId) {
-    requireNonNull(kv);
+  public AbstractLongPollTask(ConsulContext ctx, String threadNamePrefix, String sessionId) {
+    requireNonNull(ctx);
     requireNonNull(sessionId);
-    requireNonNull(documentKeys);
-    this.thread = new Thread(() -> doRun(kv, documentKeys, sessionId), threadNamePrefix + threadCounter.getAndIncrement());
+    this.thread = new Thread(() -> doRun(ctx, sessionId), threadNamePrefix + threadCounter.getAndIncrement());
   }
 
-  protected abstract void doRun(KeyValueClient kv, DocumentKeys documentKeys, String sessionId);
+  protected abstract void doRun(ConsulContext ctx, String sessionId);
 
   public void awaitTermination() throws InterruptedException {
     if (!closed) {

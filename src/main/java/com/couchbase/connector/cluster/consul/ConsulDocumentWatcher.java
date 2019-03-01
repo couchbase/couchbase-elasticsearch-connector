@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.cluster.consul;
 
+import com.google.common.primitives.Longs;
 import com.orbitz.consul.Consul;
 import com.orbitz.consul.async.ConsulResponseCallback;
 import com.orbitz.consul.model.ConsulResponse;
@@ -28,12 +29,18 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
 import java.math.BigInteger;
+import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
+import static com.couchbase.connector.cluster.consul.ReactorHelper.await;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 
 public class ConsulDocumentWatcher {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsulDocumentWatcher.class);
@@ -42,8 +49,48 @@ public class ConsulDocumentWatcher {
   // See https://github.com/rickfast/consul-client/issues/307
   private final Consul.Builder consulBuilder;
 
+  private final String pollingIntervalString;
+
   public ConsulDocumentWatcher(Consul.Builder consulBuilder) {
+    this(consulBuilder, Duration.ofMinutes(5));
+  }
+
+  private ConsulDocumentWatcher(Consul.Builder consulBuilder, Duration pollingInterval) {
     this.consulBuilder = requireNonNull(consulBuilder);
+    final long requestedPollingIntervalSeconds = MILLISECONDS.toSeconds(pollingInterval.toMillis());
+    this.pollingIntervalString = Longs.constrainToRange(requestedPollingIntervalSeconds, 1, MINUTES.toSeconds(5)) + "s";
+  }
+
+  public ConsulDocumentWatcher withPollingInterval(Duration pollingInterval) {
+    return new ConsulDocumentWatcher(this.consulBuilder, pollingInterval);
+  }
+
+  public Optional<String> awaitCondition(String key, Predicate<Optional<String>> valueCondition) throws InterruptedException {
+    return await(watch(key), valueCondition);
+  }
+
+  public <T> Optional<T> awaitCondition(String key, Function<String, T> valueMapper, Predicate<Optional<T>> condition)
+      throws InterruptedException {
+    return await(watch(key).map(s -> s.map(valueMapper)), condition);
+  }
+
+  public <T> Optional<T> awaitCondition(String key, Function<String, T> valueMapper, Predicate<Optional<T>> condition, Duration timeout)
+      throws InterruptedException, TimeoutException {
+    return await(watch(key).map(s -> s.map(valueMapper)), condition, timeout);
+  }
+
+  /**
+   * Blocks until the document does not exist or the current thread is interrupted.
+   *
+   * @param key the document to watch
+   * @throws InterruptedException if the current thread is interrupted while waiting for document state to change.
+   */
+  public void awaitAbsence(String key) throws InterruptedException {
+    awaitCondition(key, doc -> !doc.isPresent());
+  }
+
+  public Optional<String> awaitValueChange(String key, String valueBeforeChange) throws InterruptedException {
+    return awaitCondition(key, doc -> !doc.equals(Optional.ofNullable(valueBeforeChange)));
   }
 
   public Flux<Optional<String>> watch(String key) {
@@ -54,7 +101,7 @@ public class ConsulDocumentWatcher {
   /**
    * Returns a flux whose values are published on one of the async I/O threads owned by the Consul library.
    */
-  public <T> Flux<T> watch(String key, Function<ConsulResponse<Optional<Value>>, T> resultExtractor) {
+  private <T> Flux<T> watch(String key, Function<ConsulResponse<Optional<Value>>, T> resultExtractor) {
     requireNonNull(key);
     requireNonNull(resultExtractor);
 
@@ -89,20 +136,22 @@ public class ConsulDocumentWatcher {
                              BigInteger index,
                              AtomicBoolean done,
                              Object cancellationLock) {
-
-    LOGGER.debug("Watching for changes to {} with index {}", key, index);
-
     final QueryOptions options = ImmutableQueryOptions.builder()
         .index(index)
-        .wait("5m")
+        .wait(pollingIntervalString)
         .build();
+
+    LOGGER.debug("Watching for changes to {} with options {}", key, options);
 
     consul.keyValueClient().getValue(key, options,
         new ConsulResponseCallback<Optional<Value>>() {
           @Override
           public void onComplete(ConsulResponse<Optional<Value>> consulResponse) {
             try {
-              emitter.next(resultExtractor.apply(consulResponse));
+              final boolean waitTimedOut = consulResponse.getIndex().equals(index);
+              if (!waitTimedOut) {
+                emitter.next(resultExtractor.apply(consulResponse));
+              }
 
               synchronized (cancellationLock) {
                 if (done.get()) {

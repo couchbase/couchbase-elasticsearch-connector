@@ -36,7 +36,7 @@ public class ConsulContext {
     this.primaryClient = clientBuilder.build();
     this.documentWatcher = new ConsulDocumentWatcher(clientBuilder);
 
-    this.keys = new DocumentKeys(primaryClient.keyValueClient(), serviceName);
+    this.keys = new DocumentKeys(primaryClient.keyValueClient(), this.documentWatcher, serviceName);
     this.serviceName = requireNonNull(serviceName);
     this.serviceId = Optional.ofNullable(serviceIdOrNull).orElse(serviceName);
   }
@@ -67,5 +67,9 @@ public class ConsulContext {
 
   public Flux<Optional<String>> watchControl() {
     return documentWatcher.watch(keys().control());
+  }
+
+  public ConsulDocumentWatcher documentWatcher() {
+    return documentWatcher;
   }
 }

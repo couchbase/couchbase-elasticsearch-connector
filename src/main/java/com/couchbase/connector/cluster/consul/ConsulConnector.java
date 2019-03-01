@@ -121,10 +121,10 @@ public class ConsulConnector {
              new SessionTask(ctx, workerService::resetKillSwitchTimer, errorConsumer).start();
 
          RpcServerTask rpc =
-             new RpcServerTask(dispatcher, ctx.consul().keyValueClient(), ctx.keys(), session.sessionId(), endpointId, errorConsumer).start();
+             new RpcServerTask(dispatcher, ctx, session.sessionId(), endpointId, errorConsumer).start();
 
          LeaderElectionTask election =
-             new LeaderElectionTask(ctx.consul().keyValueClient(), ctx.keys(), session.sessionId(), endpointId, errorConsumer, leaderController).start()) {
+             new LeaderElectionTask(ctx, session.sessionId(), endpointId, errorConsumer, leaderController).start()) {
 
       waitForMe.add(election);
       waitForMe.add(rpc);

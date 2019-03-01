@@ -54,9 +54,11 @@ public class DocumentKeys {
 
   private final String serviceName;
   private KeyValueClient kv;
+  private ConsulDocumentWatcher watcher;
 
-  public DocumentKeys(KeyValueClient kv, String serviceName) {
+  public DocumentKeys(KeyValueClient kv, ConsulDocumentWatcher watcher, String serviceName) {
     this.serviceName = requireNonNull(serviceName);
+    this.watcher = requireNonNull(watcher);
     this.kv = requireNonNull(kv);
   }
 
@@ -102,7 +104,7 @@ public class DocumentKeys {
     requireNonNull(endpointTimeout);
     return ConsulHelper.listKeys(kv, rpcEndpointKeyPrefix())
         .stream()
-        .map(endpointKey -> new RpcEndpoint(kv, endpointKey, endpointTimeout))
+        .map(endpointKey -> new RpcEndpoint(kv, watcher, endpointKey, endpointTimeout))
         .collect(toList());
   }
 
@@ -113,7 +115,7 @@ public class DocumentKeys {
   public Optional<RpcEndpoint> leaderEndpoint() {
     final String endpointId = kv.getValueAsString(leader(), UTF_8).orElse(null);
     return endpointId == null ? Optional.empty() : Optional.of(
-        new RpcEndpoint(kv, rpcEndpoint(endpointId), DEFAULT_ENDPOINT_TIMEOUT));
+        new RpcEndpoint(kv, watcher, rpcEndpoint(endpointId), DEFAULT_ENDPOINT_TIMEOUT));
   }
 
   // consul-specific

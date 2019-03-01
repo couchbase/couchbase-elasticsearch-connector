@@ -24,6 +24,7 @@ import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
 import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.google.common.collect.ImmutableMap;
+import com.orbitz.consul.Consul;
 import com.orbitz.consul.KeyValueClient;
 import org.elasticsearch.Version;
 import org.junit.AfterClass;
@@ -73,11 +74,12 @@ public class AutonomousOpsTest {
       final String config = readConfig(couchbase, elasticsearch, ImmutableMap.of(
           "group.name", group));
 
-      final KeyValueClient kv = consulCluster.clientBuilder(0).build().keyValueClient();
-      final DocumentKeys keys = new DocumentKeys(kv, group);
-      kv.putValue(keys.config(), config);
+      final Consul.Builder consulBuilder = consulCluster.clientBuilder(0);
+      final ConsulContext consulContext = new ConsulContext(consulBuilder, group, null);
 
-      final ConsulContext consulContext = new ConsulContext(consulCluster.clientBuilder(0), group, null);
+      final KeyValueClient kv = consulContext.consul().keyValueClient();
+      final DocumentKeys keys = consulContext.keys();
+      kv.putValue(keys.config(), config);
 
       try (AsyncTask connector = AsyncTask.run(() -> ConsulConnector.run(consulContext));
            TestEsClient es = new TestEsClient(ConnectorConfig.from(config))) {

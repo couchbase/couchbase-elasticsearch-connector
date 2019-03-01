@@ -17,8 +17,8 @@
 package com.couchbase.connector.cluster.consul.rpc;
 
 import com.couchbase.connector.cluster.consul.AbstractLongPollTask;
+import com.couchbase.connector.cluster.consul.ConsulContext;
 import com.couchbase.connector.cluster.consul.ConsulHelper;
-import com.couchbase.connector.cluster.consul.DocumentKeys;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -61,19 +61,19 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
   private final String sessionId;
   private final JsonRpcDispatcher dispatcher;
 
-  public RpcServerTask(JsonRpcDispatcher dispatcher, KeyValueClient kv, DocumentKeys documentKeys, String sessionId, String endpointId, Consumer<Throwable> fatalErrorConsumer) {
-    super(kv, "rpc-server-", documentKeys, sessionId);
-    this.kv = requireNonNull(kv);
+  public RpcServerTask(JsonRpcDispatcher dispatcher, ConsulContext ctx, String sessionId, String endpointId, Consumer<Throwable> fatalErrorConsumer) {
+    super(ctx, "rpc-server-", sessionId);
+    this.kv = requireNonNull(ctx.consul().keyValueClient());
     this.sessionId = requireNonNull(sessionId);
     this.fatalErrorConsumer = requireNonNull(fatalErrorConsumer);
     this.dispatcher = requireNonNull(dispatcher);
 
     this.endpointId = requireNonNull(endpointId);
-    this.endpointKey = documentKeys.rpcEndpoint(endpointId);
+    this.endpointKey = ctx.keys().rpcEndpoint(endpointId);
   }
 
   @Override
-  protected void doRun(KeyValueClient kv, DocumentKeys documentKeys, String sessionId) {
+  protected void doRun(ConsulContext ctx, String sessionId) {
     try {
       bind();
 

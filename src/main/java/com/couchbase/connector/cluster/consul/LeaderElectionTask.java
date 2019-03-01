@@ -20,6 +20,7 @@ import com.orbitz.consul.KeyValueClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import static java.util.Objects.requireNonNull;
@@ -32,17 +33,18 @@ public class LeaderElectionTask extends AbstractLongPollTask<LeaderElectionTask>
   private final Consumer<Throwable> fatalErrorConsumer;
   private final LeaderController leaderController;
 
-  public LeaderElectionTask(KeyValueClient kv, DocumentKeys documentKeys, String sessionId, String endpointId, Consumer<Throwable> fatalErrorConsumer, LeaderController leaderController) {
-    super(kv, "leader-election-", documentKeys, sessionId);
+  public LeaderElectionTask(ConsulContext ctx, String sessionId, String endpointId, Consumer<Throwable> fatalErrorConsumer, LeaderController leaderController) {
+    super(ctx, "leader-election-", sessionId);
     this.candidateUuid = requireNonNull(endpointId);
     this.fatalErrorConsumer = requireNonNull(fatalErrorConsumer);
     this.leaderController = requireNonNull(leaderController);
   }
 
-  protected void doRun(KeyValueClient kv, DocumentKeys documentKeys, String sessionId) {
-    final String leaderKey = documentKeys.leader();
+  protected void doRun(ConsulContext ctx, String sessionId) {
+    final String leaderKey = ctx.keys().leader();
     LOGGER.info("Leader key: {}", leaderKey);
 
+    final KeyValueClient kv = ctx.consul().keyValueClient();
     try {
       while (!closed()) {
         LOGGER.info("Racing to become new leader.");
@@ -52,7 +54,7 @@ public class LeaderElectionTask extends AbstractLongPollTask<LeaderElectionTask>
           LOGGER.info("Won the leader election! {}", candidateUuid);
           leaderController.startLeading();
 
-          final String newLeader = ConsulHelper.awaitCondition(kv, leaderKey, value -> !candidateUuid.equals(value));
+          final Optional<String> newLeader = ctx.documentWatcher().awaitValueChange(leaderKey, candidateUuid);
 
           LOGGER.info("No longer the leader; new leader is {}", newLeader);
           leaderController.stopLeading();
@@ -64,7 +66,7 @@ public class LeaderElectionTask extends AbstractLongPollTask<LeaderElectionTask>
           // see https://www.consul.io/docs/internals/sessions.html
           SECONDS.sleep(1);
 
-          ConsulHelper.awaitRemoval(kv, leaderKey);
+          ctx.documentWatcher().awaitAbsence(leaderKey);
         }
       }
 

@@ -73,17 +73,10 @@ public class ConsulCli implements IVersionProvider {
   }
 
   public static void validateGroup(ConsulContext ctx) {
-    validateGroup(ctx.consul(), ctx.serviceName());
-  }
+    final Collection<String> configuredGroups = ctx.keys().configuredGroups();
 
-  public static void validateGroup(Consul consul, String group) {
-
-    final DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), group);
-
-    Collection<String> configuredGroups = keys.configuredGroups();
-
-    if (!configuredGroups.contains(group)) {
-      System.err.println("ERROR: There is no configured group called '" + group + "'.");
+    if (!configuredGroups.contains(ctx.serviceName())) {
+      System.err.println("ERROR: There is no configured group called '" + ctx.serviceName() + "'.");
       System.err.println("Configure the group first using the 'configure' command, or target an existing configured group:");
       if (configuredGroups.isEmpty()) {
         System.err.println("  (there are no existing groups)");
@@ -196,9 +189,8 @@ class CheckpointClearCommand extends ConsulCommand implements Runnable {
     validateGroup(ctx);
 
     final Consul consul = ctx.consul();
-    final String configKey = new DocumentKeys(consul.keyValueClient(), group).config();
-
-    final DocumentKeys documentKeys = new DocumentKeys(consul.keyValueClient(), group);
+    final DocumentKeys documentKeys = ctx.keys();
+    final String configKey = documentKeys.config();
 
     final String configString = consul.keyValueClient().getValueAsString(configKey, UTF_8).orElse(null);
     if (Strings.isNullOrEmpty(configString)) {
@@ -282,8 +274,7 @@ class CheckpointCatchUpCommand extends ConsulCommand implements Runnable {
 class GroupsCommand extends ConsulCommand implements Runnable {
   @Override
   public void run() {
-    final Consul consul = consulBuilder().build();
-    new DocumentKeys(consul.keyValueClient(), "").configuredGroups().forEach(System.out::println);
+    new ConsulContext(consulBuilder(), "", null).keys().configuredGroups().forEach(System.out::println);
   }
 }
 
@@ -384,13 +375,9 @@ class ResumeCommand extends ConsulCommand implements Runnable {
       final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
       validateGroup(ctx);
 
-      final Consul consul = ctx.consul();
-
       System.out.println("Attempting to resume connector group: " + group);
 
-      final DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), group);
-
-      keys.resume();
+      ctx.keys().resume();
       System.out.println("Connector group '" + group + "' is now resumed.");
 
     } catch (Exception e) {

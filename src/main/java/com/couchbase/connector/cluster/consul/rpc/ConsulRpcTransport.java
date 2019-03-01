@@ -17,6 +17,7 @@
 package com.couchbase.connector.cluster.consul.rpc;
 
 import com.couchbase.client.core.logging.RedactableArgument;
+import com.couchbase.connector.cluster.consul.ConsulDocumentWatcher;
 import com.couchbase.connector.cluster.consul.ConsulHelper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,14 +33,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
-import java.util.function.Predicate;
 
-import static com.couchbase.connector.cluster.consul.ConsulHelper.awaitCondition;
 import static com.couchbase.connector.cluster.consul.ConsulHelper.getWithRetry;
 import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.constantBackoff;
 import static java.util.Objects.requireNonNull;
@@ -54,15 +53,17 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
 
   private final static String requestIdPrefix = UUID.randomUUID().toString() + "#";
   private final static AtomicLong requestCounter = new AtomicLong();
+  private final ConsulDocumentWatcher watcher;
 
-  public ConsulRpcTransport(KeyValueClient kv, String endpointKey, Duration timeout) {
+  public ConsulRpcTransport(KeyValueClient kv, ConsulDocumentWatcher watcher, String endpointKey, Duration timeout) {
     this.kv = requireNonNull(kv);
+    this.watcher = requireNonNull(watcher);
     this.endpointKey = requireNonNull(endpointKey);
     this.timeout = requireNonNull(timeout);
   }
 
   public ConsulRpcTransport withTimeout(Duration timeout) {
-    return new ConsulRpcTransport(kv, endpointKey, timeout);
+    return new ConsulRpcTransport(kv, watcher, endpointKey, timeout);
   }
 
   private String nextRequestId() {
@@ -82,8 +83,12 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
 
       sendRequest(initialEndpointValue, mapper, requestNode);
 
-      final Function<String, EndpointDocument> parseEndpoint = readValueUnchecked(mapper, EndpointDocument.class);
-      final EndpointDocument endpointDocument = awaitCondition(kv, endpointKey, timeout, parseEndpoint, hasResponseWithId(id));
+      final EndpointDocument endpointDocument = watcher
+          .awaitCondition(endpointKey,
+              json -> readValueUnchecked(mapper, json, EndpointDocument.class),
+              endpoint -> !endpoint.isPresent() || endpoint.get().findResponse(id).isPresent(),
+              timeout)
+          .orElse(null);
 
       if (endpointDocument == null) {
         throw new IOException("Failed to receive RPC response; endpoint document does not exist: " + endpointKey);
@@ -98,17 +103,17 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
 
     } catch (TimeoutException e) {
       throw new IOException("RPC endpoint operation timed out", e);
+    } catch (InterruptedException e) {
+      throw new InterruptedIOException("RPC endpoint operation interrupted; " + e.getMessage());
     }
   }
 
-  private static <T> Function<String, T> readValueUnchecked(ObjectMapper mapper, Class<T> type) {
-    return json -> {
-      try {
-        return mapper.readValue(json, type);
-      } catch (IOException e) {
-        throw new IllegalArgumentException("Malformed RPC endpoint document", e);
-      }
-    };
+  private static <T> T readValueUnchecked(ObjectMapper mapper, String json, Class<T> type) {
+    try {
+      return mapper.readValue(json, type);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Malformed RPC endpoint document", e);
+    }
   }
 
   private void removeResponseFromEndpointDocument(ObjectMapper mapper, JsonNode id) throws IOException {
@@ -132,10 +137,6 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
         return value;
       }
     });
-  }
-
-  private Predicate<EndpointDocument> hasResponseWithId(JsonNode id) {
-    return doc -> doc.findResponse(id).isPresent();
   }
 
   private void sendRequest(ConsulResponse<Value> initialEndpointValue, ObjectMapper mapper, ObjectNode requestNode) throws IOException {

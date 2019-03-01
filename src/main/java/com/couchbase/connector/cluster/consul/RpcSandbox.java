@@ -26,7 +26,8 @@ public class RpcSandbox {
   private static final String SERVICE_NAME = "default";
 
   public static void main(String[] args) {
-    final Consul consul = Consul.newClient();
+
+    final ConsulContext ctx = new ConsulContext(Consul.builder(), SERVICE_NAME, null);
 
     //final List<ServiceHealth> healthyServices = consul.healthClient().getHealthyServiceInstances(Sandbox.serviceName).getResponse();
 
@@ -39,7 +40,7 @@ public class RpcSandbox {
 //          serviceHealth.getService().getId());
 //      final String endpointKey = rpcEndpointKey(Sandbox.serviceName, endpointId);
 
-    DocumentKeys keys = new DocumentKeys(consul.keyValueClient(), SERVICE_NAME);
+    final DocumentKeys keys = ctx.keys();
 
     for (RpcEndpoint endpoint : keys.listRpcEndpoints(defaultTimeout)) {
       System.out.println(endpoint);
