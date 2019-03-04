@@ -85,7 +85,10 @@ public class AutonomousOpsTest {
            TestEsClient es = new TestEsClient(ConnectorConfig.from(config))) {
         System.out.println("connector has been started.");
 
-        final int expectedAirlineCount = 187;
+        final int airlines = 187;
+        final int routes = 24024;
+
+        final int expectedAirlineCount = airlines + routes;
         final int expectedAirportCount = 1968;
 
         poll().until(() -> es.getDocumentCount("airlines") >= expectedAirlineCount);
