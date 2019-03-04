@@ -317,6 +317,27 @@ Finally, here's the promised example of using a regular expression with a captur
 <1> Matches IDs that start with one or more characters followed by "::".
 It directs "user::alice" to index "user", and "foo::bar::123" to index "foo".
 
+==== Custom Routing and Parent/Child Relationships
+
+In the travel-sample data model, a route is the child of an airline.
+Each sample route document has an `airlineid` field whose value is the ID of its parent airline document.
+
+If you tell Elasticsearch that `airlineid` is a https://www.elastic.co/guide/en/elasticsearch/reference/current/parent-join.html[join field], you can take advantage of this relationship when searching.
+For this to work, the connector must save each child document to the same Elasticsearch index and shard as its parent.
+
+[source,toml]
+----
+[[elasticsearch.type]]
+  prefix = 'route_' <1>
+  index = 'airlines' <2>
+  routing = '/airlineid' <3>
+  ignoreDeletes = true <4>
+----
+<1> It's just a coincidence that airline route documents are being used to demonstrate custom routing.
+<2> Must specify the same index as parent document.
+<3> A JSON pointer to the field to use for Elasticsearch routing.
+This is how the child document gets routed to the same shard as its parent.
+<4> The connector is unable to delete documents that use custom routing, so `ignoreDeletes` must always be `true` for child documents.
 
 == Rejection Log
 

@@ -18,6 +18,7 @@ package com.couchbase.connector.config.es;
 
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.dcp.Event;
+import com.fasterxml.jackson.core.JsonPointer;
 import com.google.common.base.Strings;
 import net.consensys.cava.toml.TomlPosition;
 import net.consensys.cava.toml.TomlTable;
@@ -41,6 +42,9 @@ public interface TypeConfig {
   @Nullable
   String pipeline();
 
+  @Nullable
+  JsonPointer routing();
+
   boolean ignore();
 
   boolean ignoreDeletes();
@@ -59,13 +63,16 @@ public interface TypeConfig {
   }
 
   static ImmutableTypeConfig from(TomlTable config, TomlPosition position, TypeConfig defaults) {
-    expectOnly(config, "typeName", "index", "pipeline", "ignore", "ignoreDeletes", "prefix", "regex");
+    expectOnly(config, "typeName", "index", "pipeline", "routing", "ignore", "ignoreDeletes", "prefix", "regex");
 
     final String index = Strings.emptyToNull(config.getString("index", defaults::index));
+    final String routing = Strings.emptyToNull(config.getString("routing"));
+
     ImmutableTypeConfig.Builder builder = ImmutableTypeConfig.builder()
         .position(position)
         .type(config.getString("typeName", defaults::type))
         .index(index)
+        .routing(parseRouting(routing, config.inputPositionOf("routing")))
         .pipeline(Strings.emptyToNull(config.getString("pipeline", defaults::pipeline)))
         .ignoreDeletes(config.getBoolean("ignoreDeletes", defaults::ignoreDeletes))
         .ignore(config.getBoolean("ignore", defaults::ignore));
@@ -95,7 +102,22 @@ public interface TypeConfig {
       }
     }
 
-    return builder.build();
+    final ImmutableTypeConfig type = builder.build();
+    if (type.routing() != null && !type.ignoreDeletes()) {
+      throw new ConfigException("Custom 'routing' requires 'ignoreDeletes = true' for type at " + position + "." +
+          " (Due to limitations in the current implementation, routing information is not available to the connector" +
+          " when documents are deleted, so it's not possible to route the deletion request to the correct Elasticsearch shard.)");
+    }
+
+    return type;
+  }
+
+  static JsonPointer parseRouting(String routing, TomlPosition position) {
+    try {
+      return routing == null ? null : JsonPointer.compile(routing);
+    } catch (IllegalArgumentException e) {
+      throw new ConfigException("Invalid 'routing' JSON pointer at " + position + " ; " + e.getMessage());
+    }
   }
 
   interface IndexMatcher {

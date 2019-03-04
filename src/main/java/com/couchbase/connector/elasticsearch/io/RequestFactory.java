@@ -17,14 +17,22 @@
 package com.couchbase.connector.elasticsearch.io;
 
 import com.codahale.metrics.Timer;
+import com.couchbase.client.core.logging.RedactableArgument;
 import com.couchbase.connector.config.es.DocStructureConfig;
 import com.couchbase.connector.config.es.RejectLogConfig;
 import com.couchbase.connector.config.es.TypeConfig;
 import com.couchbase.connector.dcp.Event;
 import com.couchbase.connector.elasticsearch.Metrics;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonPointer;
+import com.fasterxml.jackson.core.filter.FilteringParserDelegate;
+import com.fasterxml.jackson.core.filter.JsonPointerBasedFilter;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.common.Nullable;
 import org.immutables.value.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -33,7 +41,10 @@ import static com.couchbase.connector.dcp.DcpHelper.isMetadata;
 import static java.util.Objects.requireNonNull;
 
 public class RequestFactory {
+  private static final Logger LOGGER = LoggerFactory.getLogger(RequestFactory.class);
+
   private static final Timer newIndexRequestTimer = Metrics.timer("newIndexReq");
+  private static final JsonFactory factory = new JsonFactory();
 
   private final DocumentTransformer documentTransformer;
 
@@ -84,15 +95,43 @@ public class RequestFactory {
     final Timer.Context timerContext = newIndexRequestTimer.time();
     EventIndexRequest request = new EventIndexRequest(matchResult.index(), matchResult.typeConfig().type(), event);
     request.setPipeline(matchResult.typeConfig().pipeline());
+    request.routing(getRouting(event, matchResult.typeConfig().routing()));
     documentTransformer.setSourceFromEventContent(request, event);
 
     timerContext.stop();
     return request.source() == null ? null : request;
   }
 
+  private String getRouting(Event event, JsonPointer routingPointer) throws IOException {
+    requireNonNull(event);
+    if (routingPointer == null) {
+      return null;
+    }
+
+    final JsonParser parser = new FilteringParserDelegate(
+        factory.createParser(event.getContent()), new JsonPointerBasedFilter(routingPointer), false, false);
+
+    if (parser.nextToken() == null) {
+      LOGGER.warn("Document '{}' has no field matching routing JSON pointer '{}'",
+          RedactableArgument.user(event.getKey()), routingPointer);
+      return null;
+    }
+
+    final String routingValue = parser.getValueAsString();
+    if (routingValue == null) {
+      LOGGER.warn("Document '{}' has a null or non-scalar value for routing JSON pointer '{}'",
+          RedactableArgument.user(event.getKey()), routingPointer);
+      return null;
+    }
+
+    LOGGER.trace("Routing value for {} is {}", event.getKey(), routingValue);
+    return routingValue;
+  }
+
   @Value.Immutable
   public interface MatchResult {
     TypeConfig typeConfig();
+
     String index();
   }
 

@@ -36,6 +36,7 @@ public class Event {
   private final int vbucket;
   private final boolean mutation;
   private final long receivedNanos = System.nanoTime();
+  private volatile byte[] content;
 
   public Event(ByteBuf byteBuf, ChannelFlowController flowController, long vbuuid, SnapshotMarker snapshot) {
     this.key = MessageUtil.getKeyAsString(byteBuf);
@@ -94,7 +95,10 @@ public class Event {
   }
 
   public byte[] getContent() {
-    return MessageUtil.getContentAsByteArray(byteBuf);
+    if (content == null) {
+      content = MessageUtil.getContentAsByteArray(byteBuf);
+    }
+    return content;
   }
 
   @Override

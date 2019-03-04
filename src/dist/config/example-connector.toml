@@ -159,6 +159,18 @@
   # and "foo::bar::123" to index "foo".
   regex = '(?<index>.+?)::.*'
 
+# In the travel-sample data model, a route is the child of an airline.
+# Each route document has an `airlineid` field that holds the parent ID.
+# The following type definition ensures each route document is stored
+# in the same index and shard as its parent airline document.
+# For more information about Elasticsearch parent/join fields, see
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/parent-join.html
+[[elasticsearch.type]]
+  prefix = 'route_'
+  index = 'airlines'
+  routing = '/airlineid' # JSON pointer to the parent ID field.
+  ignoreDeletes = true # Must always be true if `routing` is specified.
+
 [[elasticsearch.type]]
   prefix = '' # Empty prefix matches any document ID.
   index = 'etc'
