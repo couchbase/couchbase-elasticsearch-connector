@@ -27,7 +27,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
  * Useful for blocking the current thread until some condition is met.
  */
 public class Poller {
-  private long timeout = 5;
+  private long timeout = 2;
   private TimeUnit timeoutUnit = MINUTES;
 
   private long interval = 2;

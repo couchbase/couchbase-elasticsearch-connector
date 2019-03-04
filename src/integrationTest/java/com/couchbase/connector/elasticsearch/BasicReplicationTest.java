@@ -63,6 +63,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -308,7 +309,10 @@ public class BasicReplicationTest {
     try (TestEsClient es = new TestEsClient(commonConfig);
          AsyncTask connector = AsyncTask.run(() -> ElasticsearchConnector.run(commonConfig))) {
 
-      final int expectedAirlineCount = 187;
+      final int airlines = 187;
+      final int routes = 24024;
+
+      final int expectedAirlineCount = airlines + routes;
       final int expectedAirportCount = 1968;
 
       poll().until(() -> es.getDocumentCount("airlines") >= expectedAirlineCount);
@@ -318,6 +322,13 @@ public class BasicReplicationTest {
 
       assertEquals(expectedAirlineCount, es.getDocumentCount("airlines"));
       assertEquals(expectedAirportCount, es.getDocumentCount("airports"));
+
+      // route documents are routed using airlineid field
+      final String routeId = "route_10000";
+      final String expectedRouting = "airline_137";
+      JsonNode airline = es.getDocument("airlines", routeId, expectedRouting).orElse(null);
+      assertNotNull(airline);
+      assertEquals(expectedRouting, airline.path("_routing").asText());
     }
   }
 

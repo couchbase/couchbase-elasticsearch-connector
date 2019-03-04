@@ -129,6 +129,17 @@ class TestEsClient implements AutoCloseable {
     }
   }
 
+  public Optional<JsonNode> getDocument(String index, String id, String routing) {
+    try {
+      return Optional.of(doGet(index + "/doc/" + encodeUriPathComponent(id) + "?routing=" + encodeUriQueryParameter(routing)));
+
+    } catch (ResponseException e) {
+      return Optional.empty();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   public JsonNode waitForDocument(String index, String id) throws TimeoutException, InterruptedException {
     poll().until(() -> getDocument(index, id).isPresent());
     return getDocument(index, id).get().get("_source");
@@ -153,8 +164,12 @@ class TestEsClient implements AutoCloseable {
   }
 
   private static String encodeUriPathComponent(String s) {
+    return encodeUriQueryParameter(s).replace("+", "%20");
+  }
+
+  private static String encodeUriQueryParameter(String s) {
     try {
-      return URLEncoder.encode(s, StandardCharsets.UTF_8.name()).replace("+", "%20");
+      return URLEncoder.encode(s, StandardCharsets.UTF_8.name());
     } catch (UnsupportedEncodingException e) {
       throw new AssertionError("UTF-8 not supported???", e);
     }
