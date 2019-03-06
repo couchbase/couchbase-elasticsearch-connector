@@ -152,9 +152,6 @@ public class ConsulConnector {
 
       fatalError = fatalErrorQueue.take();
 
-    } catch (Throwable t) {
-      fatalError = t;
-
     } finally {
       workerService.close();
 
