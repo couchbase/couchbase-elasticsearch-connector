@@ -19,13 +19,13 @@ package com.couchbase.connector.elasticsearch;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.google.common.net.HostAndPort;
 import com.orbitz.consul.Consul;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -35,6 +35,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Lists.newArrayList;
 
 public class ConsulCluster implements Closeable {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ConsulCluster.class);
+
   private static final int HTTP_PORT = 8500;
 
   private List<GenericContainer> nodes = new ArrayList<>();
@@ -78,7 +80,9 @@ public class ConsulCluster implements Closeable {
   }
 
   public ConsulCluster stop() {
+    LOGGER.info("Shutting down Consul cluster...");
     nodes.forEach(GenericContainer::stop);
+    LOGGER.info("Consul cluster shutdown complete.");
     return this;
   }
 
@@ -91,7 +95,7 @@ public class ConsulCluster implements Closeable {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     stop();
   }
 }

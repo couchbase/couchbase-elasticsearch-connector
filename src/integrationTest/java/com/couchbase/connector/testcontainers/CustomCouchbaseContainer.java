@@ -24,14 +24,19 @@ import org.testcontainers.couchbase.CouchbaseContainer;
 import org.testcontainers.shaded.com.google.common.base.Stopwatch;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.net.ConnectException;
+import java.net.URL;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
+import static com.couchbase.connector.elasticsearch.DockerHelper.getDockerHost;
 import static com.couchbase.connector.testcontainers.ExecUtils.exec;
 import static com.couchbase.connector.testcontainers.ExecUtils.execOrDie;
 import static com.couchbase.connector.testcontainers.Poller.poll;
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -43,6 +48,9 @@ public class CustomCouchbaseContainer extends CouchbaseContainer {
   }
 
   public static CustomCouchbaseContainer newCouchbaseCluster(String dockerImageName) {
+    // The Java client will bootstrap against port 8091 even if there's no such address in the connection string.
+    checkState(!hostIsRunningCouchbase(), "Can't run integration tests while Couchbase Server is listening on " + getDockerHost() + ":8091");
+
     CustomCouchbaseContainer couchbase = new CustomCouchbaseContainer(dockerImageName);
     couchbase
         .withQuery(false)
@@ -51,6 +59,16 @@ public class CustomCouchbaseContainer extends CouchbaseContainer {
     couchbase.start();
     couchbase.initCluster();
     return couchbase;
+  }
+
+  private static boolean hostIsRunningCouchbase() {
+    try (InputStream is = new URL("http://" + getDockerHost() + ":8091").openStream()){
+      return true;
+    } catch (ConnectException e) {
+      return false;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public void loadSampleBucket(String bucketName, int bucketQuotaMb) {

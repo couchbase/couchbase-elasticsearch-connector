@@ -136,8 +136,7 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
         // but the lock won't be eligible for acquisition until the Consul lock delay has elapsed.
 
         LOGGER.info("Unbinding from RPC endpoint document {}", endpointKey);
-        clearInterrupted(); // so final Consul request doesn't fail with InterruptedException
-        ConsulHelper.unlockAndDelete(kv, endpointKey, sessionId);
+        ctx.runCleanup(tempConsul -> ConsulHelper.unlockAndDelete(tempConsul.keyValueClient(), endpointKey, sessionId));
 
       } catch (Exception e) {
         LOGGER.warn("Failed to unbind", e);

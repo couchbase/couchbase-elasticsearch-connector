@@ -16,16 +16,22 @@
 
 package com.couchbase.connector.cluster.consul;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.Uninterruptibles;
 import com.orbitz.consul.Consul;
 import reactor.core.publisher.Flux;
 
+import java.io.Closeable;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import static java.util.Objects.requireNonNull;
 
-public class ConsulContext {
+public class ConsulContext implements Closeable {
   private final Consul primaryClient;
   private final Consul.Builder clientBuilder;
   private final DocumentKeys keys;
@@ -77,5 +83,39 @@ public class ConsulContext {
 
   public Flux<ImmutableSet<String>> watchServiceHealth(Duration quietPeriod) {
     return ConsulHelper.watchServiceHealth(clientBuilder, serviceName, quietPeriod);
+  }
+
+  @Override
+  public void close() {
+    primaryClient.destroy();
+  }
+
+  // Creates a temporary Consul client in an isolated thread and passes it to the given consumer.
+  // Useful for cleanup code that should not be interrupted.
+  public void runCleanup(Consumer<Consul> consumer) {
+    final AtomicReference<Throwable> deferred = new AtomicReference<>();
+    final Thread thread = new Thread(() -> {
+      final Consul consul = consulBuilder().build();
+      try {
+        consumer.accept(consul);
+      } catch (Throwable t) {
+        deferred.set(t);
+      } finally {
+        consul.destroy();
+      }
+    });
+    thread.start();
+
+    final int timeoutSeconds = 30;
+    Uninterruptibles.joinUninterruptibly(thread, timeoutSeconds, TimeUnit.SECONDS);
+    if (thread.isAlive()) {
+      throw new IllegalStateException("cleanup thread failed to complete within " + timeoutSeconds + " seconds.");
+    }
+
+    final Throwable t = deferred.get();
+    if (t != null) {
+      Throwables.throwIfUnchecked(t);
+      throw new RuntimeException(t);
+    }
   }
 }

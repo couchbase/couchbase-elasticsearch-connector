@@ -17,6 +17,7 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.couchbase.connector.cluster.consul.rpc.RpcServerTask;
+import com.couchbase.connector.util.ThrowableHelper;
 import com.github.therapi.core.MethodRegistry;
 import com.github.therapi.jsonrpc.DefaultExceptionTranslator;
 import com.github.therapi.jsonrpc.JsonRpcDispatcher;
@@ -115,7 +116,7 @@ public class ConsulConnector {
       }
     };
 
-    Throwable fatalError;
+    Throwable fatalError = null;
 
     try (SessionTask session =
              new SessionTask(ctx, workerService::resetKillSwitchTimer, errorConsumer).start();
@@ -138,20 +139,21 @@ public class ConsulConnector {
           rpc.close();
           consul.destroy();
           election.awaitTermination();
+          rpc.awaitTermination();
 
-          // create new consul client; primary one may have been shut down.
-          Consul exitConsul = ctx.consulBuilder().build();
-          exitConsul.agentClient().fail(ctx.serviceId(), "(" + ctx.serviceId() + ") Connector process terminated.");
-          exitConsul.destroy();
+          reportTermination(ctx, null);
 
         } catch (Exception e) {
-          System.err.println("Failed to report termination to Consul agent.");
+          System.err.println("Exception in connector shutdown hook.");
           e.printStackTrace();
         }
       });
       Runtime.getRuntime().addShutdownHook(shutdownHook);
 
       fatalError = fatalErrorQueue.take();
+
+    } catch (Throwable t) {
+      fatalError = t;
 
     } finally {
       workerService.close();
@@ -167,9 +169,11 @@ public class ConsulConnector {
       for (AbstractLongPollTask task : waitForMe) {
         task.awaitTermination();
       }
+
+      reportTermination(ctx, fatalError);
     }
 
-    if (fatalError instanceof RpcServerTask.EndpointAlreadyInUseException) {
+    if (ThrowableHelper.hasCause(fatalError, RpcServerTask.EndpointAlreadyInUseException.class)) {
       System.err.println();
       System.err.println("ERROR: " + fatalError);
       System.err.println();
@@ -185,5 +189,21 @@ public class ConsulConnector {
     }
 
     System.exit(1);
+  }
+
+  private static void reportTermination(ConsulContext ctx, Throwable cause) {
+    ctx.runCleanup(tempConsul -> {
+      try {
+        final StringBuilder message = new StringBuilder("(" + ctx.serviceId() + ") Graceful shutdown complete.");
+        if (cause != null) {
+          message.append(" Shutdown triggered by exception: ").append(Throwables.getStackTraceAsString(cause));
+        }
+        tempConsul.agentClient().fail(ctx.serviceId(), message.toString());
+
+      } catch (Throwable t) {
+        System.err.println("Failed to report termination to Consul agent.");
+        t.printStackTrace();
+      }
+    });
   }
 }

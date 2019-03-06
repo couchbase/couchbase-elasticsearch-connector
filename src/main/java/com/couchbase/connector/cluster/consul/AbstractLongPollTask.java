@@ -49,15 +49,6 @@ public abstract class AbstractLongPollTask<SELF extends AbstractLongPollTask> im
   }
 
   /**
-   * Clears the <i>interrupted status</i> of the current thread.
-   */
-  protected static void clearInterrupted() {
-    @SuppressWarnings("unused")
-    boolean wasInterrupted = Thread.interrupted();
-  }
-
-
-  /**
    * @throws IllegalStateException if already started
    */
   public SELF start() {

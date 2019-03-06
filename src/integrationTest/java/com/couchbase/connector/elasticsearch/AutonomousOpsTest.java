@@ -27,8 +27,6 @@ import com.google.common.collect.ImmutableMap;
 import com.orbitz.consul.Consul;
 import com.orbitz.consul.KeyValueClient;
 import org.elasticsearch.Version;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Network;
@@ -42,24 +40,13 @@ import static org.junit.Assert.assertEquals;
 
 public class AutonomousOpsTest {
 
-  private static ConsulCluster consulCluster;
-
-  @BeforeClass
-  public static void startConsul() {
-    consulCluster = new ConsulCluster("consul:1.4.2", 1, Network.newNetwork()).start();
-  }
-
-  @AfterClass
-  public static void stopConsul() {
-    consulCluster.stop();
-  }
+  private static final String couchbaseVersion = "enterprise-6.0.1";
+  private static final String elasticsearchVersion = "6.6.0";
 
   @Test
   public void singleWorker() throws Exception {
-    final String couchbaseVersion = "enterprise-6.0.1";
-    final String elasticsearchVersion = "6.6.0";
-
-    try (CustomCouchbaseContainer couchbase = newCouchbaseCluster("couchbase/server:" + couchbaseVersion);
+    try (ConsulCluster consulCluster = new ConsulCluster("consul:1.4.2", 1, Network.newNetwork()).start();
+         CustomCouchbaseContainer couchbase = newCouchbaseCluster("couchbase/server:" + couchbaseVersion);
          ElasticsearchContainer elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
              .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")))) {
 
@@ -99,7 +86,58 @@ public class AutonomousOpsTest {
         assertEquals(expectedAirlineCount, es.getDocumentCount("airlines"));
         assertEquals(expectedAirportCount, es.getDocumentCount("airports"));
       }
+    }
+  }
 
+  @Test
+  public void threeWorkers() throws Exception {
+    try (ConsulCluster consulCluster = new ConsulCluster("consul:1.4.2", 3, Network.newNetwork()).start();
+         CustomCouchbaseContainer couchbase = newCouchbaseCluster("couchbase/server:" + couchbaseVersion);
+         ElasticsearchContainer elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
+             .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")))) {
+
+      System.out.println("Couchbase " + couchbase.getVersionString() +
+          " listening at http://" + DockerHelper.getDockerHost() + ":" + couchbase.getMappedPort(8091));
+
+      couchbase.loadSampleBucket("travel-sample", 100);
+
+      elasticsearch.start();
+
+      final String group = "integrationTest";
+      final String config = readConfig(couchbase, elasticsearch, ImmutableMap.of(
+          "group.name", group));
+
+      final Consul.Builder consulBuilder = consulCluster.clientBuilder(0);
+      try (ConsulContext consulContext = new ConsulContext(consulBuilder, group, null)) {
+
+        final KeyValueClient kv = consulContext.consul().keyValueClient();
+        final DocumentKeys keys = consulContext.keys();
+        kv.putValue(keys.config(), config);
+
+        try (AsyncTask connector1 = AsyncTask.run(() -> ConsulConnector.run(new ConsulContext(consulCluster.clientBuilder(0), group, null)));
+             AsyncTask connector2 = AsyncTask.run(() -> ConsulConnector.run(new ConsulContext(consulCluster.clientBuilder(1), group, null)));
+             AsyncTask connector3 = AsyncTask.run(() -> ConsulConnector.run(new ConsulContext(consulCluster.clientBuilder(2), group, null)));
+             TestEsClient es = new TestEsClient(ConnectorConfig.from(config))) {
+          System.out.println("connector has been started.");
+
+          final int airlines = 187;
+          final int routes = 24024;
+
+          final int expectedAirlineCount = airlines + routes;
+          final int expectedAirportCount = 1968;
+
+          poll().until(() -> es.getDocumentCount("airlines") >= expectedAirlineCount);
+          poll().until(() -> es.getDocumentCount("airports") >= expectedAirportCount);
+
+          SECONDS.sleep(3); // quiet period, make sure no more documents appear in the index
+
+          assertEquals(expectedAirlineCount, es.getDocumentCount("airlines"));
+          assertEquals(expectedAirportCount, es.getDocumentCount("airports"));
+
+          System.out.println("Shutting down connector...");
+        }
+        System.out.println("Connector shutdown complete.");
+      }
     }
   }
 
