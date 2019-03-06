@@ -45,7 +45,7 @@ public class AutonomousOpsTest {
 
   @Test
   public void singleWorker() throws Exception {
-    try (ConsulCluster consulCluster = new ConsulCluster("consul:1.4.2", 1, Network.newNetwork()).start();
+    try (ConsulCluster consulCluster = new ConsulCluster("consul:1.4.3", 1, Network.newNetwork()).start();
          CustomCouchbaseContainer couchbase = newCouchbaseCluster("couchbase/server:" + couchbaseVersion);
          ElasticsearchContainer elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
              .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")))) {
@@ -91,7 +91,7 @@ public class AutonomousOpsTest {
 
   @Test
   public void threeWorkers() throws Exception {
-    try (ConsulCluster consulCluster = new ConsulCluster("consul:1.4.2", 3, Network.newNetwork()).start();
+    try (ConsulCluster consulCluster = new ConsulCluster("consul:1.4.3", 3, Network.newNetwork()).start();
          CustomCouchbaseContainer couchbase = newCouchbaseCluster("couchbase/server:" + couchbaseVersion);
          ElasticsearchContainer elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
              .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")))) {

@@ -82,7 +82,7 @@ public class ConsulDocumentWatcherTest {
     if (NATIVE_CONSUL) {
       consulBuilder = Consul.builder();
     } else {
-      consulCluster = new ConsulCluster("consul:1.4.2", 1, Network.newNetwork()).start();
+      consulCluster = new ConsulCluster("consul:1.4.3", 1, Network.newNetwork()).start();
       consulBuilder = consulCluster.clientBuilder(0);
     }
 
