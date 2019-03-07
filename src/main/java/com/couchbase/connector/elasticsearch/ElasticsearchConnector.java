@@ -180,7 +180,9 @@ public class ElasticsearchConnector extends AbstractCliCommand {
           System.exit(1);
         }
 
-        final Set<Integer> partitions = membership.getPartitions(dcpClient.numPartitions());
+        final int numPartitions = dcpClient.numPartitions();
+        LOGGER.info("Bucket has {} partitions. Membership = {}", numPartitions, membership);
+        final Set<Integer> partitions = membership.getPartitions(numPartitions);
         if (partitions.isEmpty()) {
           // need to do this check, because if we started streaming with an empty list, the DCP client would open streams for *all* partitions
           throw new IllegalArgumentException("There are more workers than Couchbase vbuckets; this worker doesn't have any work to do.");
