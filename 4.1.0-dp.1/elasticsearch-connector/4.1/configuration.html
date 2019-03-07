@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Configuration | Couchbase Docs</title>
+    <link rel="stylesheet" href="../../_/css/site.css">
+    <link rel="schema.dcterms" href="https://purl.org/dc/terms/">
+    <meta name="dcterms.subject" content="elasticsearch-connector">
+    <meta name="dcterms.identifier" content="4.1">
+    <meta name="generator" content="Antora 2.0.0">
+    <link rel="icon" href="../../_/img/favicon.ico" type="image/x-icon">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar" id="topbar">
+    <div class="container">
+      <div class="navbar-brand">
+        <a class="navbar-item" href="https://www.couchbase.com"><img src="../../_/img/logo.svg" alt="Couchbase"></a>
+        <button class="navbar-burger" data-target="topbar-menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+      <div id="topbar-menu" class="navbar-menu">
+        <div class="navbar-start">
+          <div class="navbar-item has-dropdown">
+            <a class="navbar-link" href="https://docs.couchbase.com">Docs</a>
+            <div class="navbar-dropdown explore">
+              <div class="title">Couchbase Documentation Overview</div>
+              <div class="cols">
+                <ul>
+                  <li class="heading"><a href="../../server/6.0/introduction/intro.html">Server</a></li>
+                  <li><a href="../../server/6.0/n1ql/n1ql-language-reference/index.html">N1QL</a></li>
+                  <li><a href="../../server/6.0/fts/full-text-intro.html">Full Text Search</a></li>
+                  <li><a href="../../server/6.0/analytics/introduction.html">Analytics</a></li>
+                  <li><a href="../../server/6.0/eventing/eventing-overview.html">Eventing</a></li>
+                  <li><a href="#">Autonomous Operator</a></li>
+                </ul>
+                <ul>
+                  <li class="heading">Mobile</li>
+                  <li><a href="#">Lite</a></li>
+                  <li><a href="#">Sync Gateway</a></li>
+                </ul>
+                <ul class="two-cols">
+                  <li class="heading"><a href="../../server/6.0/sdk/overview.html">SDKs</a></li>
+                  <li><a href="../../c-sdk/2.10/start-using-sdk.html">C</a></li>
+                  <li><a href="../../dotnet-sdk/2.7/start-using-sdk.html">.NET</a></li>
+                  <li><a href="../../go-sdk/1.5/start-using-sdk.html">Go</a></li>
+                  <li><a href="../../java-sdk/2.7/start-using-sdk.html">Java</a></li>
+                  <li><a href="../../nodejs-sdk/2.6/start-using-sdk.html">Node.js</a></li>
+                  <li><a href="../../php-sdk/2.6/start-using-sdk.html">PHP</a></li>
+                  <li><a href="../../python-sdk/2.5/start-using-sdk.html">Python</a></li>
+                </ul>
+                <ul>
+                  <li class="heading"><a href="../../server/6.0/connectors/intro.html">Connectors</a></li>
+                  <li><a href="index.html">Elasticsearch</a></li>
+                  <li><a href="../../server/6.0/connectors/hadoop-1.2/hadoop.html">Hadoop</a></li>
+                  <li><a href="#">Kafka</a></li>
+                  <li><a href="#">Spark</a></li>
+                  <li><a href="#">Talend</a></li>
+                  <li><a href="../../server/6.0/connectors/odbc-jdbc-drivers.html">ODBC/JDBC</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <a class="navbar-item component" href="index.html"><span class="title">Elasticsearch Connector</span> <span class="version">4.1 Developer Preview</span></a>
+        </div>
+        <div class="navbar-end">
+          <div class="navbar-item">
+            <a class="btn red-btn" href="https://www.couchbase.com/downloads">Downloads</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body container">
+<nav class="nav">
+<div class="nav-menu">
+<ul class="nav-list">
+  <li class="nav-item is-current-path is-active" data-depth="0">
+    <span class="nav-line">
+    <button class="nav-toggle"></button>
+    <a class="nav-link" href="index.html">Elasticsearch Connector</a>
+    </span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="getting-started.html">Getting Started</a>
+    </span>
+  </li>
+  <li class="nav-item is-current-page is-active" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="configuration.html">Configuration</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="autonomous-operations.html">Autonomous Operations</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="monitoring.html">Monitoring</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="secure-connections.html">Secure Connections</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="migration.html">Migration</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="release-notes.html">Release Notes</a>
+    </span>
+  </li>
+</ul>
+  </li>
+</ul>
+</div>
+</nav>
+<aside class="toc sidebar">
+  <div class="toc-menu"></div>
+</aside>
+<main class="article" data-ceiling="topbar">
+  <div class="article-header">
+<button class="nav-control"></button>
+<nav class="crumbs" aria-label="breadcrumbs">
+  <ul>
+    <li class="crumb"><a href="index.html">Elasticsearch Connector</a></li>
+    <li class="crumb"><a href="configuration.html">Configuration</a></li>
+  </ul>
+</nav>
+<div class="tools" role="navigation">
+  <ul>
+    <li class="tool edit"><a href="https://github.com/couchbase/couchbase-elasticsearch-connector/edit/master/docs/modules/ROOT/pages/configuration.adoc" title="Edit Page" target="_blank" rel="noopener">Edit</a></li>
+  </ul>
+</div>
+  </div>
+<article class="doc">
+<h1 class="page">Configuration</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="quoteblock abstract">
+<blockquote>
+A description of the sections and properties defined in the sample config file, <code>$CBES_HOME/config/example-connector-config.toml</code>.
+</blockquote>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+If this is your first time working with the TOML config file format, check out Nate Finch&#8217;s excellent <a href="https://npf.io/2014/08/intro-to-toml/">Intro to TOML</a>, or the <a href="https://github.com/toml-lang/toml">official specification</a>.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="group-membership"><a class="anchor" href="#group-membership"></a>Group Membership</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>First, let&#8217;s define some terminology:</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">connector instance</dt>
+<dd>
+<p>A single connector process.
+When you run the <code>cbes</code> command, you are starting an instance of the connector.
+Sometimes referred to as a "connector worker", or simply an "instance."</p>
+</dd>
+<dt class="hdlist1">connector group</dt>
+<dd>
+<p>A set of one or more <em>connector instances</em> configured to share the task of replicating from the same bucket.</p>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p>The first section of the config file tells the connector instance which group it belongs to.
+A connector group is defined by configuring one or more connector instances to use the same group name.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[group]
+  name = 'example-group' <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Each connector group must be assigned a unique name (in order to keep its replication checkpoints separate).
+The group name is required even if there is only one connector instance in the group.</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+Renaming a group invalidates its replication status checkpoint, causing the connector to start replicating from the beginning again.
+To preserve the checkpoint (i.e. the replication progress), run the <code>cbes-checkpoint-backup</code> command before renaming, and <code>cbes-checkpoint-restore</code> afterwards.
+</td>
+</tr>
+</table>
+</div>
+<div class="sect2">
+<h3 id="sharing-the-load"><a class="anchor" href="#sharing-the-load"></a>Sharing the load</h3>
+<div class="paragraph">
+<p>A group with more than once instance is called "distributed".
+Each instance in a distributed group must be told which part of the workload it is responsible for.</p>
+</div>
+<div class="paragraph">
+<p>The default configuration is not distributed, since it specifies a group with only one member.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[group.static] <i class="conum" data-value="1"></i><b>(1)</b>
+  memberNumber = 1 <i class="conum" data-value="2"></i><b>(2)</b>
+  totalMembers = 1 <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>This config section is named "static" because the group membership is predetermined.
+A future release is expected to introduce a "coordinated" mode that will allow instances to dynamically join and leave the group.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>A value from 1 to 'totalMembers', inclusive.
+Each member in the group must be assigned a unique member number.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>The total number of workers in the group.</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+To safely add or remove workers from a static group, first stop all running workers, then reconfigure them with the new 'totalMembers' value, and finally start all the workers again.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="metrics"><a class="anchor" href="#metrics"></a>Metrics</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Performance metrics may be written to a log file and/or exposed via HTTP to enable external monitoring.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[metrics]
+  httpPort = 31415 <i class="conum" data-value="1"></i><b>(1)</b>
+  logInterval = '1m' <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Set the port number to <code>-1</code> to disable the embedded HTTP server.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>"One minute." A value of '0m' disables metrics logging.</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>The metrics log file location defaults to <code>CBES_HOME/logs/cbes-metrics.log</code>.
+The location and retention policy can be changed by editing <code>$CBES_HOME/config/log4j2.xml</code> (consult the <a href="https://logging.apache.org/log4j/2.x/manual/configuration.html">Log4j2 Configuration Manual</a> for details).</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="truststore"><a class="anchor" href="#truststore"></a>Trust Store for Secure Connections</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This is where you tell the connector how to access the keystore containing the certificates to trust when establishing TLS/SSL connections.
+For more details, see <a href="secure-connections.html" class="page">Setting Up Secure Connections</a>.
+If you decide not to enable secure connections, you can ignore this section.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[truststore]
+  path = 'path/to/truststore' <i class="conum" data-value="1"></i><b>(1)</b>
+  pathToPassword = 'secrets/truststore-password.toml' <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The filesystem path to the keystore containing the CA certificates for the Couchbase and/or Elasticsearch clusters.
+The base for a relative path is the connector installation directory.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Path to a separate TOML file with a single 'password' key.
+The base for a relative path is the connector installation directory.</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="couchbase"><a class="anchor" href="#couchbase"></a>Couchbase</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Here&#8217;s where the Couchbase connection parameters and credentials are specified.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[couchbase]
+  hosts = ['localhost'] <i class="conum" data-value="1"></i><b>(1)</b>
+  bucket = 'travel-sample' <i class="conum" data-value="2"></i><b>(2)</b>
+  metadataBucket = '' <i class="conum" data-value="3"></i><b>(3)</b>
+  username = 'Administrator' <i class="conum" data-value="4"></i><b>(4)</b>
+  pathToPassword = 'secrets/couchbase-password.toml' <i class="conum" data-value="5"></i><b>(5)</b>
+  secureConnection = false <i class="conum" data-value="6"></i><b>(6)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>A list of bootstrap nodes for the Couchbase cluster.
+Multiple nodes can be specified like <code>['host1','host2']</code>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The source bucket to replicate from.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>The bucket for storing metadata like replication checkpoint documents. Empty string means store metadata in the source bucket.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>At a minimum, the Couchbase user must have the "Data DCP Reader" role for the source bucket, and "Data Reader" &amp; "Data Writer" roles for the metadata bucket.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Path to a separate TOML file with a single 'password' key.
+The base for a relative path is the connector installation directory.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>If you have configured the <a href="#truststore">Trust Store</a> section, set this to <code>true</code> to encrypt the Couchbase connections.</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+If you want to replicate from multiple buckets, you can run a separate connector group for each bucket.
+</td>
+</tr>
+</table>
+</div>
+<div class="sect2">
+<h3 id="dcp"><a class="anchor" href="#dcp"></a>DCP</h3>
+<div class="quoteblock abstract">
+<blockquote>
+Options for the Couchbase Database Change Protocol (DCP).
+</blockquote>
+</div>
+<div class="paragraph">
+<p>Couchbase Server notifies the connector about database changes as soon as they are stored in memory, <em>even before they are written to disk</em>.
+You can tell the connector to immediately propagate the changes to Elasticsearch, or you can defer writing to Elasticsearch until the changes have been saved to disk on all Couchbase replicas.</p>
+</div>
+<div class="paragraph">
+<p>Immediate propagation gives the lowest possible latency, but increases the likelihood that a Couchbase node failure will result in document changes being present in Elasticsearch but not in Couchbase.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[couchbase.dcp]
+  compression = true <i class="conum" data-value="1"></i><b>(1)</b>
+  flowControlBuffer = '128mb' <i class="conum" data-value="2"></i><b>(2)</b>
+  persistencePollingInterval = '100ms' <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Disabling compression uses more network bandwidth and increases Couchbase Server&#8217;s CPU usage.
+Enabling compression increases the connector&#8217;s CPU usage.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Couchbase will only send this much data until the connector acknowledges it has been written to Elasticsearch.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>To propagate changes immediately, disable persistence polling by setting this to <code>'0ms'</code>.
+A non-zero duration tells the connector to defer propagation until the change is persisted on all Couchbase replicas.
+Longer intervals reduce network traffic at the cost of increased end-to-end latency.</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+When replicating from an ephemeral bucket, always set <code>persistencePollingInterval = '0s'</code> to disable persistence polling, since documents are never persisted.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elasticsearch"><a class="anchor" href="#elasticsearch"></a>Elasticsearch</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[elasticsearch]
+  hosts = ['localhost'] <i class="conum" data-value="1"></i><b>(1)</b>
+  username = 'elastic' <i class="conum" data-value="2"></i><b>(2)</b>
+  pathToPassword = 'secrets/elasticsearch-password.toml' <i class="conum" data-value="3"></i><b>(3)</b>
+  secureConnection = false <i class="conum" data-value="4"></i><b>(4)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>A list of bootstrap nodes for the Elasticsearch cluster.
+Multiple nodes can be specified like <code>['host1','host2']</code>.
+Specify a custom port like <code>['host:19002']</code>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Elasticsearch user to authenticate as.
+Username and password are only required if Elasticsearch is set up to require authentication.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Path to a separate TOML file with a single 'password' key.
+The base for a relative path is the connector installation directory.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>If your Elasticsearch cluster requires secure connections, configure the <a href="#truststore">Trust Store</a> section and then set this to <code>true</code> to encrypt the Elasticsearch connections.</td>
+</tr>
+</table>
+</div>
+<div class="sect2">
+<h3 id="bulk-request-limits"><a class="anchor" href="#bulk-request-limits"></a>Bulk Request Limits</h3>
+<div class="paragraph">
+<p>The Elasticsearch documentation offers these <a href="https://www.elastic.co/guide/en/elasticsearch/guide/current/indexing-performance.html#_using_and_sizing_bulk_requests">guidelines for sizing bulk requests</a>.
+Experiment with these parameters to see what yields the best performance with your data and cluster configuration.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[elasticsearch.bulkRequestLimits]
+  bytes = '10mb' <i class="conum" data-value="1"></i><b>(1)</b>
+  actions = 1000 <i class="conum" data-value="2"></i><b>(2)</b>
+  timeout = '1m' <i class="conum" data-value="3"></i><b>(3)</b>
+  concurrentRequests = 2 <i class="conum" data-value="4"></i><b>(4)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Limits the size in bytes of a single bulk request.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Limits the number of actions (index or delete) in single bulk request.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>A bulk request will be retried if it takes longer than this duration.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Limits the number of simultaneous bulk requests the connector will make.
+Setting this to <code>1</code> will reduce the load on your Elasticsearch cluster.</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+Actual bulk request size may exceed the <code>bytes</code> limit by approximately the size of a single document.
+Make sure the limit configured here is <strong>well under</strong> the Elasticsearch cluster&#8217;s <a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-http.html#_settings_2"><code>http.max_content_length</code></a> setting.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="document-structure"><a class="anchor" href="#document-structure"></a>Document Structure</h3>
+<div class="paragraph">
+<p>You control whether the Couchbase document is indexed verbatim, or whether it is transformed to include Couchbase metadata.
+If you decide to include metadata, it will be in a top-level field of the Elasticsearch document, with a field name of your choice.
+You also control whether the Couchbase document content is at the top level of the Elasticsearch document, or nested inside field named <code>doc</code>.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The connector does not replicate a document&#8217;s extended attributes (xattrs).
+</td>
+</tr>
+</table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[elasticsearch.docStructure]
+  metadataFieldName = 'meta' <i class="conum" data-value="1"></i><b>(1)</b>
+  documentContentAtTopLevel = false <i class="conum" data-value="2"></i><b>(2)</b>
+  wrapCounters = false <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Name to assign to the metadata field, or empty string (<code>''</code>) to omit metadata.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>If <code>false</code>, the Elasticsearch document root will have a <code>doc</code> field whose value is the Couchbase document.
+If <code>true</code>, the Elasticsearch document will be identical to the Couchbase document with the possible addition of the metadata field.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>If <code>false</code>, ignore Couchbase counter documents.
+If <code>true</code>, replicate them as Object nodes like <code>{"value":&lt;counter&gt;}</code></td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+The defaults mimic the behavior of version 3.x of the connector.
+If you don&#8217;t care about metadata, you can make the Elasticsearch document identical to the Couchbase document by setting <code>documentContentAtTopLevel = true</code> and <code>metadataFieldName = ''</code>.
+</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+If you set <code>documentContentAtTopLevel = true</code>, be sure to omit metadata or select a metadata field name that does not conflict with any document fields.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="type-definitions"><a class="anchor" href="#type-definitions"></a>Type Definitions</h2>
+<div class="sectionbody">
+<div class="quoteblock abstract">
+<blockquote>
+Not to be confused with Elasticsearch types&#8201;&#8212;&#8201;these are not those.
+</blockquote>
+</div>
+<div class="paragraph">
+<p>A type definition is a rule for matching a document ID, and instructions for what to do with matched documents.</p>
+</div>
+<div class="paragraph">
+<p>The order of type definitions is significant.
+If a document matches more than one type, the definition that appears first in the config file takes precedence.</p>
+</div>
+<div class="sect2">
+<h3 id="type-definition-defaults"><a class="anchor" href="#type-definition-defaults"></a>Type Definition Defaults</h3>
+<div class="paragraph">
+<p>Here&#8217;s where you can specify the default values for all type definitions.
+This may be useful, for example, if you want to write all documents to the same index, or send them all through the same pipeline.
+The default values can be overridden by specific type definitions, which we&#8217;ll look at in just a moment.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[elasticsearch.typeDefaults]
+  index = '' <i class="conum" data-value="1"></i><b>(1)</b>
+  pipeline = '' <i class="conum" data-value="2"></i><b>(2)</b>
+  typeName = '_doc' <i class="conum" data-value="3"></i><b>(3)</b>
+  ignore = false <i class="conum" data-value="4"></i><b>(4)</b>
+  ignoreDeletes = false <i class="conum" data-value="5"></i><b>(5)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Write matching documents to this index.
+Empty string (<code>''</code>) means "no default".</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Send matching documents though this pipeline.
+Empty string (<code>''</code>) means "no pipeline".</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Assign this Elasticsearch type to matching documents.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>If <code>true</code>, ignore matching documents entirely.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>If <code>true</code>, never delete matching documents from Elasticsearch.</td>
+</tr>
+</table>
+</div>
+<div class="sect3">
+<h4 id="document-matching-rules"><a class="anchor" href="#document-matching-rules"></a>Document matching rules</h4>
+<div class="paragraph">
+<p>Every type definition must have a rule for matching document IDs.
+The matching rule is specified by exactly one of the following fields:</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1"><code>prefix</code></dt>
+<dd>
+<p>A type definition with a <code>prefix</code> field matches any document whose ID starts with the given case-sensitive string.</p>
+</dd>
+<dt class="hdlist1"><code>regex</code></dt>
+<dd>
+<p>A type definition with a <code>regex</code> field matches any document whose ID fully matches the given <a href="https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html">Java regular expression</a>.</p>
+</dd>
+</dl>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+If the regular expression contains a capturing group named "index", the captured value will be used as the destination index.
+We&#8217;ll see an example of this shortly.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="sample-type-definitions"><a class="anchor" href="#sample-type-definitions"></a>Sample Type Definitions</h3>
+<div class="paragraph">
+<p>The first sample definition we&#8217;ll look at is one you should include whenever the Couchbase Sync Gateway is present.
+It ignores any Sync Gateway metadata documents based on their ID prefix.</p>
+</div>
+<div class="sect3">
+<h4 id="ignore-sync-gateway-metadata"><a class="anchor" href="#ignore-sync-gateway-metadata"></a>Ignore Sync Gateway Metadata</h4>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[[elasticsearch.type]]
+  prefix = '_sync:' <i class="conum" data-value="1"></i><b>(1)</b>
+  ignore = true <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>This type definition matches any document whose ID begins with the specified case-sensitive string.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Any matched documents will be ignored completely.</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Did you notice that unlike the config sections we&#8217;ve looked at so for, the <code>[[elasticsearch.type]]</code> section name is enclosed in <strong>double brackets</strong>?
+This indicates it&#8217;s a repeated element.
+You can declare any number of these sections, and each one will define an additional type.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect3">
+<h4 id="prefix-match"><a class="anchor" href="#prefix-match"></a>Prefix Match</h4>
+<div class="paragraph">
+<p>Here&#8217;s another type definition that uses <code>prefix</code> matching.
+This time, instead of ignoring the matched documents, the connector will write them to the "airlines" index using the <a href="https://www.elastic.co/blog/new-way-to-ingest-part-1">ingestion pipeline</a> named "audit".</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[[elasticsearch.type]]
+  prefix = 'airline_'
+  index = 'airlines' <i class="conum" data-value="1"></i><b>(1)</b>
+  pipeline = 'audit' <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Matching documents will be written to this Elasticsearch index.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>A pipeline lets you apply additional processing to a document before it is indexed.</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+Specifying the empty string (<code>''</code>) as the prefix will match <em>any</em> document.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect3">
+<h4 id="regular-expression-match"><a class="anchor" href="#regular-expression-match"></a>Regular Expression Match</h4>
+<div class="paragraph">
+<p>Now let&#8217;s look at a type definition that matches document IDs using a <a href="https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html">Java regular expression</a> instead of a literal prefix.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[[elasticsearch.type]]
+  regex = '.*port_.*' <i class="conum" data-value="1"></i><b>(1)</b>
+  index = 'ports'</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Matches "airport_sfo", "seaport_oakland", etc.</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect3">
+<h4 id="index-inference"><a class="anchor" href="#index-inference"></a>Index Inference</h4>
+<div class="paragraph">
+<p>Finally, here&#8217;s the promised example of using a regular expression with a capturing group named "index" to set the index based on document ID.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[[elasticsearch.type]]
+  regex = '(?&lt;index&gt;.+?)::.*' <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Matches IDs that start with one or more characters followed by "::".
+It directs "user::alice" to index "user", and "foo::bar::123" to index "foo".</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="rejection-log"><a class="anchor" href="#rejection-log"></a>Rejection Log</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>When Elasticsearch rejects a document (usually due to a type mapping error) the connector writes a rejection log entry document to Elasticsearch.
+The log entry&#8217;s document ID is the ID of the rejected Couchbase document.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<caption class="title">Table 1. Rejection Log Entry Fields</caption>
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Field Name</th>
+<th class="tableblock halign-left valign-top">Type</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">index</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">string</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name of the index the connector failed to write to</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">type</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">string</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Document type name used for the write attempt</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">action</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">string</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Failed action type ("INDEX" or "DELETE")</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">error</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">string</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Error message received from Elasticsearch</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Related configuration properties:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[elasticsearch.rejectionLog]
+  index = 'cbes-rejects' <i class="conum" data-value="1"></i><b>(1)</b>
+  typeName = '_doc' <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Rejection log entries are written to this index.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>This Elasticsearch type will be assigned to the documents.</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+If you&#8217;re running multiple connector groups, you may wish to use a separate rejection log index for each group.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="environment-variables"><a class="anchor" href="#environment-variables"></a>Environment Variables</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The connector configuration may reference environment variables.</p>
+</div>
+<div class="paragraph">
+<p>Variable substitution happens in a separate step before the TOML is parsed.
+Values are replaced verbatim, without regard to context.
+When using variables in string values, make sure the result conforms to the the <a href="https://github.com/toml-lang/toml#string">TOML string syntax</a>.</p>
+</div>
+<div class="paragraph">
+<p>Here&#8217;s an example with completely made up config properties, and placeholders that reference environment variables <code>NAME</code>, <code>AGE</code>, and <code>FAVORITE_COLOR</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">name = '${NAME}' <i class="conum" data-value="1"></i><b>(1)</b>
+age = ${AGE}
+favoriteColor = '${FAVORITE_COLOR:blue}' <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Alternatively, you could write <code>name = ${NAME}</code> and include the quotes in value of the environment variable.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>A colon in the placeholder separates the environment variable name from the default value to use if the variable is not set.
+If the <code>FAVORITE_COLOR</code> environment variable is set, its value will be used.
+Otherwise, the specified default value <code>blue</code> will be used.</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</article>
+</main>
+</div>
+<footer class="footer">
+  <div class="container">
+    <div class="footer-links">
+      <div class="col">
+        <div class="footer-logo">
+          <a href="https://www.couchbase.com" class="icon">
+            <img src="../../_/img/logo.svg" alt="Couchbase">
+          </a>
+        </div>
+        <div class="contact">
+          <p class="address">3250 Olcott Street
+Santa Clara, CA 95054
+United States</p>
+          <a href="https://www.couchbase.com/contact" class="btn white-btn">Contact Us</a>
+          <a class="tel" href="tel:1-650-417-7500">1-650-417-7500</a>
+        </div>
+      </div>
+      <div class="col">
+        <ul>
+          <li><span class="heading">Company</span></li>
+          <li><a href="https://www.couchbase.com/about">About</a></li>
+          <li><a href="https://www.couchbase.com/leadership">Leadership</a></li>
+          <li><a href="https://www.couchbase.com/news-and-press-releases">News &amp; Press</a></li>
+          <li><a href="https://www.couchbase.com/careers">Careers</a></li>
+          <li><a href="https://www.couchbase.com/resources/events">Events</a></li>
+          <li><a href="https://www.couchbase.com/contact">Contact Us</a></li>
+          <li><a href="https://www.couchbase.com/request-pricing">Pricing</a></li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li><span class="heading">Support</span></li>
+          <li><a href="https://developer.couchbase.com" target="_blank" rel="noopener">Developer Portal</a></li>
+          <li><a href="https://docs.couchbase.com" target="_blank" rel="noopener">Documentation</a></li>
+          <li><a href="https://forums.couchbase.com" target="_blank" rel="noopener">Forums</a></li>
+          <li><a href="https://www.couchbase.com/services">Professional Services</a></li>
+          <li><a href="https://support.couchbase.com" target="_blank" rel="noopener">Support Login</a></li>
+          <li><a href="https://learn.couchbase.com/store" target="_blank" rel="noopener">Training</a></li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li><span class="heading">Quicklinks</span></li>
+          <li><a href="https://blog.couchbase.com" target="_blank" rel="noopener">Blog</a></li>
+          <li><a href="https://www.couchbase.com/downloads">Downloads</a></li>
+          <li><a href="https://www.couchbase.com/get-started-developing-nosql">Get Started</a></li>
+          <li><a href="https://learn.couchbase.com/store?utf8=%E2%9C%93&ss=1&ct=78327&commit=Filter" target="_blank" rel="noopener">Online Training</a></li>
+          <li><a href="https://www.couchbase.com/resources">Resources</a></li>
+          <li><a href="https://www.couchbase.com/nosql-resources/why-nosql">Why NoSQL</a></li>
+          <li><a href="https://www.couchbase.com/resources/security">Security</a></li>
+          <li><a href="https://www.couchbase.com/resources/gdpr">GDPR</a></li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul class="social-icons">
+          <li>
+            <a href="https://www.facebook.com/Couchbase" class="icon">
+              <svg width="50px" height="50px" viewBox="26.363 116.363 560.215 560.215"><path d="m586.58 209.58c0-48.96-44.252-93.212-93.212-93.212h-373.79c-48.96 0-93.212 44.252-93.212 93.212v373.79c0 48.96 44.252 93.212 93.212 93.212h186.42v-211.85h-68.732v-93.212h68.732v-36.72c0-63.083 47.077-119.58 105.45-119.58h75.323v93.212h-75.323c-8.474 0-17.889 10.357-17.889 25.422v37.662h93.212v93.212h-93.212v211.85h99.803c48.96 0 93.212-44.252 93.212-93.212v-373.79z"/></svg>
+            </a>
+          </li>
+          <li>
+            <a href="https://twitter.com/couchbase" class="icon">
+              <svg width="50px" height="50px" viewBox="32.012 176.622 542.326 437.815"><path d="m574.34 227.46c-19.772 8.474-41.428 15.065-64.025 17.889 22.597-14.123 40.486-35.778 48.96-61.2-21.655 13.182-45.194 21.655-70.615 27.305-20.714-21.655-48.96-34.837-80.972-34.837-61.2 0-111.1 49.902-111.1 111.1 0 8.474 0.942 16.948 2.825 25.422-92.271-5.649-174.18-49.902-229.74-117.69-9.415 16.006-15.065 35.778-15.065 55.551 0 38.603 19.772 72.498 49.902 92.271-17.889-0.942-35.778-5.649-50.843-14.123v0.942c0 53.668 38.603 98.862 89.446 109.22-9.415 2.825-18.831 3.766-29.188 3.766-7.532 0-14.123-0.942-20.714-1.883 14.123 44.252 55.551 76.265 103.57 77.206-37.662 30.129-85.68 48.018-138.41 48.018-9.415 0-17.889-0.941-26.363-1.883 48.96 32.012 107.34 49.902 170.42 49.902 204.31 0 316.36-169.48 316.36-316.36v-14.123c21.656-14.125 40.487-33.897 55.551-56.494z"/></svg>
+            </a>
+          </li>
+          <li>
+            <a href="https://www.linkedin.com/company/couchbase" class="icon">
+              <svg width="50px" height="50px" viewBox="31.071 119.188 539.537 540.443"><path d="m531.97 119.19h-461.35c-21.655 0-39.545 16.948-39.545 38.603v463.24c0 21.655 17.889 38.603 39.545 38.603h460.41c21.655 0 39.545-16.948 39.545-38.603v-463.24c0.942-21.656-16.947-38.603-38.603-38.603zm-337.07 451.94h-81.914v-243.86h81.914v243.86zm-40.486-276.81c-28.246 0-46.135-18.831-46.135-42.369s17.889-42.369 46.135-42.369 45.194 17.889 45.194 42.369c0.942 23.538-16.948 42.369-45.194 42.369zm335.19 276.81h-81.914v-129.93c0-32.954-12.24-55.551-41.428-55.551-22.597 0-35.778 15.065-41.428 30.129-1.883 5.649-2.825 12.24-2.825 19.772v136.52h-81.914s0.942-221.26 0-243.86h81.914v34.837c11.298-16.948 30.129-40.486 73.44-40.486 53.668 0 94.154 34.837 94.154 110.16l1e-3 138.41zm-168.54-208.08s0.941-0.941 0 0z"/></svg>
+            </a>
+          </li>
+          <li>
+            <a href="https://plus.google.com/+CouchbaseServer" class="icon">
+              <svg width="50px" height="50px" viewBox="36.72 225.573 542.326 343.67"><path d="m209.02 363.05v68.732h93.212c-15.065 44.252-37.662 68.732-93.212 68.732-56.492 0-100.74-46.135-100.74-102.63s44.252-102.63 100.74-102.63c30.129 0 48.96 10.357 66.849 25.422 14.123-14.123 13.182-16.006 48.96-49.902-31.071-28.246-71.557-45.194-115.81-45.194-95.096-0.94-172.3 76.266-172.3 171.36s77.206 172.3 172.3 172.3c142.17 0 177.01-124.28 165.71-206.2-33.896-1e-3 -165.71-1e-3 -165.71-1e-3zm310.71 3.766v-59.317h-42.369v59.317h-61.2v42.369h61.2v61.2h42.369v-61.2h59.317v-42.369h-59.317z"/></svg>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-terms">
+      <span>2018 COUCHBASE All rights reserved.</span>
+      <a href="https://www.couchbase.com/privacy-policy">Privacy Policy</a>
+      <a href="https://www.couchbase.com/terms-of-use">Terms of Use</a>
+      <a href="https://www.couchbase.com/cookie-policy">Cookie Policy</a>
+      <a href="https://info.couchbase.com/unsubscribe-or-manage-preferences.html" target="_blank" rel="noopener">Marketing Preference Center</a>
+    </div>
+  </div>
+</footer>
+<script src="../../_/js/site.js"></script>
+<script async src="../../_/js/vendor/highlight.js"></script>
+<script async src="../../_/js/vendor/mark.js"></script>
+  </body>
+</html>

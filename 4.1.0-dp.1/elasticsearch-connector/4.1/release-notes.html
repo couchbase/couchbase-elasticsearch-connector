@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Release Notes | Couchbase Docs</title>
+    <link rel="stylesheet" href="../../_/css/site.css">
+    <meta name="description" content="Elasticsearch Connector release notes">
+    <link rel="schema.dcterms" href="https://purl.org/dc/terms/">
+    <meta name="dcterms.subject" content="elasticsearch-connector">
+    <meta name="dcterms.identifier" content="4.1">
+    <meta name="generator" content="Antora 2.0.0">
+    <link rel="icon" href="../../_/img/favicon.ico" type="image/x-icon">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar" id="topbar">
+    <div class="container">
+      <div class="navbar-brand">
+        <a class="navbar-item" href="https://www.couchbase.com"><img src="../../_/img/logo.svg" alt="Couchbase"></a>
+        <button class="navbar-burger" data-target="topbar-menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+      <div id="topbar-menu" class="navbar-menu">
+        <div class="navbar-start">
+          <div class="navbar-item has-dropdown">
+            <a class="navbar-link" href="https://docs.couchbase.com">Docs</a>
+            <div class="navbar-dropdown explore">
+              <div class="title">Couchbase Documentation Overview</div>
+              <div class="cols">
+                <ul>
+                  <li class="heading"><a href="../../server/6.0/introduction/intro.html">Server</a></li>
+                  <li><a href="../../server/6.0/n1ql/n1ql-language-reference/index.html">N1QL</a></li>
+                  <li><a href="../../server/6.0/fts/full-text-intro.html">Full Text Search</a></li>
+                  <li><a href="../../server/6.0/analytics/introduction.html">Analytics</a></li>
+                  <li><a href="../../server/6.0/eventing/eventing-overview.html">Eventing</a></li>
+                  <li><a href="#">Autonomous Operator</a></li>
+                </ul>
+                <ul>
+                  <li class="heading">Mobile</li>
+                  <li><a href="#">Lite</a></li>
+                  <li><a href="#">Sync Gateway</a></li>
+                </ul>
+                <ul class="two-cols">
+                  <li class="heading"><a href="../../server/6.0/sdk/overview.html">SDKs</a></li>
+                  <li><a href="../../c-sdk/2.10/start-using-sdk.html">C</a></li>
+                  <li><a href="../../dotnet-sdk/2.7/start-using-sdk.html">.NET</a></li>
+                  <li><a href="../../go-sdk/1.5/start-using-sdk.html">Go</a></li>
+                  <li><a href="../../java-sdk/2.7/start-using-sdk.html">Java</a></li>
+                  <li><a href="../../nodejs-sdk/2.6/start-using-sdk.html">Node.js</a></li>
+                  <li><a href="../../php-sdk/2.6/start-using-sdk.html">PHP</a></li>
+                  <li><a href="../../python-sdk/2.5/start-using-sdk.html">Python</a></li>
+                </ul>
+                <ul>
+                  <li class="heading"><a href="../../server/6.0/connectors/intro.html">Connectors</a></li>
+                  <li><a href="index.html">Elasticsearch</a></li>
+                  <li><a href="../../server/6.0/connectors/hadoop-1.2/hadoop.html">Hadoop</a></li>
+                  <li><a href="#">Kafka</a></li>
+                  <li><a href="#">Spark</a></li>
+                  <li><a href="#">Talend</a></li>
+                  <li><a href="../../server/6.0/connectors/odbc-jdbc-drivers.html">ODBC/JDBC</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <a class="navbar-item component" href="index.html"><span class="title">Elasticsearch Connector</span> <span class="version">4.1 Developer Preview</span></a>
+        </div>
+        <div class="navbar-end">
+          <div class="navbar-item">
+            <a class="btn red-btn" href="https://www.couchbase.com/downloads">Downloads</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body container">
+<nav class="nav">
+<div class="nav-menu">
+<ul class="nav-list">
+  <li class="nav-item is-current-path is-active" data-depth="0">
+    <span class="nav-line">
+    <button class="nav-toggle"></button>
+    <a class="nav-link" href="index.html">Elasticsearch Connector</a>
+    </span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="getting-started.html">Getting Started</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="configuration.html">Configuration</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="autonomous-operations.html">Autonomous Operations</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="monitoring.html">Monitoring</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="secure-connections.html">Secure Connections</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="migration.html">Migration</a>
+    </span>
+  </li>
+  <li class="nav-item is-current-page is-active" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="release-notes.html">Release Notes</a>
+    </span>
+  </li>
+</ul>
+  </li>
+</ul>
+</div>
+</nav>
+<aside class="toc sidebar">
+  <div class="toc-menu"></div>
+</aside>
+<main class="article" data-ceiling="topbar">
+  <div class="article-header">
+<button class="nav-control"></button>
+<nav class="crumbs" aria-label="breadcrumbs">
+  <ul>
+    <li class="crumb"><a href="index.html">Elasticsearch Connector</a></li>
+    <li class="crumb"><a href="release-notes.html">Release Notes</a></li>
+  </ul>
+</nav>
+<div class="tools" role="navigation">
+  <ul>
+    <li class="tool edit"><a href="https://github.com/couchbase/couchbase-elasticsearch-connector/edit/master/docs/modules/ROOT/pages/release-notes.adoc" title="Edit Page" target="_blank" rel="noopener">Edit</a></li>
+  </ul>
+</div>
+  </div>
+<article class="doc">
+<h1 class="page">Release Notes</h1>
+<div class="sect1">
+<h2 id="standalone-connector-vs-plug-in"><a class="anchor" href="#standalone-connector-vs-plug-in"></a>Standalone Connector vs. Plug-in</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Starting with version 4.0, the connector is now a standalone process.
+The standalone distribution archives are named <code>couchbase-elasticsearch-connector-</code>, and download links are provided on this page.</p>
+</div>
+<div class="paragraph">
+<p>Prior to version 4.0, the connector was implemented as an Elasticsearch plug-in.
+The plug-in distributions have archive names starting with <code>elasticsearch-transport-couchbase-</code>.</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+If you want to use the old plug-in, distributions may be <a href="https://github.com/couchbase/couchbase-elasticsearch-connector/releases">downloaded from GitHub</a>.
+Make sure to pick the archive whose <code>es</code> version component <em>exactly</em> matches your Elasticsearch version.
+For example, to use the 3.0.0 version of the plug-in with Elasticsearch 5.6.4, you would select <code>elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip</code>.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elasticsearch-connector-4-0-0"><a class="anchor" href="#elasticsearch-connector-4-0-0"></a>Elasticsearch Connector 4.0.0</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><a href="https://packages.couchbase.com/clients/connectors/elasticsearch/4.0.0/couchbase-elasticsearch-connector-4.0.0.zip">couchbase-elasticsearch-connector-4.0.0.zip</a></p>
+</div>
+<div class="sect2">
+<h3 id="new-in-this-version"><a class="anchor" href="#new-in-this-version"></a>New in this version</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>The connector is now a standalone process instead of an Elasticsearch plug-in.</p>
+</li>
+<li>
+<p>Compatible with Elasticsearch versions 5 and 6.</p>
+</li>
+<li>
+<p>Support for secure connections to Couchbase and Elasticsearch.</p>
+</li>
+<li>
+<p>Tools for managing replication checkpoints.</p>
+</li>
+<li>
+<p>A "rejection log" for documents Elasticsearch permanently refuses to index.</p>
+</li>
+<li>
+<p>Configurable document structure (omit metadata if you don&#8217;t need it).</p>
+</li>
+<li>
+<p>The connector now listens for document changes using the high performance Couchbase Database Change Protocol (DCP).</p>
+</li>
+</ul>
+</div>
+<div class="sect3">
+<h4 id="things-to-be-aware-of"><a class="anchor" href="#things-to-be-aware-of"></a>Things to be aware of</h4>
+<div class="admonitionblock caution">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+This is a major version upgrade.
+Because the plug-in and the standalone connector are so different, there is no online upgrade process.
+See the <a href="migration.html" class="page">Migration</a> documentation for details.
+</td>
+</tr>
+</table>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Parent-child relationships are no longer supported, as this feature
+was removed in ES 6.</p>
+</li>
+<li>
+<p>Routing documents to specific Elasticsearch shards is not implemented.
+Please let us know if this feature is still relevant for your deployment.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elasticsearch-plug-in-3-0-2"><a class="anchor" href="#elasticsearch-plug-in-3-0-2"></a>Elasticsearch Plug-in 3.0.2</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Maintenance release for improved compatibility and stability.</p>
+</div>
+<div class="sect2">
+<h3 id="bug-fixes"><a class="anchor" href="#bug-fixes"></a>Bug Fixes</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://issues.couchbase.com/browse/CBES-82">CBES-82</a>: NoClassDefFoundError under Java 9.</p>
+</li>
+<li>
+<p><a href="https://issues.couchbase.com/browse/CBES-83">CBES-83</a>: VersionConflictEngineException in storeUUID if document already exists.
+(Causes XDCR replication to be removed.)</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elasticsearch-plug-in-3-0-1"><a class="anchor" href="#elasticsearch-plug-in-3-0-1"></a>Elasticsearch Plug-in 3.0.1</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The <code>birch</code> development line has been retired.
+The <code>cypress</code> line now supports all 5.x versions of Elasticsearch.</p>
+</div>
+<div class="paragraph">
+<p><code>RegexParentSelector</code> now reads the parent ID format from the correct config property (<code>couchbase.parentSelector.documentTypesParentFormat.&lt;type&gt;</code>).
+If you previously put the parent ID format in the <code>documentTypeParentFields</code> property as a workaround, please update your configuration.</p>
+</div>
+<div class="paragraph">
+<p>The connector can now delete child documents and other documents that have custom routing.
+If you&#8217;re using <code>RegexParentSelector</code> then this feature has no additional overhead.
+Otherwise, for each document whose routing cannot be derived from the document ID, the connector creates a separate signpost document to record the routing.
+Be aware that child documents created by previous versions of the connector are not eligible for deletion, since they don&#8217;t have signposts (you&#8217;ll see "missing signpost" warnings in the log when the connector tries to delete those documents).</p>
+</div>
+<div class="paragraph">
+<p>The signposts have a document type of <code>couchbaseSignpost</code>.
+The mapping for this type must store the contents of the <code>meta</code> field.
+This is already the case if you&#8217;re using the default mapping template included in the plug-in distribution.</p>
+</div>
+<div class="sect2">
+<h3 id="bug-fixes-2"><a class="anchor" href="#bug-fixes-2"></a>Bug Fixes</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://issues.couchbase.com/browse/CBES-49">CBES-49</a>: RegexParentSelector reads parent ID format from wrong config property.</p>
+</li>
+<li>
+<p><a href="https://issues.couchbase.com/browse/CBES-50">CBES-50</a>: RoutingMissingException when deleting child documents.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elasticsearch-plug-in-3-0-0"><a class="anchor" href="#elasticsearch-plug-in-3-0-0"></a>Elasticsearch Plug-in 3.0.0</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>With <a href="https://github.com/couchbaselabs/couchbase-elasticsearch-connector/releases/tag/3.0.0-cypress">this release</a>, the Couchbase plug-in for Elasticsearch moves to a new versioning and branch management strategy that allows for simultaneous releases across ES versions (see <a href="#Version Compatibility">[Version Compatibility]</a>).
+All the versions are expected to work and are supported.
+However, versions which have received more testing and are <strong>officially</strong> supported are:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>3.0.0-cypress-es5.6.4</p>
+</li>
+<li>
+<p>3.0.0-birch-es5.2.2</p>
+</li>
+<li>
+<p>3.0.0-alder-es2.4.0</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Don&#8217;t be alarmed by the major version bump; upgrading from version 2.x of the plug-in should be seamless, and is recommended for all users.
+The code has just been relabeled for easier maintenance.</p>
+</div>
+<div class="sect2">
+<h3 id="new-feature"><a class="anchor" href="#new-feature"></a>New Feature</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>Adds the <code>couchbase.pipeline</code> config for specifying the ingestion pipeline.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="enhancements"><a class="anchor" href="#enhancements"></a>Enhancements</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>Improves logging for indexing errors.</p>
+</li>
+<li>
+<p>Uses Dropwizard Metrics to collect and log richer stats.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="bug-fixes-3"><a class="anchor" href="#bug-fixes-3"></a>Bug Fixes</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://issues.couchbase.com/browse/CBES-48">CBES-48</a>: Connection counter leak could cause spurious <code>TooManyConcurrentConnections</code> errors.</p>
+</li>
+<li>
+<p><a href="https://github.com/couchbaselabs/couchbase-elasticsearch-connector/issues/153">#153</a>: ClassCastException error when the TTL is of type <code>Long</code> instead of <code>Integer</code>.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="known-issues"><a class="anchor" href="#known-issues"></a>Known issues</h3>
+<div class="paragraph">
+<p>The Elasticsearch Plug-in does not support IPv6.
+So to use the plug-in, the Couchbase Server and Elasticsearch clusters will need to run on instances which are addressable with IPv4.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elasticsearch-plug-in-2-2"><a class="anchor" href="#elasticsearch-plug-in-2-2"></a>Elasticsearch Plug-in 2.2</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This release note applies to the 2.2 version of the Elasticsearch Transport Plug-in (February 2017).
+It adds a number of bug fixes.
+See <a href="getting-started.html" class="page">Installation and Configuration</a> for versioning and compatibility information.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elasticsearch-plug-in-2-1-1"><a class="anchor" href="#elasticsearch-plug-in-2-1-1"></a>Elasticsearch Plug-in 2.1.1</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This release note applies to the 2.1.1 version of the Elasticsearch Transport Plug-in (September 2015).
+It adds compatibility with newer Elasticsearch versions up to 1.7.x, multiple new features, and quite a few bug fixes, including several that solve issues found in 2.1.0.
+In particular, this release fixes a long-standing bug with an incorrect concurrent bulk request counter, which could eventually cause the plug-in to stop accepting requests from Couchbase Server altogether.</p>
+</div>
+<div class="paragraph">
+<p>Some configuration option-names changed.</p>
+</div>
+<table class="tableblock frame-all grid-all" style="width: 70%;">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Elasticsearch plug-in version</th>
+<th class="tableblock halign-left valign-top">Couchbase versions</th>
+<th class="tableblock halign-left valign-top">Elasticsearch versions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2.1.1</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2.5.x - 4.x</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1.3.0 - 1.7.x</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elasticsearch-plug-in-2-0"><a class="anchor" href="#elasticsearch-plug-in-2-0"></a>Elasticsearch Plug-in 2.0</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This release note is for the Elasticsearch plug-in release 2.0 GA (October 2014).
+Elasticsearch plug-in version 2.0 is compatible with:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Elasticsearch 1.3.0.</p>
+</li>
+<li>
+<p>Couchbase Server 3.0</p>
+</li>
+<li>
+<p>Couchbase Server 2.5.x (backward compatible)</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The new feature(s) available in Elasticsearch Plug-in v2.0:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Support more than one document type in Elasticsearch.
+(<a href="https://issues.couchbase.com/browse/MB-12284">MB-12284</a>)</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The following are known issues:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The <code>att_reason</code> value for non-JSON documents changed from non-JSON mode to invalid_json.
+If a Couchbase cluster has a lot of deletes, the Elasticsearch log could fill up with a lot of messages.
+(<a href="https://www.couchbase.com/issues/browse/CBES-31">CBES-31</a>)</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elasticsearch-plug-in-1-3-0"><a class="anchor" href="#elasticsearch-plug-in-1-3-0"></a>Elasticsearch Plug-in 1.3.0</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This release note is for the Elasticsearch plug-in release 1.3.0 GA (April 2014).
+This release is compatible only with Elasticsearch 1.0.1.</p>
+</div>
+<div class="paragraph">
+<p>This release is compatible with Couchbase Server 2.5.x, and it is backward compatible with earlier 2.x releases.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Support for new XDCR checkpoint protocol.
+(<a href="https://www.couchbase.com/issues/browse/CBES-26">CBES-26</a>)</p>
+</li>
+<li>
+<p>Fixed failure handling due to bounded queue with Elasticsearch 1.x.
+(<a href="https://www.couchbase.com/issues/browse/CBES-27">CBES-27</a>)</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elasticsearch-plug-in-1-2-0"><a class="anchor" href="#elasticsearch-plug-in-1-2-0"></a>Elasticsearch Plug-in 1.2.0</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This release note is for the Elasticsearch plug-in release 1.2.0 GA (October 2013).
+This release adds compatibility with Elasticsearch 0.90.5.</p>
+</div>
+<div class="paragraph">
+<p>This release is compatible with Couchbase Server 2.2, and it is backward compatible with earlier 2.x releases.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elasticsearch-plug-in-1-1-0"><a class="anchor" href="#elasticsearch-plug-in-1-1-0"></a>Elasticsearch Plug-in 1.1.0</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This release note is for the Elasticsearch plug-in release 1.1.0 GA (August 2013).
+This release adds compatibility with Elasticsearch 0.90.2.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elasticsearch-plug-in-1-0-0"><a class="anchor" href="#elasticsearch-plug-in-1-0-0"></a>Elasticsearch Plug-in 1.0.0</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This release note is for the Elasticsearch plug-in release 1.0.0 GA (February 2013).
+This is the first general availability (GA) release.
+It contains the following enhancements and bug fixes:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Now compatible with version 0.20.2 of Elasticsearch.</p>
+</li>
+<li>
+<p>Now supports document expiration using Elasticsearch TTL.</p>
+</li>
+<li>
+<p>Now supports XDCR conflict resolution to reduce bandwidth usage in some cases.</p>
+</li>
+<li>
+<p>Fixed Couchbase index template to allow searching on the document metadata.</p>
+</li>
+<li>
+<p>Fixed data corruption under high load.
+(<a href="https://issues.couchbase.com/browse/CBES-11">CBES-11</a>)</p>
+</li>
+<li>
+<p>Fixed recognition of non-JSON documents.
+(<a href="https://issues.couchbase.com/browse/CBES-11">CBES-11</a>)</p>
+</li>
+<li>
+<p>Improved log information when indexing stub documents.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elasticsearch-plug-in-1-0-0-beta"><a class="anchor" href="#elasticsearch-plug-in-1-0-0-beta"></a>Elasticsearch Plug-in 1.0.0 Beta</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This is the beta release of the Couchbase plug-in for Elasticsearch 1.0.0 Beta (February 2013).</p>
+</div>
+</div>
+</div>
+</article>
+</main>
+</div>
+<footer class="footer">
+  <div class="container">
+    <div class="footer-links">
+      <div class="col">
+        <div class="footer-logo">
+          <a href="https://www.couchbase.com" class="icon">
+            <img src="../../_/img/logo.svg" alt="Couchbase">
+          </a>
+        </div>
+        <div class="contact">
+          <p class="address">3250 Olcott Street
+Santa Clara, CA 95054
+United States</p>
+          <a href="https://www.couchbase.com/contact" class="btn white-btn">Contact Us</a>
+          <a class="tel" href="tel:1-650-417-7500">1-650-417-7500</a>
+        </div>
+      </div>
+      <div class="col">
+        <ul>
+          <li><span class="heading">Company</span></li>
+          <li><a href="https://www.couchbase.com/about">About</a></li>
+          <li><a href="https://www.couchbase.com/leadership">Leadership</a></li>
+          <li><a href="https://www.couchbase.com/news-and-press-releases">News &amp; Press</a></li>
+          <li><a href="https://www.couchbase.com/careers">Careers</a></li>
+          <li><a href="https://www.couchbase.com/resources/events">Events</a></li>
+          <li><a href="https://www.couchbase.com/contact">Contact Us</a></li>
+          <li><a href="https://www.couchbase.com/request-pricing">Pricing</a></li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li><span class="heading">Support</span></li>
+          <li><a href="https://developer.couchbase.com" target="_blank" rel="noopener">Developer Portal</a></li>
+          <li><a href="https://docs.couchbase.com" target="_blank" rel="noopener">Documentation</a></li>
+          <li><a href="https://forums.couchbase.com" target="_blank" rel="noopener">Forums</a></li>
+          <li><a href="https://www.couchbase.com/services">Professional Services</a></li>
+          <li><a href="https://support.couchbase.com" target="_blank" rel="noopener">Support Login</a></li>
+          <li><a href="https://learn.couchbase.com/store" target="_blank" rel="noopener">Training</a></li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li><span class="heading">Quicklinks</span></li>
+          <li><a href="https://blog.couchbase.com" target="_blank" rel="noopener">Blog</a></li>
+          <li><a href="https://www.couchbase.com/downloads">Downloads</a></li>
+          <li><a href="https://www.couchbase.com/get-started-developing-nosql">Get Started</a></li>
+          <li><a href="https://learn.couchbase.com/store?utf8=%E2%9C%93&ss=1&ct=78327&commit=Filter" target="_blank" rel="noopener">Online Training</a></li>
+          <li><a href="https://www.couchbase.com/resources">Resources</a></li>
+          <li><a href="https://www.couchbase.com/nosql-resources/why-nosql">Why NoSQL</a></li>
+          <li><a href="https://www.couchbase.com/resources/security">Security</a></li>
+          <li><a href="https://www.couchbase.com/resources/gdpr">GDPR</a></li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul class="social-icons">
+          <li>
+            <a href="https://www.facebook.com/Couchbase" class="icon">
+              <svg width="50px" height="50px" viewBox="26.363 116.363 560.215 560.215"><path d="m586.58 209.58c0-48.96-44.252-93.212-93.212-93.212h-373.79c-48.96 0-93.212 44.252-93.212 93.212v373.79c0 48.96 44.252 93.212 93.212 93.212h186.42v-211.85h-68.732v-93.212h68.732v-36.72c0-63.083 47.077-119.58 105.45-119.58h75.323v93.212h-75.323c-8.474 0-17.889 10.357-17.889 25.422v37.662h93.212v93.212h-93.212v211.85h99.803c48.96 0 93.212-44.252 93.212-93.212v-373.79z"/></svg>
+            </a>
+          </li>
+          <li>
+            <a href="https://twitter.com/couchbase" class="icon">
+              <svg width="50px" height="50px" viewBox="32.012 176.622 542.326 437.815"><path d="m574.34 227.46c-19.772 8.474-41.428 15.065-64.025 17.889 22.597-14.123 40.486-35.778 48.96-61.2-21.655 13.182-45.194 21.655-70.615 27.305-20.714-21.655-48.96-34.837-80.972-34.837-61.2 0-111.1 49.902-111.1 111.1 0 8.474 0.942 16.948 2.825 25.422-92.271-5.649-174.18-49.902-229.74-117.69-9.415 16.006-15.065 35.778-15.065 55.551 0 38.603 19.772 72.498 49.902 92.271-17.889-0.942-35.778-5.649-50.843-14.123v0.942c0 53.668 38.603 98.862 89.446 109.22-9.415 2.825-18.831 3.766-29.188 3.766-7.532 0-14.123-0.942-20.714-1.883 14.123 44.252 55.551 76.265 103.57 77.206-37.662 30.129-85.68 48.018-138.41 48.018-9.415 0-17.889-0.941-26.363-1.883 48.96 32.012 107.34 49.902 170.42 49.902 204.31 0 316.36-169.48 316.36-316.36v-14.123c21.656-14.125 40.487-33.897 55.551-56.494z"/></svg>
+            </a>
+          </li>
+          <li>
+            <a href="https://www.linkedin.com/company/couchbase" class="icon">
+              <svg width="50px" height="50px" viewBox="31.071 119.188 539.537 540.443"><path d="m531.97 119.19h-461.35c-21.655 0-39.545 16.948-39.545 38.603v463.24c0 21.655 17.889 38.603 39.545 38.603h460.41c21.655 0 39.545-16.948 39.545-38.603v-463.24c0.942-21.656-16.947-38.603-38.603-38.603zm-337.07 451.94h-81.914v-243.86h81.914v243.86zm-40.486-276.81c-28.246 0-46.135-18.831-46.135-42.369s17.889-42.369 46.135-42.369 45.194 17.889 45.194 42.369c0.942 23.538-16.948 42.369-45.194 42.369zm335.19 276.81h-81.914v-129.93c0-32.954-12.24-55.551-41.428-55.551-22.597 0-35.778 15.065-41.428 30.129-1.883 5.649-2.825 12.24-2.825 19.772v136.52h-81.914s0.942-221.26 0-243.86h81.914v34.837c11.298-16.948 30.129-40.486 73.44-40.486 53.668 0 94.154 34.837 94.154 110.16l1e-3 138.41zm-168.54-208.08s0.941-0.941 0 0z"/></svg>
+            </a>
+          </li>
+          <li>
+            <a href="https://plus.google.com/+CouchbaseServer" class="icon">
+              <svg width="50px" height="50px" viewBox="36.72 225.573 542.326 343.67"><path d="m209.02 363.05v68.732h93.212c-15.065 44.252-37.662 68.732-93.212 68.732-56.492 0-100.74-46.135-100.74-102.63s44.252-102.63 100.74-102.63c30.129 0 48.96 10.357 66.849 25.422 14.123-14.123 13.182-16.006 48.96-49.902-31.071-28.246-71.557-45.194-115.81-45.194-95.096-0.94-172.3 76.266-172.3 171.36s77.206 172.3 172.3 172.3c142.17 0 177.01-124.28 165.71-206.2-33.896-1e-3 -165.71-1e-3 -165.71-1e-3zm310.71 3.766v-59.317h-42.369v59.317h-61.2v42.369h61.2v61.2h42.369v-61.2h59.317v-42.369h-59.317z"/></svg>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-terms">
+      <span>2018 COUCHBASE All rights reserved.</span>
+      <a href="https://www.couchbase.com/privacy-policy">Privacy Policy</a>
+      <a href="https://www.couchbase.com/terms-of-use">Terms of Use</a>
+      <a href="https://www.couchbase.com/cookie-policy">Cookie Policy</a>
+      <a href="https://info.couchbase.com/unsubscribe-or-manage-preferences.html" target="_blank" rel="noopener">Marketing Preference Center</a>
+    </div>
+  </div>
+</footer>
+<script src="../../_/js/site.js"></script>
+<script async src="../../_/js/vendor/highlight.js"></script>
+<script async src="../../_/js/vendor/mark.js"></script>
+  </body>
+</html>

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Autonomous Operations | Couchbase Docs</title>
+    <link rel="stylesheet" href="../../_/css/site.css">
+    <link rel="schema.dcterms" href="https://purl.org/dc/terms/">
+    <meta name="dcterms.subject" content="elasticsearch-connector">
+    <meta name="dcterms.identifier" content="4.1">
+    <meta name="generator" content="Antora 2.0.0">
+    <link rel="icon" href="../../_/img/favicon.ico" type="image/x-icon">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar" id="topbar">
+    <div class="container">
+      <div class="navbar-brand">
+        <a class="navbar-item" href="https://www.couchbase.com"><img src="../../_/img/logo.svg" alt="Couchbase"></a>
+        <button class="navbar-burger" data-target="topbar-menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+      <div id="topbar-menu" class="navbar-menu">
+        <div class="navbar-start">
+          <div class="navbar-item has-dropdown">
+            <a class="navbar-link" href="https://docs.couchbase.com">Docs</a>
+            <div class="navbar-dropdown explore">
+              <div class="title">Couchbase Documentation Overview</div>
+              <div class="cols">
+                <ul>
+                  <li class="heading"><a href="../../server/6.0/introduction/intro.html">Server</a></li>
+                  <li><a href="../../server/6.0/n1ql/n1ql-language-reference/index.html">N1QL</a></li>
+                  <li><a href="../../server/6.0/fts/full-text-intro.html">Full Text Search</a></li>
+                  <li><a href="../../server/6.0/analytics/introduction.html">Analytics</a></li>
+                  <li><a href="../../server/6.0/eventing/eventing-overview.html">Eventing</a></li>
+                  <li><a href="#">Autonomous Operator</a></li>
+                </ul>
+                <ul>
+                  <li class="heading">Mobile</li>
+                  <li><a href="#">Lite</a></li>
+                  <li><a href="#">Sync Gateway</a></li>
+                </ul>
+                <ul class="two-cols">
+                  <li class="heading"><a href="../../server/6.0/sdk/overview.html">SDKs</a></li>
+                  <li><a href="../../c-sdk/2.10/start-using-sdk.html">C</a></li>
+                  <li><a href="../../dotnet-sdk/2.7/start-using-sdk.html">.NET</a></li>
+                  <li><a href="../../go-sdk/1.5/start-using-sdk.html">Go</a></li>
+                  <li><a href="../../java-sdk/2.7/start-using-sdk.html">Java</a></li>
+                  <li><a href="../../nodejs-sdk/2.6/start-using-sdk.html">Node.js</a></li>
+                  <li><a href="../../php-sdk/2.6/start-using-sdk.html">PHP</a></li>
+                  <li><a href="../../python-sdk/2.5/start-using-sdk.html">Python</a></li>
+                </ul>
+                <ul>
+                  <li class="heading"><a href="../../server/6.0/connectors/intro.html">Connectors</a></li>
+                  <li><a href="index.html">Elasticsearch</a></li>
+                  <li><a href="../../server/6.0/connectors/hadoop-1.2/hadoop.html">Hadoop</a></li>
+                  <li><a href="#">Kafka</a></li>
+                  <li><a href="#">Spark</a></li>
+                  <li><a href="#">Talend</a></li>
+                  <li><a href="../../server/6.0/connectors/odbc-jdbc-drivers.html">ODBC/JDBC</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <a class="navbar-item component" href="index.html"><span class="title">Elasticsearch Connector</span> <span class="version">4.1 Developer Preview</span></a>
+        </div>
+        <div class="navbar-end">
+          <div class="navbar-item">
+            <a class="btn red-btn" href="https://www.couchbase.com/downloads">Downloads</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body container">
+<nav class="nav">
+<div class="nav-menu">
+<ul class="nav-list">
+  <li class="nav-item is-current-path is-active" data-depth="0">
+    <span class="nav-line">
+    <button class="nav-toggle"></button>
+    <a class="nav-link" href="index.html">Elasticsearch Connector</a>
+    </span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="getting-started.html">Getting Started</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="configuration.html">Configuration</a>
+    </span>
+  </li>
+  <li class="nav-item is-current-page is-active" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="autonomous-operations.html">Autonomous Operations</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="monitoring.html">Monitoring</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="secure-connections.html">Secure Connections</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="migration.html">Migration</a>
+    </span>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <span class="nav-line">
+    <a class="nav-link" href="release-notes.html">Release Notes</a>
+    </span>
+  </li>
+</ul>
+  </li>
+</ul>
+</div>
+</nav>
+<aside class="toc sidebar">
+  <div class="toc-menu"></div>
+</aside>
+<main class="article" data-ceiling="topbar">
+  <div class="article-header">
+<button class="nav-control"></button>
+<nav class="crumbs" aria-label="breadcrumbs">
+  <ul>
+    <li class="crumb"><a href="index.html">Elasticsearch Connector</a></li>
+    <li class="crumb"><a href="autonomous-operations.html">Autonomous Operations</a></li>
+  </ul>
+</nav>
+<div class="tools" role="navigation">
+  <ul>
+    <li class="tool edit"><a href="https://github.com/couchbase/couchbase-elasticsearch-connector/edit/master/docs/modules/ROOT/pages/autonomous-operations.adoc" title="Edit Page" target="_blank" rel="noopener">Edit</a></li>
+  </ul>
+</div>
+  </div>
+<article class="doc">
+<h1 class="page">Autonomous Operations</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="quoteblock abstract">
+<blockquote>
+Deploy the connector in AO mode for centralized management and resilient response to node failures and network partitions.
+</blockquote>
+</div>
+<div class="paragraph">
+<p>In Autonomous Operations (AO) mode the connector workers communicate with each other using a coordination service.
+If the machine hosting a worker fails, that worker is automatically removed from the group and the workload is redistributed among remaining workers.</p>
+</div>
+<div class="paragraph">
+<p>Group configuration is stored in a central location so the entire group can be easily reconfigured on-the-fly.
+Command line tools let you pause and resume all workers at once.
+In this mode you can modify replication checkpoints without having to manually stop and restart all workers.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="coordination-with-consul"><a class="anchor" href="#coordination-with-consul"></a>Coordination with Consul</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The coordination service used by the connector is <a href="https://www.consul.io">HashiCorp Consul</a>.</p>
+</div>
+<div class="paragraph">
+<p>Installing and managing a production Consul cluster is beyond the scope of this guide, but we&#8217;ll show how to quickly and easily set up a Consul server in development mode.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="ao-quickstart-guide"><a class="anchor" href="#ao-quickstart-guide"></a>AO Quickstart Guide</h2>
+<div class="sectionbody">
+<div class="quoteblock abstract">
+<blockquote>
+For demonstration purposes, this guide shows how to run the Consul agent &amp; server and multiple connector workers on the same physical machine.
+</blockquote>
+</div>
+<div class="sect2">
+<h3 id="pre-requisites"><a class="anchor" href="#pre-requisites"></a>Pre-requisites</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>Please review the <a href="getting-started.html" class="page">Getting Started</a> documentation for basic connector configuration and operation.
+Make sure you are successful with a single worker before proceeding.</p>
+</li>
+<li>
+<p>You&#8217;ll need a Consul executable for your platform.
+Visit the <a href="https://www.consul.io">Consul web site</a> and navigate to the download page.
+Download Consul 1.4.2 (other versions may work, but this is the one we currently test and support).
+Install the Consul binary by moving it to a directory in your <code>PATH</code>.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="start-the-consul-server"><a class="anchor" href="#start-the-consul-server"></a>Start the Consul Server</h3>
+<div class="paragraph">
+<p>Run this command to start a single-node Consul cluster in development mode:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-console hljs" data-lang="console">$ consul agent -dev</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Visit the Consul web interface at <a href="http://localhost:8500" class="bare">http://localhost:8500</a> to view the state of the cluster and verify the node is healthy.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="configure-the-connector-group"><a class="anchor" href="#configure-the-connector-group"></a>Configure the Connector Group</h3>
+<div class="paragraph">
+<p>Make a copy of the connector configuration file you customized for the <a href="getting-started.html" class="page">Getting Started</a> guide.
+Let&#8217;s call the new config file <code>ao-quickstart-config.toml</code>.</p>
+</div>
+<div class="paragraph">
+<p>Our new connector group needs a name.
+Edit the <code>[group]</code> section so it looks like this:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[group]
+  name = 'my-ao-group' <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The name can be anything you want, but this is the value assumed by the rest of this guide.</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Next, make sure there won&#8217;t be any port conflicts when running multiple workers on the same machine.
+Search for the <code>[metrics]</code> section and set the <code>httpPort</code> property to <code>-1</code> to disable the embedded HTTP server.</p>
+</div>
+<div class="paragraph">
+<p>Save the changes.
+Now let&#8217;s upload the configuration to Consul with this command:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-console hljs" data-lang="console">$ cbes-consul configure --input=ao-quickstart-config.toml</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The config file should now be present in Consul&#8217;s Key/Value store which you can inspect using the <a href="http://localhost:8500">web interface</a>.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+One limitation of running Consul in development mode is that data is not persisted between runs.
+You&#8217;ll need to re-run the connector configuration command after every Consul restart.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="run-connector-workers"><a class="anchor" href="#run-connector-workers"></a>Run Connector Workers</h3>
+<div class="paragraph">
+<p>Use this command to start a connector worker using the configuration defined in Consul:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-console hljs" data-lang="console">$ cbes-consul run --group=my-ao-group</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Now let&#8217;s start a second worker.
+Open a new terminal window and run this command:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-console hljs" data-lang="console">$ cbes-consul run --group=my-ao-group --service-id=second <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Because both workers are talking to the same Consul agent and using the same group name, we need to assign the second worker an explicit service ID.</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+Service IDs must be unique among all workers using the same Consul agent.
+If you don&#8217;t specify a service ID it defaults to the name of the group.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>One of the connectors in the group was elected the leader (probably the first one, since it started first).
+The leader watches for group membership changes and rebalances the workload accordingly.</p>
+</div>
+<div class="paragraph">
+<p>Add a third worker to the group and watch the output of the connectors to see how they respond.
+Pay particular attention to the leader&#8217;s output, since it will be the one telling the others what to do.</p>
+</div>
+<div class="paragraph">
+<p>Now stop the leader by sending it an interrupt signal (type <code>control-c</code> in its terminal window).
+This forces a leader election, which one of the remaining workers wins.</p>
+</div>
+<div class="paragraph">
+<p>If you like, edit the <code>ao-quickstart-config.toml</code> file and modify one of the properties in the <code>[elasticsearch.bulkRequestLimits]</code> section.
+Re-run the <code>cbes-consul configure</code> command from earlier to see the new configuration take effect immediately.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="connector-management-commands"><a class="anchor" href="#connector-management-commands"></a>Connector Management Commands</h3>
+<div class="paragraph">
+<p>Run <code>cbes-consul</code> without any arguments to see a list of sub-commands.
+Here are some highlights:</p>
+</div>
+<div class="listingblock">
+<div class="title">List the names of all configured connector groups</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-console hljs" data-lang="console">$ cbes-consul groups</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">Restart the replication stream (reindex all documents)</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-console hljs" data-lang="console">$ cbes-consul checkpoint-clear --group=my-ao-group</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">Ignore changes from before the current time</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-console hljs" data-lang="console">$ cbes-consul checkpoint-catch-up --group=my-ao-group</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">Save a snapshot of the replication checkpoint to the local filesystem</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-console hljs" data-lang="console">$ cbes-consul checkpoint-backup --group=my-ao-group --output=&lt;checkpoint.json&gt;</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">Restore the checkpoint from a snapshot file</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-console hljs" data-lang="console">$ cbes-consul checkpoint-restore --group=my-ao-group --input=&lt;checkpoint.json&gt;</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">Pause the connector</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-console hljs" data-lang="console">$ cbes-consul pause --group=my-ao-group</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">Get back to work!</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-console hljs" data-lang="console">$ cbes-consul resume --group=my-ao-group</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="migrating-to-autonomous-operations"><a class="anchor" href="#migrating-to-autonomous-operations"></a>Migrating to Autonomous Operations</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Replication checkpoint documents created in AO mode are 100% compatible with checkpoints created in other modes.
+If you&#8217;re migrating to AO mode, use the same group name and your replication checkpoint will be preserved.</p>
+</div>
+<div class="paragraph">
+<p>Just make sure to stop all non-AO workers for a group before running the AO workers.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="tips-tricks"><a class="anchor" href="#tips-tricks"></a>Tips &amp; Tricks</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>All of the <code>cbes-consul checkpoint-*</code> commands may be performed at any time, even when workers are running.
+Just be careful not confuse them with the <code>cbes-checkpoint-*</code> commands, which should only be used when all workers in the group are stopped.</p>
+</li>
+<li>
+<p>By default all of the CLI commands talk to Consul via the local agent.
+If there&#8217;s no local Consul agent, you can use a remote agent by passing <code>--consul-agent=&lt;host:port&gt;</code> (where <code>port</code> is usually 8500).</p>
+</li>
+<li>
+<p>Configuration is not <em>completely</em> centralized.
+Sensitive properties like passwords must be still be configured on each worker&#8217;s filesystem.</p>
+</li>
+<li>
+<p>You can edit a group&#8217;s configuration directly in the Consul web interface.
+The new configuration will go into effect as soon as the changes are saved.
+If you choose to do this, <strong>the one property you must not change is the group name</strong>.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="from-development-to-production"><a class="anchor" href="#from-development-to-production"></a>From Development to Production</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In a production environment, the recommended topology is to spread the connector workers over several machines,
+and to run the Consul agent on each machine that hosts a worker.</p>
+</div>
+<div class="paragraph">
+<p>You&#8217;ll also need at least one Consul agent running in server mode; the recommended number of servers is 3 or 5.</p>
+</div>
+<div class="paragraph">
+<p>Please see the Consul documentation for detailed information about administering a production Consul cluster.</p>
+</div>
+</div>
+</div>
+</article>
+</main>
+</div>
+<footer class="footer">
+  <div class="container">
+    <div class="footer-links">
+      <div class="col">
+        <div class="footer-logo">
+          <a href="https://www.couchbase.com" class="icon">
+            <img src="../../_/img/logo.svg" alt="Couchbase">
+          </a>
+        </div>
+        <div class="contact">
+          <p class="address">3250 Olcott Street
+Santa Clara, CA 95054
+United States</p>
+          <a href="https://www.couchbase.com/contact" class="btn white-btn">Contact Us</a>
+          <a class="tel" href="tel:1-650-417-7500">1-650-417-7500</a>
+        </div>
+      </div>
+      <div class="col">
+        <ul>
+          <li><span class="heading">Company</span></li>
+          <li><a href="https://www.couchbase.com/about">About</a></li>
+          <li><a href="https://www.couchbase.com/leadership">Leadership</a></li>
+          <li><a href="https://www.couchbase.com/news-and-press-releases">News &amp; Press</a></li>
+          <li><a href="https://www.couchbase.com/careers">Careers</a></li>
+          <li><a href="https://www.couchbase.com/resources/events">Events</a></li>
+          <li><a href="https://www.couchbase.com/contact">Contact Us</a></li>
+          <li><a href="https://www.couchbase.com/request-pricing">Pricing</a></li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li><span class="heading">Support</span></li>
+          <li><a href="https://developer.couchbase.com" target="_blank" rel="noopener">Developer Portal</a></li>
+          <li><a href="https://docs.couchbase.com" target="_blank" rel="noopener">Documentation</a></li>
+          <li><a href="https://forums.couchbase.com" target="_blank" rel="noopener">Forums</a></li>
+          <li><a href="https://www.couchbase.com/services">Professional Services</a></li>
+          <li><a href="https://support.couchbase.com" target="_blank" rel="noopener">Support Login</a></li>
+          <li><a href="https://learn.couchbase.com/store" target="_blank" rel="noopener">Training</a></li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li><span class="heading">Quicklinks</span></li>
+          <li><a href="https://blog.couchbase.com" target="_blank" rel="noopener">Blog</a></li>
+          <li><a href="https://www.couchbase.com/downloads">Downloads</a></li>
+          <li><a href="https://www.couchbase.com/get-started-developing-nosql">Get Started</a></li>
+          <li><a href="https://learn.couchbase.com/store?utf8=%E2%9C%93&ss=1&ct=78327&commit=Filter" target="_blank" rel="noopener">Online Training</a></li>
+          <li><a href="https://www.couchbase.com/resources">Resources</a></li>
+          <li><a href="https://www.couchbase.com/nosql-resources/why-nosql">Why NoSQL</a></li>
+          <li><a href="https://www.couchbase.com/resources/security">Security</a></li>
+          <li><a href="https://www.couchbase.com/resources/gdpr">GDPR</a></li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul class="social-icons">
+          <li>
+            <a href="https://www.facebook.com/Couchbase" class="icon">
+              <svg width="50px" height="50px" viewBox="26.363 116.363 560.215 560.215"><path d="m586.58 209.58c0-48.96-44.252-93.212-93.212-93.212h-373.79c-48.96 0-93.212 44.252-93.212 93.212v373.79c0 48.96 44.252 93.212 93.212 93.212h186.42v-211.85h-68.732v-93.212h68.732v-36.72c0-63.083 47.077-119.58 105.45-119.58h75.323v93.212h-75.323c-8.474 0-17.889 10.357-17.889 25.422v37.662h93.212v93.212h-93.212v211.85h99.803c48.96 0 93.212-44.252 93.212-93.212v-373.79z"/></svg>
+            </a>
+          </li>
+          <li>
+            <a href="https://twitter.com/couchbase" class="icon">
+              <svg width="50px" height="50px" viewBox="32.012 176.622 542.326 437.815"><path d="m574.34 227.46c-19.772 8.474-41.428 15.065-64.025 17.889 22.597-14.123 40.486-35.778 48.96-61.2-21.655 13.182-45.194 21.655-70.615 27.305-20.714-21.655-48.96-34.837-80.972-34.837-61.2 0-111.1 49.902-111.1 111.1 0 8.474 0.942 16.948 2.825 25.422-92.271-5.649-174.18-49.902-229.74-117.69-9.415 16.006-15.065 35.778-15.065 55.551 0 38.603 19.772 72.498 49.902 92.271-17.889-0.942-35.778-5.649-50.843-14.123v0.942c0 53.668 38.603 98.862 89.446 109.22-9.415 2.825-18.831 3.766-29.188 3.766-7.532 0-14.123-0.942-20.714-1.883 14.123 44.252 55.551 76.265 103.57 77.206-37.662 30.129-85.68 48.018-138.41 48.018-9.415 0-17.889-0.941-26.363-1.883 48.96 32.012 107.34 49.902 170.42 49.902 204.31 0 316.36-169.48 316.36-316.36v-14.123c21.656-14.125 40.487-33.897 55.551-56.494z"/></svg>
+            </a>
+          </li>
+          <li>
+            <a href="https://www.linkedin.com/company/couchbase" class="icon">
+              <svg width="50px" height="50px" viewBox="31.071 119.188 539.537 540.443"><path d="m531.97 119.19h-461.35c-21.655 0-39.545 16.948-39.545 38.603v463.24c0 21.655 17.889 38.603 39.545 38.603h460.41c21.655 0 39.545-16.948 39.545-38.603v-463.24c0.942-21.656-16.947-38.603-38.603-38.603zm-337.07 451.94h-81.914v-243.86h81.914v243.86zm-40.486-276.81c-28.246 0-46.135-18.831-46.135-42.369s17.889-42.369 46.135-42.369 45.194 17.889 45.194 42.369c0.942 23.538-16.948 42.369-45.194 42.369zm335.19 276.81h-81.914v-129.93c0-32.954-12.24-55.551-41.428-55.551-22.597 0-35.778 15.065-41.428 30.129-1.883 5.649-2.825 12.24-2.825 19.772v136.52h-81.914s0.942-221.26 0-243.86h81.914v34.837c11.298-16.948 30.129-40.486 73.44-40.486 53.668 0 94.154 34.837 94.154 110.16l1e-3 138.41zm-168.54-208.08s0.941-0.941 0 0z"/></svg>
+            </a>
+          </li>
+          <li>
+            <a href="https://plus.google.com/+CouchbaseServer" class="icon">
+              <svg width="50px" height="50px" viewBox="36.72 225.573 542.326 343.67"><path d="m209.02 363.05v68.732h93.212c-15.065 44.252-37.662 68.732-93.212 68.732-56.492 0-100.74-46.135-100.74-102.63s44.252-102.63 100.74-102.63c30.129 0 48.96 10.357 66.849 25.422 14.123-14.123 13.182-16.006 48.96-49.902-31.071-28.246-71.557-45.194-115.81-45.194-95.096-0.94-172.3 76.266-172.3 171.36s77.206 172.3 172.3 172.3c142.17 0 177.01-124.28 165.71-206.2-33.896-1e-3 -165.71-1e-3 -165.71-1e-3zm310.71 3.766v-59.317h-42.369v59.317h-61.2v42.369h61.2v61.2h42.369v-61.2h59.317v-42.369h-59.317z"/></svg>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-terms">
+      <span>2018 COUCHBASE All rights reserved.</span>
+      <a href="https://www.couchbase.com/privacy-policy">Privacy Policy</a>
+      <a href="https://www.couchbase.com/terms-of-use">Terms of Use</a>
+      <a href="https://www.couchbase.com/cookie-policy">Cookie Policy</a>
+      <a href="https://info.couchbase.com/unsubscribe-or-manage-preferences.html" target="_blank" rel="noopener">Marketing Preference Center</a>
+    </div>
+  </div>
+</footer>
+<script src="../../_/js/site.js"></script>
+<script async src="../../_/js/vendor/highlight.js"></script>
+<script async src="../../_/js/vendor/mark.js"></script>
+  </body>
+</html>
