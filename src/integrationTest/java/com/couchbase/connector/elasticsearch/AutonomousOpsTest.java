@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.elasticsearch;
 
+import com.couchbase.client.deps.io.netty.util.ResourceLeakDetector;
 import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.cluster.consul.AsyncTask;
 import com.couchbase.connector.cluster.consul.ConsulConnector;
@@ -32,6 +33,9 @@ import com.google.common.collect.ImmutableSet;
 import com.orbitz.consul.Consul;
 import com.orbitz.consul.KeyValueClient;
 import org.elasticsearch.Version;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Network;
@@ -39,6 +43,7 @@ import org.testcontainers.containers.output.Slf4jLogConsumer;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.couchbase.connector.elasticsearch.TestConfigHelper.readConfig;
 import static com.couchbase.connector.testcontainers.CustomCouchbaseContainer.newCouchbaseCluster;
@@ -49,161 +54,178 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 public class AutonomousOpsTest {
+  static {
+    ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
+  }
 
   private static final String couchbaseVersion = "enterprise-6.0.1";
   private static final String elasticsearchVersion = "6.6.0";
 
+  private static CustomCouchbaseContainer couchbase;
+  private static ElasticsearchContainer elasticsearch;
+  private static ConsulCluster consulCluster;
+
+  @BeforeClass
+  public static void startReusableContainers() {
+    consulCluster = new ConsulCluster("consul:1.4.3", 3, Network.newNetwork()).start();
+
+    elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
+        .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")));
+    elasticsearch.start();
+
+    couchbase = newCouchbaseCluster("couchbase/server:" + couchbaseVersion);
+    couchbase.loadSampleBucket("travel-sample", 100);
+
+    System.out.println("Couchbase " + couchbase.getVersionString() +
+        " listening at http://" + DockerHelper.getDockerHost() + ":" + couchbase.getMappedPort(8091));
+  }
+
+  @AfterClass
+  public static void stopReusableContainers() {
+    couchbase.stop();
+    elasticsearch.stop();
+    consulCluster.stop();
+  }
+
+  @Before
+  public void foo() throws Exception {
+    final ConnectorConfig config = ConnectorConfig.from(readConfig(couchbase, elasticsearch));
+    try (TestEsClient es = new TestEsClient(config)) {
+      es.deleteAllIndexes();
+    }
+  }
+
+  private static final AtomicInteger nameCounter = new AtomicInteger();
+
+  private static String newGroupName() {
+    return "integrationTest-" + nameCounter.incrementAndGet();
+  }
+
   @Test
   public void singleWorker() throws Exception {
-    try (ConsulCluster consulCluster = new ConsulCluster("consul:1.4.3", 1, Network.newNetwork()).start();
-         CustomCouchbaseContainer couchbase = newCouchbaseCluster("couchbase/server:" + couchbaseVersion);
-         ElasticsearchContainer elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
-             .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")))) {
 
-      System.out.println("Couchbase " + couchbase.getVersionString() +
-          " listening at http://" + DockerHelper.getDockerHost() + ":" + couchbase.getMappedPort(8091));
+    final String group = newGroupName();
+    final String config = readConfig(couchbase, elasticsearch, ImmutableMap.of(
+        "group.name", group));
 
-      couchbase.loadSampleBucket("travel-sample", 100);
+    final Consul.Builder consulBuilder = consulCluster.clientBuilder(0);
+    final ConsulContext consulContext = new ConsulContext(consulBuilder, group, null);
 
-      elasticsearch.start();
+    final KeyValueClient kv = consulContext.consul().keyValueClient();
+    final DocumentKeys keys = consulContext.keys();
+    kv.putValue(keys.config(), config);
 
-      final String group = "integrationTest";
-      final String config = readConfig(couchbase, elasticsearch, ImmutableMap.of(
-          "group.name", group));
+    try (AsyncTask connector = AsyncTask.run(() -> ConsulConnector.run(consulContext));
+         TestEsClient es = new TestEsClient(ConnectorConfig.from(config))) {
+      System.out.println("connector has been started.");
 
-      final Consul.Builder consulBuilder = consulCluster.clientBuilder(0);
-      final ConsulContext consulContext = new ConsulContext(consulBuilder, group, null);
+      final int airlines = 187;
+      final int routes = 24024;
 
-      final KeyValueClient kv = consulContext.consul().keyValueClient();
-      final DocumentKeys keys = consulContext.keys();
-      kv.putValue(keys.config(), config);
+      final int expectedAirlineCount = airlines + routes;
+      final int expectedAirportCount = 1968;
 
-      try (AsyncTask connector = AsyncTask.run(() -> ConsulConnector.run(consulContext));
-           TestEsClient es = new TestEsClient(ConnectorConfig.from(config))) {
-        System.out.println("connector has been started.");
+      poll().until(() -> es.getDocumentCount("airlines") >= expectedAirlineCount);
+      poll().until(() -> es.getDocumentCount("airports") >= expectedAirportCount);
 
-        final int airlines = 187;
-        final int routes = 24024;
+      SECONDS.sleep(3); // quiet period, make sure no more documents appear in the index
 
-        final int expectedAirlineCount = airlines + routes;
-        final int expectedAirportCount = 1968;
-
-        poll().until(() -> es.getDocumentCount("airlines") >= expectedAirlineCount);
-        poll().until(() -> es.getDocumentCount("airports") >= expectedAirportCount);
-
-        SECONDS.sleep(3); // quiet period, make sure no more documents appear in the index
-
-        assertEquals(expectedAirlineCount, es.getDocumentCount("airlines"));
-        assertEquals(expectedAirportCount, es.getDocumentCount("airports"));
-      }
+      assertEquals(expectedAirlineCount, es.getDocumentCount("airlines"));
+      assertEquals(expectedAirportCount, es.getDocumentCount("airports"));
     }
   }
 
   @Test
   public void threeWorkers() throws Exception {
-    try (ConsulCluster consulCluster = new ConsulCluster("consul:1.4.3", 3, Network.newNetwork()).start();
-         CustomCouchbaseContainer couchbase = newCouchbaseCluster("couchbase/server:" + couchbaseVersion);
-         ElasticsearchContainer elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
-             .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")))) {
+    final String group = newGroupName();
+    final String config = readConfig(couchbase, elasticsearch, ImmutableMap.of(
+        "group.name", group));
 
-      System.out.println("Couchbase " + couchbase.getVersionString() +
-          " listening at http://" + DockerHelper.getDockerHost() + ":" + couchbase.getMappedPort(8091));
+    final Consul.Builder consulBuilder = consulCluster.clientBuilder(0);
+    try (ConsulContext consulContext = new ConsulContext(consulBuilder, group, null)) {
+      final KeyValueClient kv = consulContext.consul().keyValueClient();
+      final DocumentKeys keys = consulContext.keys();
+      kv.putValue(keys.config(), config);
 
-      couchbase.loadSampleBucket("travel-sample", 100);
+      keys.pause();
 
-      elasticsearch.start();
+      try (AsyncTask connector1 = AsyncTask.run(() -> ConsulConnector.run(new ConsulContext(consulCluster.clientBuilder(0), group, null)))) {
+        // Wait for first instance to assume role of leader
+        poll().until(() -> keys.leaderEndpoint().isPresent());
 
-      final String group = "integrationTest";
-      final String config = readConfig(couchbase, elasticsearch, ImmutableMap.of(
-          "group.name", group));
+        try (Broadcaster broadcaster = new Broadcaster();
+             AsyncTask connector2 = AsyncTask.run(() -> ConsulConnector.run(new ConsulContext(consulCluster.clientBuilder(1), group, null)));
+             AsyncTask connector3 = AsyncTask.run(() -> ConsulConnector.run(new ConsulContext(consulCluster.clientBuilder(2), group, null)));
+             TestEsClient es = new TestEsClient(ConnectorConfig.from(config))) {
+          System.out.println("connector has been started.");
 
-      final Consul.Builder consulBuilder = consulCluster.clientBuilder(0);
-      try (ConsulContext consulContext = new ConsulContext(consulBuilder, group, null)) {
+          // Wait for all instances to bind to RPC endpoints
+          poll().until(() -> keys.listRpcEndpoints().size() == 3);
 
-        final KeyValueClient kv = consulContext.consul().keyValueClient();
-        final DocumentKeys keys = consulContext.keys();
-        kv.putValue(keys.config(), config);
-
-        keys.pause();
-
-        try (AsyncTask connector1 = AsyncTask.run(() -> ConsulConnector.run(new ConsulContext(consulCluster.clientBuilder(0), group, null)))) {
-          // Wait for first instance to assume role of leader
-          poll().until(() -> keys.leaderEndpoint().isPresent());
-
-          try (Broadcaster broadcaster = new Broadcaster();
-               AsyncTask connector2 = AsyncTask.run(() -> ConsulConnector.run(new ConsulContext(consulCluster.clientBuilder(1), group, null)));
-               AsyncTask connector3 = AsyncTask.run(() -> ConsulConnector.run(new ConsulContext(consulCluster.clientBuilder(2), group, null)));
-               TestEsClient es = new TestEsClient(ConnectorConfig.from(config))) {
-            System.out.println("connector has been started.");
-
-            // Wait for all instances to bind to RPC endpoints
-            poll().until(() -> keys.listRpcEndpoints().size() == 3);
-
-            // Membership is assigned by the leader when the leader tells everyone to start streaming.
-            // Nobody should be streaming yet, since the group is paused.
-            final List<RpcEndpoint> endpoints = keys.listRpcEndpoints();
-            for (RpcEndpoint e : endpoints) {
-              final WorkerService.Status status = e.service(WorkerService.class).status();
-              assertNull(status.getMembership());
-            }
-
-            // Allow streaming to begin
-            keys.resume();
-
-            // Wait until each worker is streaming
-            poll().until(() -> endpoints.stream()
-                .map(ep -> ep.service(WorkerService.class).status())
-                .noneMatch(status -> status.getMembership() == null));
-
-            // Ask everyone which membership role they've been assigned.
-            final Set<Membership> memberships = broadcaster.broadcast("status", endpoints, WorkerService.class, WorkerService::status)
-                .values()
-                .stream()
-                .map(result -> result.get().getMembership())
-                .collect(toSet());
-
-            // expect 3 unique members to be streaming
-            assertEquals(
-                ImmutableSet.of(
-                    Membership.of(1, 3),
-                    Membership.of(2, 3),
-                    Membership.of(3, 3)),
-                memberships);
-
-            SECONDS.sleep(2);
-            System.out.println("Stopping leader");
-            connector1.close();
-            System.out.println("Leader stopped!");
-
-            // Wait for new leader to take over and rebalance among remaining workers
-            poll().until(() -> broadcaster.broadcast("status", keys.listRpcEndpoints(), WorkerService.class, WorkerService::status)
-                .values()
-                .stream()
-                .map(result -> result.get().getMembership())
-                .collect(toSet())
-                .equals(ImmutableSet.of(Membership.of(1, 2), Membership.of(2, 2))));
-
-            System.out.println("Cluster rebalanced!!");
-
-            final int airlines = 187;
-            final int routes = 24024;
-
-            final int expectedAirlineCount = airlines + routes;
-            final int expectedAirportCount = 1968;
-
-            poll().until(() -> es.getDocumentCount("airlines") >= expectedAirlineCount);
-            poll().until(() -> es.getDocumentCount("airports") >= expectedAirportCount);
-
-            SECONDS.sleep(3); // quiet period, make sure no more documents appear in the index
-
-            assertEquals(expectedAirlineCount, es.getDocumentCount("airlines"));
-            assertEquals(expectedAirportCount, es.getDocumentCount("airports"));
-
-            System.out.println("Shutting down connector...");
+          // Membership is assigned by the leader when the leader tells everyone to start streaming.
+          // Nobody should be streaming yet, since the group is paused.
+          final List<RpcEndpoint> endpoints = keys.listRpcEndpoints();
+          for (RpcEndpoint e : endpoints) {
+            final WorkerService.Status status = e.service(WorkerService.class).status();
+            assertNull(status.getMembership());
           }
+
+          // Allow streaming to begin
+          keys.resume();
+
+          // Wait until each worker is streaming
+          poll().until(() -> endpoints.stream()
+              .map(ep -> ep.service(WorkerService.class).status())
+              .noneMatch(status -> status.getMembership() == null));
+
+          // Ask everyone which membership role they've been assigned.
+          final Set<Membership> memberships = broadcaster.broadcast("status", endpoints, WorkerService.class, WorkerService::status)
+              .values()
+              .stream()
+              .map(result -> result.get().getMembership())
+              .collect(toSet());
+
+          // expect 3 unique members to be streaming
+          assertEquals(
+              ImmutableSet.of(
+                  Membership.of(1, 3),
+                  Membership.of(2, 3),
+                  Membership.of(3, 3)),
+              memberships);
+
+          SECONDS.sleep(2);
+          System.out.println("Stopping leader");
+          connector1.close();
+          System.out.println("Leader stopped!");
+
+          // Wait for new leader to take over and rebalance among remaining workers
+          poll().until(() -> broadcaster.broadcast("status", keys.listRpcEndpoints(), WorkerService.class, WorkerService::status)
+              .values()
+              .stream()
+              .map(result -> result.get().getMembership())
+              .collect(toSet())
+              .equals(ImmutableSet.of(Membership.of(1, 2), Membership.of(2, 2))));
+
+          System.out.println("Cluster rebalanced!!");
+
+          final int airlines = 187;
+          final int routes = 24024;
+
+          final int expectedAirlineCount = airlines + routes;
+          final int expectedAirportCount = 1968;
+
+          poll().until(() -> es.getDocumentCount("airlines") >= expectedAirlineCount);
+          poll().until(() -> es.getDocumentCount("airports") >= expectedAirportCount);
+
+          SECONDS.sleep(3); // quiet period, make sure no more documents appear in the index
+
+          assertEquals(expectedAirlineCount, es.getDocumentCount("airlines"));
+          assertEquals(expectedAirportCount, es.getDocumentCount("airports"));
+
+          System.out.println("Shutting down connector...");
         }
-        System.out.println("Connector shutdown complete.");
       }
+      System.out.println("Connector shutdown complete.");
     }
   }
 }

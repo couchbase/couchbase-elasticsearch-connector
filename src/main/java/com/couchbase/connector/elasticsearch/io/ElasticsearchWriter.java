@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.GuardedBy;
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.util.ArrayList;
@@ -66,7 +67,7 @@ import static org.elasticsearch.common.unit.TimeValue.timeValueMinutes;
  * <p>
  * NOT THREAD SAFE.
  */
-public class ElasticsearchWriter {
+public class ElasticsearchWriter implements Closeable {
   private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchWriter.class);
 
   private final RestHighLevelClient client;
@@ -150,11 +151,11 @@ public class ElasticsearchWriter {
     try {
       final EventDocWriteRequest request = requestFactory.newDocWriteRequest(event);
       if (request == null) {
-        if (LOGGER.isTraceEnabled()) {
-          LOGGER.trace("Skipping event, no matching type: {}", RedactableArgument.user(event));
-        }
-
         try {
+          if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Skipping event, no matching type: {}", RedactableArgument.user(event));
+          }
+
           if (buffer.isEmpty()) {
             // can ignore immediately
             final Checkpoint checkpoint = event.getCheckpoint();
@@ -251,6 +252,7 @@ public class ElasticsearchWriter {
 
       while (true) {
         if (Thread.interrupted()) {
+          requests.forEach(r -> r.getEvent().release());
           Thread.currentThread().interrupt();
           return;
         }
@@ -338,6 +340,8 @@ public class ElasticsearchWriter {
           }
 
         } catch (RuntimeException e) {
+          requests.forEach(r -> r.getEvent().release());
+
           // If the worker thread was interrupted, someone wants the worker to stop!
           propagateCauseIfPossible(e, InterruptedException.class);
 
@@ -439,5 +443,10 @@ public class ElasticsearchWriter {
       result.put(keyGenerator.apply(item), item);
     }
     return result;
+  }
+
+  @Override
+  public void close() {
+    buffer.values().forEach(e -> e.getEvent().release());
   }
 }

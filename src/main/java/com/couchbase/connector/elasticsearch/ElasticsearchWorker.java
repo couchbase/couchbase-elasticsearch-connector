@@ -22,6 +22,8 @@ import org.elasticsearch.common.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -46,6 +48,9 @@ public class ElasticsearchWorker implements AutoCloseable {
     this.thread.setDaemon(true);
   }
 
+  /**
+   * @param writer The worker assumes ownership of the writer and is responsible for closing it.
+   */
   public static ElasticsearchWorker newWorker(ElasticsearchWriter writer, BlockingQueue<Throwable> fatalErrorQueue, @Nullable ErrorListener errorListener) {
     ElasticsearchWorker worker = new ElasticsearchWorker(writer, fatalErrorQueue, errorListener);
     worker.thread.start();
@@ -86,9 +91,17 @@ public class ElasticsearchWorker implements AutoCloseable {
         fatalErrorQueue.offer(t);
 
       } finally {
+        drainAndRelease(eventQueue);
+        writer.close();
         LOGGER.info("{} stopped.", Thread.currentThread());
       }
     };
+  }
+
+  private static void drainAndRelease(BlockingQueue<Event> drainMe) {
+    List<Event> releaseMe = new ArrayList<>(drainMe.size());
+    drainMe.drainTo(releaseMe);
+    releaseMe.forEach(Event::release);
   }
 
   private boolean isNormalTermination(Throwable t) {

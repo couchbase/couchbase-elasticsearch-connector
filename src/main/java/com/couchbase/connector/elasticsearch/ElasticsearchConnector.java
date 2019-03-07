@@ -42,6 +42,7 @@ import com.couchbase.connector.dcp.SnapshotMarker;
 import com.couchbase.connector.elasticsearch.cli.AbstractCliCommand;
 import com.couchbase.connector.elasticsearch.io.RequestFactory;
 import com.couchbase.connector.util.HttpServer;
+import com.couchbase.connector.util.ThrowableHelper;
 import joptsimple.OptionSet;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.TimeValue;
@@ -192,8 +193,13 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         checkpointExecutor.scheduleWithFixedDelay(checkpointService::save, 10, 10, SECONDS);
         Runtime.getRuntime().addShutdownHook(saveCheckpoints);
 
-        LOGGER.debug("Opening DCP streams for partitions: {}", partitions);
-        dcpClient.startStreaming(toBoxedShortArray(partitions)).await();
+        try {
+          LOGGER.debug("Opening DCP streams for partitions: {}", partitions);
+          dcpClient.startStreaming(toBoxedShortArray(partitions)).await();
+        } catch (RuntimeException e) {
+          ThrowableHelper.propagateCauseIfPossible(e, InterruptedException.class);
+          throw e;
+        }
 
         fatalError = workers.awaitFatalError();
         LOGGER.error("Terminating due to fatal error.", fatalError);
@@ -210,8 +216,8 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
         checkpointExecutor.shutdown();
         metricReporter.stop();
-        workers.close();
         dcpClient.disconnect().await();
+        workers.close(); // to avoid buffer leak, must close *after* dcp client stops feeding it events
         checkpointExecutor.awaitTermination(10, SECONDS);
         cluster.disconnect();
         env.shutdown(); // can't reuse, because connector config might have different SSL settings next time
