@@ -28,6 +28,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.core.filter.FilteringParserDelegate;
 import com.fasterxml.jackson.core.filter.JsonPointerBasedFilter;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.common.Nullable;
 import org.immutables.value.Value;
@@ -58,7 +59,7 @@ public class RequestFactory {
   }
 
   @Nullable
-  public EventRejectionIndexRequest newRejectionLogRequest(final EventDocWriteRequest origRequest, BulkItemResponse.Failure f) throws IOException {
+  public EventRejectionIndexRequest newRejectionLogRequest(final EventDocWriteRequest origRequest, BulkItemResponse.Failure f) {
     if (rejectLogConfig.index() == null) {
       origRequest.getEvent().release();
       return null;
@@ -67,7 +68,18 @@ public class RequestFactory {
   }
 
   @Nullable
-  public EventDocWriteRequest newDocWriteRequest(final Event e) throws IOException {
+  public EventRejectionIndexRequest newRejectionLogRequest(final Event origEvent, MatchResult matchResult, Throwable failure) {
+    if (rejectLogConfig.index() == null) {
+      origEvent.release();
+      return null;
+    }
+    final DocWriteRequest.OpType opType = origEvent.isMutation() ? DocWriteRequest.OpType.INDEX : DocWriteRequest.OpType.DELETE;
+    return new EventRejectionIndexRequest(rejectLogConfig.index(), rejectLogConfig.typeName(),
+        origEvent, matchResult.index(), matchResult.typeConfig().type(), opType, failure.getMessage());
+  }
+
+  @Nullable
+  public EventDocWriteRequest newDocWriteRequest(final Event e) {
     if (isMetadata(e)) {
       return null;
     }
@@ -91,15 +103,22 @@ public class RequestFactory {
   }
 
   @Nullable
-  private EventIndexRequest newIndexRequest(final Event event, final MatchResult matchResult) throws IOException {
-    final Timer.Context timerContext = newIndexRequestTimer.time();
-    EventIndexRequest request = new EventIndexRequest(matchResult.index(), matchResult.typeConfig().type(), event);
-    request.setPipeline(matchResult.typeConfig().pipeline());
-    request.routing(getRouting(event, matchResult.typeConfig().routing()));
-    documentTransformer.setSourceFromEventContent(request, event);
+  private EventIndexRequest newIndexRequest(final Event event, final MatchResult matchResult) {
+    try {
+      final Timer.Context timerContext = newIndexRequestTimer.time();
+      EventIndexRequest request = new EventIndexRequest(matchResult.index(), matchResult.typeConfig().type(), event);
+      request.setPipeline(matchResult.typeConfig().pipeline());
+      request.routing(getRouting(event, matchResult.typeConfig().routing()));
+      documentTransformer.setSourceFromEventContent(request, event);
 
-    timerContext.stop();
-    return request.source() == null ? null : request;
+      timerContext.stop();
+      return request.source() == null ? null : request;
+
+    } catch (Exception failure) {
+      LOGGER.warn("Failed to create doc write request for {} ; adding an entry to the rejection log instead.", RedactableArgument.user(event), failure);
+      Metrics.rejectionMeter().mark();
+      return newRejectionLogRequest(event, matchResult, failure);
+    }
   }
 
   private String getRouting(Event event, JsonPointer routingPointer) throws IOException {

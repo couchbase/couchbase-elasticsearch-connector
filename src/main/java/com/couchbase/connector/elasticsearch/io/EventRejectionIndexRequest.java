@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
+import com.couchbase.connector.dcp.Event;
 import com.google.common.collect.ImmutableMap;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -24,13 +25,22 @@ import java.util.Map;
 
 public class EventRejectionIndexRequest extends EventIndexRequest {
   public EventRejectionIndexRequest(String index, String type, EventDocWriteRequest origRequest, BulkItemResponse.Failure failure) {
-    super(index, type, origRequest.getEvent());
+    this(index, type,
+        origRequest.getEvent(),
+        origRequest.index(),
+        origRequest.type(),
+        origRequest.opType(),
+        failure.getMessage());
+  }
+
+  public EventRejectionIndexRequest(String index, String type, Event event, String eventIndex, String eventType, OpType action, String failureMessage) {
+    super(index, type, event);
 
     final Map<String, Object> content = ImmutableMap.of(
-        "index", origRequest.index(),
-        "type", origRequest.type(),
-        "action", origRequest.opType(),
-        "error", failure.getMessage());
+        "index", eventIndex,
+        "type", eventType,
+        "action", action,
+        "error", failureMessage);
     source(content, XContentType.JSON);
   }
 }

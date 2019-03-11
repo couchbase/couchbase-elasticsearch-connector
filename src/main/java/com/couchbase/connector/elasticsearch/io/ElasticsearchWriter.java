@@ -148,50 +148,42 @@ public class ElasticsearchWriter implements Closeable {
     // seqno than before the rollback. Anyway, let's revisit this if the
     // "one action per-document per-batch" strategy is identified as a bottleneck.
 
-    try {
-      final EventDocWriteRequest request = requestFactory.newDocWriteRequest(event);
-      if (request == null) {
-        try {
-          if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("Skipping event, no matching type: {}", RedactableArgument.user(event));
-          }
-
-          if (buffer.isEmpty()) {
-            // can ignore immediately
-            final Checkpoint checkpoint = event.getCheckpoint();
-            if (isMetadata(event)) {
-              // Avoid cycle where writing the checkpoints triggers another DCP event.
-              LOGGER.debug("Ignoring metadata, not updating checkpoint for {}", event);
-              checkpointService.setWithoutMarkingDirty(event.getVbucket(), event.getCheckpoint());
-            } else {
-              LOGGER.debug("Ignoring event, immediately updating checkpoint for {}", event);
-              checkpointService.set(event.getVbucket(), checkpoint);
-            }
-          } else {
-            // ignore later after we've completed a bulk request and saved
-            ignoreBuffer.put(event.getVbucket(), event.getCheckpoint());
-          }
-          return;
-
-        } finally {
-          event.release();
+    final EventDocWriteRequest request = requestFactory.newDocWriteRequest(event);
+    if (request == null) {
+      try {
+        if (LOGGER.isTraceEnabled()) {
+          LOGGER.trace("Skipping event, no matching type: {}", RedactableArgument.user(event));
         }
-      }
 
-      // Do this *after* skipping unrecognized / ignored events, so that
-      // an ignored deletion does not evict a previously buffered mutation.
-      bufferBytes += request.estimatedSizeInBytes();
-      final EventDocWriteRequest evicted = buffer.put(event.getKey(), request);
-      if (evicted != null) {
-        bufferBytes -= evicted.estimatedSizeInBytes();
-        evicted.getEvent().release();
-      }
+        if (buffer.isEmpty()) {
+          // can ignore immediately
+          final Checkpoint checkpoint = event.getCheckpoint();
+          if (isMetadata(event)) {
+            // Avoid cycle where writing the checkpoints triggers another DCP event.
+            LOGGER.debug("Ignoring metadata, not updating checkpoint for {}", event);
+            checkpointService.setWithoutMarkingDirty(event.getVbucket(), event.getCheckpoint());
+          } else {
+            LOGGER.debug("Ignoring event, immediately updating checkpoint for {}", event);
+            checkpointService.set(event.getVbucket(), checkpoint);
+          }
+        } else {
+          // ignore later after we've completed a bulk request and saved
+          ignoreBuffer.put(event.getVbucket(), event.getCheckpoint());
+        }
+        return;
 
-    } catch (IOException e) {
-      // Probably means the document is not JSON
-      LOGGER.error("Failed to create doc write request for {}", RedactableArgument.user(event), e);
-      runQuietly("error listener", () -> errorListener.onFailureToCreateIndexRequest(event, e));
-      event.release();
+      } finally {
+        event.release();
+      }
+    }
+
+    // Do this *after* skipping unrecognized / ignored events, so that
+    // an ignored deletion does not evict a previously buffered mutation.
+    bufferBytes += request.estimatedSizeInBytes();
+    final EventDocWriteRequest evicted = buffer.put(event.getKey(), request);
+    if (evicted != null) {
+      bufferBytes -= evicted.estimatedSizeInBytes();
+      evicted.getEvent().release();
     }
 
     if (bufferIsFull()) {

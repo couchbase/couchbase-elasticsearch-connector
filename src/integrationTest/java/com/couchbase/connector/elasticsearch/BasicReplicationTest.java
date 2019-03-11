@@ -18,11 +18,9 @@ package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.CouchbaseCluster;
-import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.document.json.JsonObject;
 import com.couchbase.client.java.env.CouchbaseEnvironment;
-import com.couchbase.client.java.error.TemporaryFailureException;
 import com.couchbase.connector.cluster.consul.AsyncTask;
 import com.couchbase.connector.config.common.ImmutableCouchbaseConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
@@ -45,25 +43,24 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
+import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.upsertWithRetry;
+import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.waitForTravelSampleReplication;
 import static com.couchbase.connector.elasticsearch.TestConfigHelper.readConfig;
 import static com.couchbase.connector.testcontainers.CustomCouchbaseContainer.newCouchbaseCluster;
-import static com.couchbase.connector.testcontainers.Poller.poll;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -276,6 +273,11 @@ public class BasicReplicationTest {
             )));
         assertDocumentRejected(es, "etc", redKey, "mapper_parsing_exception");
 
+        // Elasticsearch doesn't support BigInteger fields. This error surfaces when creating the index request,
+        // before the request is sent to Elasticsearch. Make sure we trapped the error and converted it to a rejection.
+        final String bigIntKey = "veryLargeNumber";
+        upsertWithRetry(bucket, JsonDocument.create(bigIntKey, JsonObject.create().put("number", new BigInteger("17626319910530664276"))));
+        assertDocumentRejected(es, "etc", bigIntKey, "java.math.BigInteger");
       } finally {
         cluster.disconnect();
       }
@@ -308,47 +310,7 @@ public class BasicReplicationTest {
   public void canReplicateTravelSample() throws Throwable {
     try (TestEsClient es = new TestEsClient(commonConfig);
          AsyncTask connector = AsyncTask.run(() -> ElasticsearchConnector.run(commonConfig))) {
-
-      final int airlines = 187;
-      final int routes = 24024;
-
-      final int expectedAirlineCount = airlines + routes;
-      final int expectedAirportCount = 1968;
-
-      poll().until(() -> es.getDocumentCount("airlines") >= expectedAirlineCount);
-      poll().until(() -> es.getDocumentCount("airports") >= expectedAirportCount);
-
-      SECONDS.sleep(3); // quiet period, make sure no more documents appear in the index
-
-      assertEquals(expectedAirlineCount, es.getDocumentCount("airlines"));
-      assertEquals(expectedAirportCount, es.getDocumentCount("airports"));
-
-      // route documents are routed using airlineid field
-      final String routeId = "route_10000";
-      final String expectedRouting = "airline_137";
-      JsonNode airline = es.getDocument("airlines", routeId, expectedRouting).orElse(null);
-      assertNotNull(airline);
-      assertEquals(expectedRouting, airline.path("_routing").asText());
+      waitForTravelSampleReplication(es);
     }
-  }
-
-  private static <D extends Document<?>> D upsertWithRetry(Bucket bucket, D document) throws Exception {
-    return callWithRetry(() -> bucket.upsert(document));
-  }
-
-  private static <R> R callWithRetry(Callable<R> callable) throws Exception {
-    final int maxAttempts = 10;
-    TemporaryFailureException deferred = null;
-    for (int attempt = 0; attempt <= maxAttempts; attempt++) {
-      if (attempt != 0) {
-        SECONDS.sleep(1);
-      }
-      try {
-        return callable.call();
-      } catch (TemporaryFailureException e) {
-        deferred = e;
-      }
-    }
-    throw deferred;
   }
 }
