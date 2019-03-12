@@ -20,6 +20,8 @@ import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -31,7 +33,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 /**
  * Helper for running interruptible tasks in a separate thread.
  */
-public class AsyncTask implements AutoCloseable {
+public class AsyncTask implements Closeable {
   private static final Logger LOGGER = LoggerFactory.getLogger(AsyncTask.class);
 
   private static final AtomicInteger threadCounter = new AtomicInteger();
@@ -104,11 +106,11 @@ public class AsyncTask implements AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception {
+  public void close() throws IOException {
     try {
       stop();
     } catch (Throwable t) {
-      Throwables.propagateIfPossible(t, Exception.class);
+      Throwables.propagateIfPossible(t, IOException.class);
       throw new RuntimeException(t);
     }
   }

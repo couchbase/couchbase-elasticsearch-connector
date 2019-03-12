@@ -34,8 +34,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
@@ -43,6 +46,7 @@ import java.util.concurrent.TimeoutException;
 import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
 import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.constantBackoff;
 import static com.couchbase.connector.testcontainers.Poller.poll;
+import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -51,6 +55,10 @@ class TestEsClient implements AutoCloseable {
 
   public TestEsClient(ConnectorConfig config) throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
     this.client = newElasticsearchClient(config.elasticsearch(), config.trustStore());
+  }
+
+  public TestEsClient(String config) throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
+    this(ConnectorConfig.from(config));
   }
 
   private static <T> T retryUntilSuccess(BackoffPolicy backoffPolicy, Callable<T> lambda) {
@@ -141,8 +149,16 @@ class TestEsClient implements AutoCloseable {
   }
 
   public JsonNode waitForDocument(String index, String id) throws TimeoutException, InterruptedException {
-    poll().until(() -> getDocument(index, id).isPresent());
-    return getDocument(index, id).get().get("_source");
+    return waitForDocuments(index, singletonList(id)).get(id);
+  }
+
+  public Map<String, JsonNode> waitForDocuments(String index, Collection<String> ids) throws TimeoutException, InterruptedException {
+    final Map<String, JsonNode> idToDocument = new LinkedHashMap<>();
+    for (String id : ids) {
+      poll().until(() -> getDocument(index, id).isPresent());
+      idToDocument.put(id, getDocument(index, id).get().get("_source"));
+    }
+    return idToDocument;
   }
 
   public void waitForDeletion(String index, String id) throws TimeoutException, InterruptedException {

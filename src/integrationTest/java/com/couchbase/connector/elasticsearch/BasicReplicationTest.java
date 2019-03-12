@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.elasticsearch;
 
+import com.couchbase.client.deps.io.netty.util.ResourceLeakDetector;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.document.JsonDocument;
@@ -40,7 +41,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 
 import java.math.BigInteger;
@@ -53,6 +53,7 @@ import java.util.concurrent.TimeoutException;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
+import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.close;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.upsertWithRetry;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.waitForTravelSampleReplication;
 import static com.couchbase.connector.elasticsearch.TestConfigHelper.readConfig;
@@ -69,9 +70,9 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Parameterized.class)
 public class BasicReplicationTest {
 
-//  static {
-//    ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
-//  }
+  static {
+    ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
+  }
 
   private static String cachedCouchbaseContainerVersion;
   private static String cachedElasticsearchContainerVersion;
@@ -155,7 +156,7 @@ public class BasicReplicationTest {
       System.out.println("Using cached Couchbase container: " + couchbase.getDockerImageName() +
           " listening at http://localhost:" + couchbase.getMappedPort(8091));
     } else {
-      stop(couchbase);
+      close(couchbase);
       couchbase = newCouchbaseCluster("couchbase/server:" + couchbaseVersion);
 
       System.out.println("Couchbase " + couchbase.getVersionString() +
@@ -169,7 +170,7 @@ public class BasicReplicationTest {
       System.out.println("Using cached Elasticsearch container " + elasticsearch.getDockerImageName() +
           " listening at " + elasticsearch.getHost());
     } else {
-      stop(elasticsearch);
+      close(elasticsearch);
       elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
           .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")));
       elasticsearch.start();
@@ -187,18 +188,7 @@ public class BasicReplicationTest {
 
   @AfterClass
   public static void cleanup() throws Exception {
-    stop(couchbase, elasticsearch);
-  }
-
-  private static void stop(GenericContainer first, GenericContainer... others) {
-    if (first != null) {
-      first.stop();
-    }
-    for (GenericContainer c : others) {
-      if (c != null) {
-        c.stop();
-      }
-    }
+    close(couchbase, elasticsearch);
   }
 
   private static ImmutableConnectorConfig withBucketName(ImmutableConnectorConfig config, String bucketName) {

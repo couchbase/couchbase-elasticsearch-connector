@@ -18,18 +18,28 @@ package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.document.Document;
+import com.couchbase.client.java.document.JsonDocument;
+import com.couchbase.client.java.document.json.JsonObject;
 import com.couchbase.client.java.error.TemporaryFailureException;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 
+import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
 import static com.couchbase.connector.testcontainers.Poller.poll;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 class IntegrationTestHelper {
+  private static final Logger LOGGER = LoggerFactory.getLogger(IntegrationTestHelper.class);
+
   private IntegrationTestHelper() {
     throw new AssertionError("not instantiable");
   }
@@ -75,5 +85,35 @@ class IntegrationTestHelper {
       }
     }
     throw deferred;
+  }
+
+  static Set<String> upsertOneDocumentToEachVbucket(Bucket bucket, int numVbuckets, String idPrefix) throws Exception {
+    final Set<String> ids = new HashSet<>();
+    for (int i = 0; i < numVbuckets; i++) {
+      final int vbucket = i;
+      final String id = forceKeyToPartition(idPrefix, i, numVbuckets)
+          .orElseThrow(() -> new RuntimeException("failed to force key '" + idPrefix + "' to partition " + vbucket));
+
+      upsertWithRetry(bucket, JsonDocument.create(id, JsonObject.create().put("magicWord", "xyzzy").put("vbucket", vbucket)));
+      ids.add(id);
+    }
+    return ids;
+  }
+
+  static void close(AutoCloseable first, AutoCloseable... others) {
+    closeQuietly(first);
+    for (AutoCloseable c : others) {
+      closeQuietly(c);
+    }
+  }
+
+  static void closeQuietly(AutoCloseable c) {
+    try {
+      if (c != null) {
+        c.close();
+      }
+    } catch (Exception e) {
+      LOGGER.warn("failed to close {}", c, e);
+    }
   }
 }
