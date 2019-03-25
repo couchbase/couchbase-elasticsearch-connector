@@ -18,7 +18,7 @@ repositories {
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-version = "4.1.0-dp.1"
+version = "4.1.0-alpha.1"
 
 // https://github.com/unbroken-dome/gradle-testsets-plugin
 testSets {
@@ -47,15 +47,15 @@ task exhaustiveTest(group: "Verification", description: "Runs the integration te
 exhaustiveTest.finalizedBy(integrationTest)
 
 dependencies {
-  compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.11.0'
-  compile 'org.apache.logging.log4j:log4j-core:2.9.1'
+  compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.11.2'
 
   compile 'com.couchbase.client:java-client:2.7.2'
   compile 'com.couchbase.client:dcp-client:0.22.0'
   compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.3.2'
 
   compile 'io.projectreactor:reactor-core:3.2.5.RELEASE'
-
+  //compile 'io.projectreactor.addons:reactor-extra:3.2.2.RELEASE'
+  
   compile 'com.orbitz.consul:consul-client:1.2.1'
   compile 'com.github.therapi:therapi-json-rpc:0.4.0'
 
