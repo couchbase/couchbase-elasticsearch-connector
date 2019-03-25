@@ -21,11 +21,12 @@ import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.document.json.JsonObject;
 import com.couchbase.client.java.error.TemporaryFailureException;
+import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.Stopwatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -87,16 +88,24 @@ class IntegrationTestHelper {
     throw deferred;
   }
 
-  static Set<String> upsertOneDocumentToEachVbucket(Bucket bucket, int numVbuckets, String idPrefix) throws Exception {
+  static Set<String> upsertOneDocumentToEachVbucket(Bucket bucket, String idPrefix) throws Exception {
+    final int numVbuckets = CouchbaseHelper.getBucketConfig(bucket).numberOfPartitions();
+
+    final Stopwatch timer = Stopwatch.createStarted();
     final Set<String> ids = new HashSet<>();
     for (int i = 0; i < numVbuckets; i++) {
       final int vbucket = i;
       final String id = forceKeyToPartition(idPrefix, i, numVbuckets)
           .orElseThrow(() -> new RuntimeException("failed to force key '" + idPrefix + "' to partition " + vbucket));
 
-      upsertWithRetry(bucket, JsonDocument.create(id, JsonObject.create().put("magicWord", "xyzzy").put("vbucket", vbucket)));
+      upsertWithRetry(bucket, JsonDocument.create(id, JsonObject.create()
+          .put("magicWord", "xyzzy")
+          .put("vbucket", vbucket)));
       ids.add(id);
     }
+
+    LOGGER.info("Upserting to {} vbuckets took {}", numVbuckets, timer);
+
     return ids;
   }
 

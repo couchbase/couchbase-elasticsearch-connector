@@ -18,15 +18,11 @@ package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.client.deps.io.netty.util.ResourceLeakDetector;
 import com.couchbase.client.java.Bucket;
-import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.document.json.JsonObject;
-import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.connector.cluster.consul.AsyncTask;
-import com.couchbase.connector.config.common.ImmutableCouchbaseConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableConnectorConfig;
-import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.elasticsearch.cli.CheckpointClear;
 import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
 import com.couchbase.connector.testcontainers.ElasticsearchContainer;
@@ -51,12 +47,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
-import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.close;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.upsertWithRetry;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.waitForTravelSampleReplication;
 import static com.couchbase.connector.elasticsearch.TestConfigHelper.readConfig;
+import static com.couchbase.connector.elasticsearch.TestConfigHelper.withBucketName;
 import static com.couchbase.connector.testcontainers.CustomCouchbaseContainer.newCouchbaseCluster;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -191,31 +187,14 @@ public class BasicReplicationTest {
     close(couchbase, elasticsearch);
   }
 
-  private static ImmutableConnectorConfig withBucketName(ImmutableConnectorConfig config, String bucketName) {
-    return config.withCouchbase(
-        ImmutableCouchbaseConfig.copyOf(config.couchbase())
-            .withBucket(bucketName));
-  }
-
-  private static CouchbaseCluster createTestCluster(ImmutableConnectorConfig config) {
-    // xxx orphans the environment.
-    final CouchbaseEnvironment env = environmentBuilder(config.couchbase(), config.trustStore())
-        .mutationTokensEnabled(true)
-        .build();
-    return CouchbaseHelper.createCluster(config.couchbase(), env);
-  }
-
   @Test
   public void createDeleteReject() throws Throwable {
-    final CouchbaseCluster cluster = createTestCluster(commonConfig);
-
-    try (TempBucket tempBucket = new TempBucket(couchbase)) {
-      ImmutableConnectorConfig config = withBucketName(commonConfig, tempBucket.name());
+    try (TestCouchbaseClient cb = new TestCouchbaseClient(commonConfig)) {
+      final Bucket bucket = cb.createTempBucket(couchbase);
+      final ImmutableConnectorConfig config = withBucketName(commonConfig, bucket.name());
 
       try (TestEsClient es = new TestEsClient(config);
            AsyncTask connector = AsyncTask.run(() -> ElasticsearchConnector.run(config))) {
-
-        final Bucket bucket = cluster.openBucket(tempBucket.name());
 
         assertIndexInferredFromDocumentId(bucket, es);
 
@@ -268,8 +247,6 @@ public class BasicReplicationTest {
         final String bigIntKey = "veryLargeNumber";
         upsertWithRetry(bucket, JsonDocument.create(bigIntKey, JsonObject.create().put("number", new BigInteger("17626319910530664276"))));
         assertDocumentRejected(es, "etc", bigIntKey, "java.math.BigInteger");
-      } finally {
-        cluster.disconnect();
       }
     }
   }

@@ -28,9 +28,17 @@ class TempBucket implements Closeable {
   private final String bucketName;
 
   public TempBucket(CustomCouchbaseContainer couchbase) {
+    this(couchbase, nextName());
+  }
+
+  public TempBucket(CustomCouchbaseContainer couchbase, String name) {
     this.couchbase = couchbase;
-    this.bucketName = "temp-" + counter.getAndIncrement();
+    this.bucketName = name;
     couchbase.createBucket(bucketName);
+  }
+
+  public static String nextName() {
+    return "temp-" + counter.getAndIncrement();
   }
 
   @Override

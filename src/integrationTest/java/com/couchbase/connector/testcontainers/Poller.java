@@ -62,6 +62,10 @@ public class Poller {
   public void until(Supplier<Boolean> condition) throws TimeoutException, InterruptedException {
     final long deadline = System.nanoTime() + timeoutUnit.toNanos(timeout);
 
+    if (condition.get()) {
+      return;
+    }
+
     do {
       if (System.nanoTime() > deadline) {
         if (timeoutIsFatal) {

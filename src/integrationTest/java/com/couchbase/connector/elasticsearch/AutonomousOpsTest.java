@@ -17,6 +17,7 @@
 package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.client.deps.io.netty.util.ResourceLeakDetector;
+import com.couchbase.client.java.Bucket;
 import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
 import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.google.common.collect.ImmutableMap;
@@ -34,6 +35,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.close;
+import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.upsertOneDocumentToEachVbucket;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.waitForTravelSampleReplication;
 import static com.couchbase.connector.elasticsearch.TestConfigHelper.readConfig;
 import static com.couchbase.connector.testcontainers.CustomCouchbaseContainer.newCouchbaseCluster;
@@ -61,7 +63,6 @@ public class AutonomousOpsTest {
     elasticsearch.start();
 
     couchbase = newCouchbaseCluster("couchbase/server:" + couchbaseVersion);
-    couchbase.loadSampleBucket("travel-sample", 100);
 
     System.out.println("Couchbase " + couchbase.getVersionString() +
         " listening at http://" + DockerHelper.getDockerHost() + ":" + couchbase.getMappedPort(8091));
@@ -86,12 +87,19 @@ public class AutonomousOpsTest {
   }
 
   public String defaultConfig() throws IOException {
+    return defaultConfig("travel-sample");
+  }
+
+  public String defaultConfig(String bucketName) throws IOException {
     return readConfig(couchbase, elasticsearch, ImmutableMap.of(
-        "group.name", newGroupName()));
+        "group.name", newGroupName(),
+        "couchbase.bucket", bucketName));
   }
 
   @Test
   public void singleWorker() throws Exception {
+    couchbase.loadSampleBucket("travel-sample", 100);
+
     final String config = defaultConfig();
 
     try (TestConnectorGroup group = new TestConnectorGroup(config, consulCluster);
@@ -104,11 +112,14 @@ public class AutonomousOpsTest {
 
   @Test
   public void threeWorkers() throws Exception {
-    final String config = defaultConfig();
+    final String bucketName = TempBucket.nextName();
+    final String config = defaultConfig(bucketName);
 
-    try (TestConnectorGroup group = new TestConnectorGroup(config, consulCluster);
-         TestEsClient es = new TestEsClient(config)) {
+    try (TestEsClient es = new TestEsClient(config);
+         TestCouchbaseClient cb = new TestCouchbaseClient(config);
+         TestConnectorGroup group = new TestConnectorGroup(config, consulCluster)) {
 
+      final Bucket bucket = cb.createTempBucket(couchbase, bucketName);
       group.pause();
 
       // Wait for first worker to assume role of leader
@@ -129,21 +140,22 @@ public class AutonomousOpsTest {
       // Allow streaming to begin
       group.resume();
       group.awaitRebalance(3);
+      es.waitForDocuments("etc", upsertOneDocumentToEachVbucket(bucket, "a"));
 
-      SECONDS.sleep(2);
       System.out.println("Stopping leader");
       worker1.close();
       System.out.println("Leader stopped!");
 
       // Wait for new leader to take over and rebalance among remaining workers
       group.awaitRebalance(2);
-      SECONDS.sleep(8);
+      es.waitForDocuments("etc", upsertOneDocumentToEachVbucket(bucket, "b"));
 
+      System.out.println("Adding 'latecomer' worker");
       final Closeable connector4 = group.newWorker(2, "latecomer");
+
       // new node should be integrated into group
       group.awaitRebalance(3);
-
-      waitForTravelSampleReplication(es);
+      es.waitForDocuments("etc", upsertOneDocumentToEachVbucket(bucket, "c"));
 
       System.out.println("Shutting down connector...");
     }

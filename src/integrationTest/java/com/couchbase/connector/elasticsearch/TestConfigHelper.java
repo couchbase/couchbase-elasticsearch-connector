@@ -16,7 +16,9 @@
 
 package com.couchbase.connector.elasticsearch;
 
+import com.couchbase.connector.config.common.ImmutableCouchbaseConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
+import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
 import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.github.therapi.core.internal.LangHelper;
@@ -108,5 +110,11 @@ public class TestConfigHelper {
     }
 
     return o.toString();
+  }
+
+  static ImmutableConnectorConfig withBucketName(ImmutableConnectorConfig config, String bucketName) {
+    return config.withCouchbase(
+        ImmutableCouchbaseConfig.copyOf(config.couchbase())
+            .withBucket(bucketName));
   }
 }
