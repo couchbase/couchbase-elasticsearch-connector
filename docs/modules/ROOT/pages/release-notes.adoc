@@ -3,15 +3,32 @@
 
 == Standalone Connector vs. Plug-in
 
-Starting with version 4.0, the connector is now a standalone process.
+Starting with version 4.0 the connector is now a standalone process.
 The standalone distribution archives are named `couchbase-elasticsearch-connector-`, and download links are provided on this page.
 
-Prior to version 4.0, the connector was implemented as an Elasticsearch plug-in.
+Prior to version 4.0 the connector was implemented as an Elasticsearch plug-in.
 The plug-in distributions have archive names starting with `elasticsearch-transport-couchbase-`.
 
 TIP: If you want to use the old plug-in, distributions may be https://github.com/couchbase/couchbase-elasticsearch-connector/releases[downloaded from GitHub].
 Make sure to pick the archive whose `es` version component _exactly_ matches your Elasticsearch version.
 For example, to use the 3.0.0 version of the plug-in with Elasticsearch 5.6.4, you would select `elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip`.
+
+== Elasticsearch Connector 4.0.1
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.0.1/couchbase-elasticsearch-connector-4.0.1.zip[couchbase-elasticsearch-connector-4.0.1.zip]
+
+This maintenance release improves the stability of the connector and adds new configuration options.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-90[CBES-90] Ability to use environment variables inside config
+* https://issues.couchbase.com/browse/CBES-107[CBES-107] Misleading error message when can't connect to Elasticsearch
+* https://issues.couchbase.com/browse/CBES-110[CBES-110] Need document routing to support join
+* https://issues.couchbase.com/browse/CBES-114[CBES-114] Allow saving checkpoints in a different bucket
+
+=== Bug Fixes
+
+* https://issues.couchbase.com/browse/CBES-117[CBES-117] Connector exits on values that fail to parse
 
 == Elasticsearch Connector 4.0.0
 
