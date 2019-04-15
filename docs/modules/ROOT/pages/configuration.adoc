@@ -96,17 +96,22 @@ Here's where the Couchbase connection parameters and credentials are specified.
 [couchbase]
   hosts = ['localhost'] <1>
   bucket = 'travel-sample' <2>
-  username = 'Administrator' <3>
-  pathToPassword = 'secrets/couchbase-password.toml' <4>
-  secureConnection = false <5>
+  metadataBucket = '' <3>
+  username = 'Administrator' <4>
+  pathToPassword = 'secrets/couchbase-password.toml' <5>
+  secureConnection = false <6>
 ----
 <1> A list of bootstrap nodes for the Couchbase cluster.
 Multiple nodes can be specified like `['host1','host2']`.
-<2> The bucket to replicate from.
-<3> At a minimum, the Couchbase user must have the "Data Reader", "Data Writer", and "Data DCP Reader" roles for the bucket.
-<4> Path to a separate TOML file with a single 'password' key.
+<2> The source bucket to replicate from.
+<3> The bucket for storing metadata like replication checkpoint documents.
+Empty string means store metadata in the source bucket.
+*Note:* The ability to store metadata in a separate bucket is an "uncommited" feature introduced in version 4.0.1 of the connector.
+Until the feature is promoted to "committed" status, it may be changed or removed in a future patch version without advance notice.
+<4> At a minimum, the Couchbase user must have the "Data DCP Reader" role for the source bucket, and "Data Reader" & "Data Writer" roles for the metadata bucket.
+<5> Path to a separate TOML file with a single 'password' key.
 The base for a relative path is the connector installation directory.
-<5> If you have configured the <<truststore,Trust Store>> section, set this to `true` to encrypt the Couchbase connections.
+<6> If you have configured the <<truststore,Trust Store>> section, set this to `true` to encrypt the Couchbase connections.
 
 TIP: If you want to replicate from multiple buckets, you can run a separate connector group for each bucket.
 
@@ -315,6 +320,30 @@ Finally, here's the promised example of using a regular expression with a captur
 <1> Matches IDs that start with one or more characters followed by "::".
 It directs "user::alice" to index "user", and "foo::bar::123" to index "foo".
 
+==== Custom Routing and Parent/Child Relationships
+
+NOTE: This section describes an "uncommited" feature introduced in version 4.0.1 of the connector.
+Until the feature is promoted to "committed" status, it may be changed or removed in a future patch version without advance notice.
+
+In the travel-sample data model, a route is the child of an airline.
+Each sample route document has an `airlineid` field whose value is the ID of its parent airline document.
+
+If you tell Elasticsearch that `airlineid` is a https://www.elastic.co/guide/en/elasticsearch/reference/current/parent-join.html[join field], you can take advantage of this relationship when searching.
+For this to work, the connector must save each child document to the same Elasticsearch index and shard as its parent.
+
+[source,toml]
+----
+[[elasticsearch.type]]
+  prefix = 'route_' <1>
+  index = 'airlines' <2>
+  routing = '/airlineid' <3>
+  ignoreDeletes = true <4>
+----
+<1> It's just a coincidence that airline route documents are being used to demonstrate custom routing.
+<2> Must specify the same index as parent document.
+<3> A JSON pointer to the field to use for Elasticsearch routing.
+This is how the child document gets routed to the same shard as its parent.
+<4> The connector is unable to delete documents that use custom routing, so `ignoreDeletes` must always be `true` for child documents.
 
 == Rejection Log
 
@@ -344,3 +373,26 @@ Related configuration properties:
 <2> This Elasticsearch type will be assigned to the documents.
 
 TIP: If you're running multiple connector groups, you may wish to use a separate rejection log index for each group.
+
+== Environment Variables
+
+NOTE: This section describes an "uncommited" feature introduced in version 4.0.1 of the connector.
+Until the feature is promoted to "committed" status, it may be changed or removed in a future patch version without advance notice.
+
+The connector configuration may reference environment variables.
+
+Variable substitution happens in a separate step before the TOML is parsed.
+Values are replaced verbatim, without regard to context.
+When using variables in string values, make sure the result conforms to the the https://github.com/toml-lang/toml#string[TOML string syntax].
+
+Here's an example with completely made up config properties, and placeholders that reference environment variables `NAME`, `AGE`, and `FAVORITE_COLOR`:
+[source,toml]
+----
+name = '${NAME}' <1>
+age = ${AGE}
+favoriteColor = '${FAVORITE_COLOR:blue}' <2>
+----
+<1> Alternatively, you could write `name = ${NAME}` and include the quotes in value of the environment variable.
+<2> A colon in the placeholder separates the environment variable name from the default value to use if the variable is not set.
+If the `FAVORITE_COLOR` environment variable is set, its value will be used.
+Otherwise, the specified default value `blue` will be used.
