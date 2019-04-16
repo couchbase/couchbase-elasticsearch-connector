@@ -18,7 +18,7 @@ repositories {
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-version = "4.0.1"
+version = "4.1.0-alpha.1"
 
 // https://github.com/unbroken-dome/gradle-testsets-plugin
 testSets {
@@ -124,7 +124,7 @@ def extraStartScripts = [
     'cbes-checkpoint-backup' : 'com.couchbase.connector.elasticsearch.cli.CheckpointBackup',
     'cbes-checkpoint-restore': 'com.couchbase.connector.elasticsearch.cli.CheckpointRestore',
     'cbes-checkpoint-clear'  : 'com.couchbase.connector.elasticsearch.cli.CheckpointClear',
-//    'cbes-consul'            : 'com.couchbase.connector.elasticsearch.cli.ConsulCli'
+    'cbes-consul'            : 'com.couchbase.connector.elasticsearch.cli.ConsulCli'
 ]
 
 extraStartScripts.each { scriptName, driverClass ->
