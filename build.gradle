@@ -25,6 +25,12 @@ testSets {
   integrationTest
 }
 
+integrationTest {
+  minHeapSize = "128m"
+  maxHeapSize = "512m"
+  jvmArgs '-verbose:gc', '-XX:+HeapDumpOnOutOfMemoryError'
+}
+
 integrationTest.dependsOn(test)
 
 // https://github.com/radarsh/gradle-test-logger-plugin
