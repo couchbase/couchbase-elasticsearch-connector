@@ -1,7 +1,6 @@
 plugins {
   id "com.github.jk1.dependency-license-report" version "1.2"
   id 'org.unbroken-dome.test-sets' version '1.5.1'
-  id 'com.adarshr.test-logger' version '1.5.0'
 }
 
 import org.apache.tools.ant.filters.ReplaceTokens
@@ -31,17 +30,11 @@ integrationTest {
   jvmArgs '-verbose:gc', '-XX:+HeapDumpOnOutOfMemoryError'
 }
 
-integrationTest.dependsOn(test)
-
-// https://github.com/radarsh/gradle-test-logger-plugin
-def runningInJenkins = System.getenv("JENKINS_URL") != null
-testlogger {
-  theme runningInJenkins ? 'plain' : 'mocha'
-  showStandardStreams runningInJenkins
-  showPassedStandardStreams runningInJenkins
-  showSkippedStandardStreams runningInJenkins
-  showFailedStandardStreams runningInJenkins
+tasks.withType(Test) {
+  testLogging.showStandardStreams = true
 }
+
+integrationTest.dependsOn(test)
 
 task exhaustiveTest(group: "Verification", description: "Runs the integration tests against *all* supported server versions") {
   doLast {
