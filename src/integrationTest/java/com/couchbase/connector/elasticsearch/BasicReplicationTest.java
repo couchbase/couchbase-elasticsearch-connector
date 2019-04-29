@@ -94,15 +94,16 @@ public class BasicReplicationTest {
         "community-5.0.1");
 
     final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "7.0.0-beta1",
-        "6.6.0",
+        "7.0.0",
+        "6.7.1",
+        "6.6.2",
         "6.5.4",
         "6.4.3",
         "6.3.2",
         "6.2.4",
         "6.1.4",
         "6.0.1",
-        "5.6.11",
+        "5.6.15",
         "5.5.3",
         "5.4.3"
     ));
@@ -246,7 +247,7 @@ public class BasicReplicationTest {
         // before the request is sent to Elasticsearch. Make sure we trapped the error and converted it to a rejection.
         final String bigIntKey = "veryLargeNumber";
         upsertWithRetry(bucket, JsonDocument.create(bigIntKey, JsonObject.create().put("number", new BigInteger("17626319910530664276"))));
-        assertDocumentRejected(es, "etc", bigIntKey, "java.math.BigInteger");
+        assertDocumentRejected(es, "etc", bigIntKey, "BIG_INTEGER");
       }
     }
   }

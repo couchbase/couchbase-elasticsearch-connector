@@ -32,6 +32,7 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.main.MainResponse;
+import org.elasticsearch.client.Node;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
@@ -157,7 +158,7 @@ public class ElasticsearchHelper {
             .setDefaultCredentialsProvider(credentialsProvider))
         .setFailureListener(new RestClient.FailureListener() {
           @Override
-          public void onFailure(HttpHost host) {
+          public void onFailure(Node host) {
             Metrics.elasticsearchHostOffline().mark();
           }
         });
