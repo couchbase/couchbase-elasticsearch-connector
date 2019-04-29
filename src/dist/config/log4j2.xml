@@ -51,5 +51,10 @@
         <Logger name="cbes.metrics" level="info" additivity="false">
             <AppenderRef ref="Metrics"/>
         </Logger>
+
+        <!-- Suppress document type deprecation warnings issued by Elasticsearch 7 -->
+        <Logger name="org.elasticsearch.client.RestClient">
+            <RegexFilter regex=".*\[types removal].*" onMatch="DENY" onMismatch="NEUTRAL"/>
+        </Logger>
     </Loggers>
 </Configuration>
