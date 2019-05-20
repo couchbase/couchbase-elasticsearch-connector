@@ -13,6 +13,25 @@ TIP: If you want to use the old plug-in, distributions may be https://github.com
 Make sure to pick the archive whose `es` version component _exactly_ matches your Elasticsearch version.
 For example, to use the 3.0.0 version of the plug-in with Elasticsearch 5.6.4, you would select `elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip`.
 
+== Elasticsearch Connector 4.0.2 (2019-05-21)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.0.2/couchbase-elasticsearch-connector-4.0.2.zip[couchbase-elasticsearch-connector-4.0.2.zip]
+
+This maintenance release fixes a bug that prevented some versions of Couchbase Server from rebalancing when the connector is running.
+
+It also adds compatibility with the official Docker images for Elasticsearch 6.7.x and 7.0.x, and is the first version tested against OpenJDK 8 and OpenJDK 11.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-122[CBES-122] Add support for OpenJDK
+* https://issues.couchbase.com/browse/CBES-123[CBES-123] Support Elasticsearch 6.7 & 7.0 docker images
+* https://issues.couchbase.com/browse/CBES-125[CBES-125] Suppress "types removal" warnings from Elasticsearch 7.0
+
+=== Bug Fixes
+
+* https://issues.couchbase.com/browse/CBES-128[CBES-128] Couchbase Server fails to rebalance if Elasticsearch connector is running
+
+
 == Elasticsearch Connector 4.0.1
 
 https://packages.couchbase.com/clients/connectors/elasticsearch/4.0.1/couchbase-elasticsearch-connector-4.0.1.zip[couchbase-elasticsearch-connector-4.0.1.zip]

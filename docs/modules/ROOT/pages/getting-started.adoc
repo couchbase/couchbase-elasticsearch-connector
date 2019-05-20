@@ -16,14 +16,7 @@ You will need:
 
 * The xref:release-notes.adoc[latest release] of Couchbase Elasticsearch Connector.
 
-* Java 8 or newer from
-https://docs.oracle.com/javase/8/[Oracle].
-
-* Elasticsearch 5 or 6. Other versions might work, but are untested.
-If you are new to Elasticsearch, we recommend https://www.elastic.co/guide/en/elasticsearch/reference/current/zip-targz.html[installing from a zip or tar.gz archive].
-
-* Couchbase Server 5 or later.
-https://www.couchbase.com/downloads[Download] and xref:server:install:install-intro.adoc[install].
+* xref:compatibility.adoc[Compatible versions] of Java, Elasticsearch, and Couchbase Server.
 
 NOTE: Couchbase Enterprise Edition is required if you wish to enable secure connections to Couchbase.
 Likewise, Elasticsearch requires an additional license in order to support secure connections.
