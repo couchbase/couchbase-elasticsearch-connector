@@ -1,0 +1,46 @@
+= Compatibility
+
+✔ *Supported*: This combination is tested and supported.
+
+✖ *Unsupported*: This combination is not supported.
+
+Versions not listed on this page may work but are untested and unsupported.
+
+
+== Elasticsearch
+
+[%autowidth,cols="^,2*^"]
+|===
+ |             2+h| Connector
+h| Elasticsearch↓ | 4.0.0 - 4.0.1 | 4.0.2
+ | 5.4 - 5.6      | ✔             | ✔
+ | 6.0 - 6.6      | ✔             | ✔
+ | 6.7            | ✖             | ✔
+ | 7.0            | ✖             | ✔
+|===
+
+
+== Couchbase Server
+
+[%autowidth,cols="^,1*^"]
+|===
+ |           h| Connector
+h| Couchbase↓ | 4.0.0 - 4.0.2
+ | < 5.0      | ✖
+ | 5.0        | ✔
+ | 5.1        | ✔
+ | 5.5        | ✔
+ | 6.0        | ✔
+|===
+
+
+== Java
+
+[%autowidth,cols="^,2*^"]
+|===
+ |                 2+h| Connector
+h| Java↓            | 4.0.0 - 4.0.1 | 4.0.2
+ | Oracle JDK 8     | ✔             | ✔
+ | AdoptOpenJDK 8   | ✖             | ✔
+ | AdoptOpenJDK 11  | ✖             | ✔
+|===

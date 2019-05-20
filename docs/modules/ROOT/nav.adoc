@@ -4,4 +4,5 @@
 * xref:monitoring.adoc[Monitoring]
 * xref:secure-connections.adoc[Secure Connections]
 * xref:migration.adoc[Migration]
+* xref:compatibility.adoc[Compatibility]
 * xref:release-notes.adoc[Release Notes]
