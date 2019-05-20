@@ -56,7 +56,7 @@ public class AutonomousOpsTest {
 
   @BeforeClass
   public static void startReusableContainers() {
-    consulCluster = new ConsulCluster("consul:1.4.3", 3, Network.newNetwork()).start();
+    consulCluster = new ConsulCluster("consul:1.4.4", 3, Network.newNetwork()).start();
 
     elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
         .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")));
