@@ -2,7 +2,37 @@
 :description: Learn how to install the Elasticsearch Connector.
 
 [abstract]
-Step-by-step instructions for installing the Couchbase Elasticsearch Connector.
+A brief overview of the various ways to run the Couchbase Elasticsearch Connector, followed by step-by-step instructions for installing the connector in solo/distributed mode.
+
+
+== Operational Modes
+
+The connector can be deployed in different modes depending on the requirements of your project.
+
+=== Solo
+
+In the simplest mode, the connector runs as a single standalone Java process.
+This is referred to as "solo" mode.
+Solo mode is appropriate for experimentation and low-traffic environments.
+
+If this is your first time working with the connector, we recommend starting with solo mode.
+
+=== Distributed
+
+If a single connector process cannot handle all of your traffic, multiple connector processes can be deployed in "distributed" mode.
+In this mode each process is manually configured to handle only a subset of the replication workload.
+Distributed mode can scale to handle high volumes of traffic, but is inflexible; adding an additional process to a distributed connector group requires stopping and reconfiguring _all_ of the processes in the group.
+
+NOTE: Solo mode is effectively the same as distributed mode with a group size of 1.
+
+=== Autonomous Operations
+
+For scalable environments that require high availability and centralized management, you can run the connector in "autonomous operations" (AO) mode.
+This mode is similar to distributed mode in that each process handles a subset of the replication workload, but improves upon it by using a https://www.consul.io[HashiCorp Consul] cluster to coordinate the activities of the connector processes.
+This enables connector processes to dynamically join or leave the group, and allows an administrator to reconfigure the group on-the-fly without needing to shut down all of the processes.
+
+AO mode is discussed in more detail in the xref:autonomous-operations.adoc[Autonomous Operations] guide.
+The page you're reading now is focused on solo and distributed mode; we recommend becoming familiar with these modes before progressing to AO mode.
 
 // todo link to index page for version 3
 //NOTE: These instructions are for version 4 of the Elasticsearch Connector which runs as a standalone service. Documentation for the `elasticsearch-transport-couchbase` plug-in for Elasticsearch is over here.
@@ -12,7 +42,7 @@ Step-by-step instructions for installing the Couchbase Elasticsearch Connector.
 Linux is required for production deployments.
 macOS is fine for experimentation and development, but is not officially supported.
 
-You will need:
+To deploy the connector in solo or distributed mode, you will need:
 
 * The xref:release-notes.adoc[latest release] of Couchbase Elasticsearch Connector.
 
@@ -110,7 +140,8 @@ A connector process will shut down gracefully in response to an interrupt signal
 The throughput of the connector is limited by the time it takes for Elasticsearch to index documents.
 If you determine a single instance of the connector is unable to saturate your Elasticsearch indexing capacity, you can run multiple instances of the connector in distributed mode for horizontal scalability.
 
-NOTE: A Couchbase bucket consists of many separate partitions known as virtual buckets (often abbreviated as "vbuckets"). When the connector runs in distributed mode, each instance of the connector is responsible for replicating a different subset of the vbuckets.
+A Couchbase bucket consists of many separate partitions known as virtual buckets (often abbreviated as "vbuckets").
+When the connector runs in distributed mode, each instance of the connector is responsible for replicating a different subset of the vbuckets.
 
 To run the connector in distributed mode, install the connector on multiple machines.
 Make sure the connector configuration is identical on each machine, except for the `memberNumber` config key, which must be unique within the group.
@@ -128,6 +159,10 @@ These documents have IDs starting with `_connector:cbes:`
 Command line tools are provided to manage the replication checkpoint.
 
 CAUTION: You must stop all connector instances in a group before modifying the replication checkpoint, otherwise the changes will not take effect.
+(This restriction does not apply when running in xref:autonomous-operations.adoc[Autonomous Operations mode].)
+
+The following commands are specific to the solo and distributed modes.
+xref:autonomous-operations.adoc[Autonomous Operations mode] has its own separate commands for managing checkpoints.
 
 [#save-checkpoint]
 === Saving the current replication state
@@ -165,3 +200,8 @@ Or, if you want to reset the connector so it starts from the
 current state of the bucket:
 
     cbes-checkpoint-clear --catch-up
+
+== What's Next?
+
+After successfully deploying the connector in solo or distributed mode, you're ready to dive into the xref:autonomous-operations.adoc[Autonomous Operations] guide.
+

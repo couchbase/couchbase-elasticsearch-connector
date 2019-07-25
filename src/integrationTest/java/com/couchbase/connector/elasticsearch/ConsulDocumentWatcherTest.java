@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.couchbase.connector.elasticsearch.AutonomousOpsTest.CONSUL_DOCKER_IMAGE;
 import static java.time.Duration.ofSeconds;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
@@ -82,7 +83,7 @@ public class ConsulDocumentWatcherTest {
     if (NATIVE_CONSUL) {
       consulBuilder = Consul.builder();
     } else {
-      consulCluster = new ConsulCluster("consul:1.4.4", 1, Network.newNetwork()).start();
+      consulCluster = new ConsulCluster(CONSUL_DOCKER_IMAGE, 1, Network.newNetwork()).start();
       consulBuilder = consulCluster.clientBuilder(0);
     }
 

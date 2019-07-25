@@ -60,6 +60,8 @@ Edit the `[group]` section so it looks like this:
 Next, make sure there won't be any port conflicts when running multiple workers on the same machine.
 Search for the `[metrics]` section and set the `httpPort` property to `-1` to disable the embedded HTTP server.
 
+NOTE: The values in the `[group.static]` section are ignored when running in AO mode, but the section must still be present.
+
 Save the changes.
 Now let's upload the configuration to Consul with this command:
 
@@ -168,9 +170,6 @@ Just be careful not confuse them with the `cbes-checkpoint-*` commands, which sh
 If there's no local Consul agent, you can use a remote agent by passing `--consul-agent=<host:port>` (where `port` is usually 8500).
 * Configuration is not _completely_ centralized.
 Sensitive properties like passwords must be still be configured on each worker's filesystem.
-* You can edit a group's configuration directly in the Consul web interface.
-The new configuration will go into effect as soon as the changes are saved.
-If you choose to do this, *the one property you must not change is the group name*.
 
 == From Development to Production
 

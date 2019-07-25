@@ -43,6 +43,9 @@ import static com.couchbase.connector.testcontainers.Poller.poll;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class AutonomousOpsTest {
+
+  static final String CONSUL_DOCKER_IMAGE = "consul:1.4.5";
+
   static {
     ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
   }
@@ -56,7 +59,7 @@ public class AutonomousOpsTest {
 
   @BeforeClass
   public static void startReusableContainers() {
-    consulCluster = new ConsulCluster("consul:1.4.4", 3, Network.newNetwork()).start();
+    consulCluster = new ConsulCluster(CONSUL_DOCKER_IMAGE, 3, Network.newNetwork()).start();
 
     elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
         .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")));

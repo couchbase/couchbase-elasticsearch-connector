@@ -12,7 +12,7 @@ Versions not listed on this page may work but are untested and unsupported.
 [%autowidth,cols="^,2*^"]
 |===
  |             2+h| Connector
-h| Elasticsearch↓ | 4.0.0 - 4.0.1 | 4.0.2
+h| Elasticsearch↓ | 4.0.0 - 4.0.1 | 4.0.2 - 4.1
  | 5.4 - 5.6      | ✔             | ✔
  | 6.0 - 6.6      | ✔             | ✔
  | 6.7            | ✖             | ✔
@@ -25,7 +25,7 @@ h| Elasticsearch↓ | 4.0.0 - 4.0.1 | 4.0.2
 [%autowidth,cols="^,1*^"]
 |===
  |           h| Connector
-h| Couchbase↓ | 4.0.0 - 4.0.2
+h| Couchbase↓ | 4.0.0 - 4.1
  | < 5.0      | ✖
  | 5.0        | ✔
  | 5.1        | ✔
@@ -39,8 +39,20 @@ h| Couchbase↓ | 4.0.0 - 4.0.2
 [%autowidth,cols="^,2*^"]
 |===
  |                 2+h| Connector
-h| Java↓            | 4.0.0 - 4.0.1 | 4.0.2
+h| Java↓            | 4.0.0 - 4.0.1 | 4.0.2 - 4.1
  | Oracle JDK 8     | ✔             | ✔
  | AdoptOpenJDK 8   | ✖             | ✔
  | AdoptOpenJDK 11  | ✖             | ✔
+|===
+
+
+== Consul
+
+Only required for Autonomous Operations mode.
+
+[%autowidth,cols="^,1*^"]
+|===
+ |           h| Connector
+h| Consul↓ | 4.1
+ | 1.4.5     | ✔
 |===
