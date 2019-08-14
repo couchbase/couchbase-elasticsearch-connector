@@ -160,6 +160,15 @@ public class AutonomousOpsTest {
       group.awaitRebalance(3);
       es.waitForDocuments("etc", upsertOneDocumentToEachVbucket(bucket, "c"));
 
+      // stop a node that isn't the leader
+      System.out.println("Stopping 'latecomer' worker");
+      connector4.close();
+      System.out.println("Latecomer worker stopped!");
+
+      // leaver should be removed from the group
+      group.awaitRebalance(2);
+      es.waitForDocuments("etc", upsertOneDocumentToEachVbucket(bucket, "d"));
+
       System.out.println("Shutting down connector...");
     }
     System.out.println("Connector shutdown complete.");
