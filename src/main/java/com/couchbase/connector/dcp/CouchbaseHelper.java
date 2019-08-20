@@ -66,8 +66,8 @@ public class CouchbaseHelper {
 
     // Dirty kludge to allow non-standard bootstrap port for containerized Couchbase
     final ConnectionString c = ConnectionString.fromHostnames(config.hosts());
-    for (InetSocketAddress host : c.hosts()) {
-      final int port = host.getPort();
+    for (ConnectionString.UnresolvedSocket host : c.hosts()) {
+      final int port = host.port();
       if (port != 0) {
         LOGGER.debug("Using bootstrap port {}", port);
         envBuilder.bootstrapHttpDirectPort(port);
