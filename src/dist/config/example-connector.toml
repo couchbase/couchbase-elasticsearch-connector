@@ -43,6 +43,7 @@
 
 [couchbase]
   hosts = ['localhost']
+  network = 'auto'
   bucket = 'travel-sample'
 
   # By default the connector stores replication checkpoint documents

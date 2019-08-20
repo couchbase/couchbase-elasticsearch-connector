@@ -95,20 +95,25 @@ Here's where the Couchbase connection parameters and credentials are specified.
 ----
 [couchbase]
   hosts = ['localhost'] <1>
-  bucket = 'travel-sample' <2>
-  metadataBucket = '' <3>
-  username = 'Administrator' <4>
-  pathToPassword = 'secrets/couchbase-password.toml' <5>
-  secureConnection = false <6>
+  network = 'auto' <2>
+  bucket = 'travel-sample' <3>
+  metadataBucket = '' <4>
+  username = 'Administrator' <5>
+  pathToPassword = 'secrets/couchbase-password.toml' <6>
+  secureConnection = false <7>
 ----
 <1> A list of bootstrap nodes for the Couchbase cluster.
 Multiple nodes can be specified like `['host1','host2']`.
-<2> The source bucket to replicate from.
-<3> The bucket for storing metadata like replication checkpoint documents. Empty string means store metadata in the source bucket.
-<4> At a minimum, the Couchbase user must have the "Data DCP Reader" role for the source bucket, and "Data Reader" & "Data Writer" roles for the metadata bucket.
-<5> Path to a separate TOML file with a single 'password' key.
+<2> The network selection strategy for connecting to a Couchbase Server cluster that advertises alternate addresses.
+A Couchbase node running inside a container environment (like Docker or Kubernetes) might be configured to advertise both its address within the container environment (known as its "default" address) as well as an "external" address for use by clients connecting from outside the environment.
+Setting the `network` config property to `default` or `external` forces the selection of the respective addresses.
+Setting the value to `auto` tells the connector to select whichever network contains the addresses specified in the `hosts` config property; this heuristic works well in most environments and is the recommended mode.
+<3> The source bucket to replicate from.
+<4> The bucket for storing metadata like replication checkpoint documents. Empty string means store metadata in the source bucket.
+<5> At a minimum, the Couchbase user must have the "Data DCP Reader" role for the source bucket, and "Data Reader" & "Data Writer" roles for the metadata bucket.
+<6> Path to a separate TOML file with a single 'password' key.
 The base for a relative path is the connector installation directory.
-<6> If you have configured the <<truststore,Trust Store>> section, set this to `true` to encrypt the Couchbase connections.
+<7> If you have configured the <<truststore,Trust Store>> section, set this to `true` to encrypt the Couchbase connections.
 
 TIP: If you want to replicate from multiple buckets, you can run a separate connector group for each bucket.
 

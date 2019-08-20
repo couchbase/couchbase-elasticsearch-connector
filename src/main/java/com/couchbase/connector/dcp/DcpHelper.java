@@ -88,6 +88,7 @@ public class DcpHelper {
         .connectionNameGenerator(DefaultConnectionNameGenerator.forProduct("elasticsearch-connector", VersionHelper.getVersion(), groupName))
         .connectTimeout(config.dcp().connectTimeout().millis())
         .hostnames(config.hosts())
+        .networkResolution(config.network())
         .bucket(config.bucket())
 //          .poolBuffers(true)
         .username(config.username())

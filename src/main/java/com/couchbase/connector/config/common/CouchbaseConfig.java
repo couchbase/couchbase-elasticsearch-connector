@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.config.common;
 
+import com.couchbase.client.core.env.NetworkResolution;
 import net.consensys.cava.toml.TomlTable;
 import org.immutables.value.Value;
 
@@ -29,6 +30,8 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 @Value.Immutable
 public interface CouchbaseConfig {
   List<String> hosts();
+
+  NetworkResolution network();
 
   String username();
 
@@ -44,15 +47,17 @@ public interface CouchbaseConfig {
   DcpConfig dcp();
 
   static ImmutableCouchbaseConfig from(TomlTable config) {
-    expectOnly(config, "bucket", "metadataBucket", "hosts", "username", "pathToPassword", "dcp", "secureConnection");
+    expectOnly(config, "bucket", "metadataBucket", "hosts", "network", "username", "pathToPassword", "dcp", "secureConnection");
 
     final String sourceBucket = config.getString("bucket", () -> "default");
+    final String networkName = config.getString("network", () -> "auto");
     final String metadataBucket = config.getString("metadataBucket", () -> "");
 
     return ImmutableCouchbaseConfig.builder()
         .bucket(sourceBucket)
         .metadataBucket(isNullOrEmpty(metadataBucket) ? sourceBucket : metadataBucket)
         .hosts(getStrings(config, "hosts"))
+        .network(networkName.isEmpty() ? NetworkResolution.AUTO : NetworkResolution.custom(networkName))
         .username(config.getString("username", () -> ""))
         .password(readPassword(config, "couchbase", "pathToPassword"))
         .secureConnection(config.getBoolean("secureConnection", () -> false))
