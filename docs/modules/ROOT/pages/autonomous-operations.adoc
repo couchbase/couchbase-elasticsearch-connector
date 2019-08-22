@@ -28,7 +28,7 @@ Make sure you are successful with a single worker before proceeding.
 
 * You'll need a Consul executable for your platform.
 Visit the https://www.consul.io[Consul web site] and navigate to the download page.
-Download Consul 1.4.4 (other versions may work, but this is the one we currently test and support).
+Download xref:compatibility.adoc[a compatible version of Consul] (other versions may work, but these are the ones we currently test and support).
 Install the Consul binary by moving it to a directory in your `PATH`.
 
 === Start the Consul Server

@@ -44,7 +44,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class AutonomousOpsTest {
 
-  static final String CONSUL_DOCKER_IMAGE = "consul:1.4.5";
+  static final String CONSUL_DOCKER_IMAGE = "consul:1.5.3";
 
   static {
     ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);

@@ -55,6 +55,6 @@ Only required for Autonomous Operations mode.
 [%autowidth,cols="^,1*^"]
 |===
  |           h| Connector
-h| Consul↓ | 4.1
- | 1.4.5     | ✔
+h| Consul↓    | 4.1
+ | 1.5.3      | ✔
 |===
