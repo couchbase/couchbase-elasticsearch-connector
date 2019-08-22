@@ -29,6 +29,7 @@ import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
@@ -263,7 +264,7 @@ public class ElasticsearchWriter implements Closeable {
         final RetryReporter retryReporter = RetryReporter.forLogger(LOGGER);
 
         try {
-          final BulkResponse bulkResponse = client.bulk(bulkRequest);
+          final BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
           final long nowNanos = System.nanoTime();
           final BulkItemResponse[] responses = bulkResponse.getItems();
 
