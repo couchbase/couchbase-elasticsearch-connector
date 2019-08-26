@@ -83,7 +83,7 @@ public class BasicReplicationTest {
     final boolean exhaustive = Boolean.valueOf(System.getProperty("com.couchbase.integrationTest.exhaustive"));
 
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
-        "6.5.0-beta",
+        // "6.5.0-beta",
         "enterprise-6.0.1",
         "enterprise-5.5.1",
         "enterprise-5.5.0",
