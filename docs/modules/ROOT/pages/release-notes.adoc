@@ -13,6 +13,30 @@ TIP: If you want to use the old plug-in, distributions may be https://github.com
 Make sure to pick the archive whose `es` version component _exactly_ matches your Elasticsearch version.
 For example, to use the 3.0.0 version of the plug-in with Elasticsearch 5.6.4, you would select `elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip`.
 
+== Elasticsearch Connector 4.1.0 (2019-09-05)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.1.0/couchbase-elasticsearch-connector-4.1.0.zip[couchbase-elasticsearch-connector-4.1.0.zip]
+
+We are excited to unveil the new Autonomous Operations (AO) mode with major improvements to the availability and manageability of the connector.
+When the connector is deployed in AO mode, worker processes use your HashiCorp Consul cluster to communicate with each other and automatically distribute the replication workload.
+You can add or remove worker processes at any time without having to manually stop and reconfigure all of the workers.
+Any worker that fails a health check is automatically removed, and its workload is redistributed among remaining workers.
+
+The new `cbes-consul` command line tool is used to start a worker in AO mode.
+It also provides streamlined checkpoint management and the ability to reconfigure or pause/resume all of the workers in an AO group at once.
+
+Also new in this release is support for multi-network configuration.
+This feature allows the connector to talk to Couchbase Server nodes that have been configured to advertise alternate network addresses for connecting to the node from outside a container/cloud networking environment.
+The new `network` property in the `[couchbase]` section of the configuration gives you control over network selection (although the default value of `auto` is appropriate for most cases).
+
+Finally, the range of supported Elasticsearch versions is extended to include 7.1, 7.2. and 7.3.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-65[CBES-65] Autonomous Operations Mode with Consul
+* https://issues.couchbase.com/browse/CBES-135[CBES-135] Expose multi-network config options
+* https://issues.couchbase.com/browse/CBES-138[CBES-138] Upgrade to Couchbase client 2.7.9 and DCP client 0.24.0
+
 == Elasticsearch Connector 4.0.2 (2019-05-21)
 
 https://packages.couchbase.com/clients/connectors/elasticsearch/4.0.2/couchbase-elasticsearch-connector-4.0.2.zip[couchbase-elasticsearch-connector-4.0.2.zip]
