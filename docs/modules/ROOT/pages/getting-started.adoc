@@ -49,7 +49,7 @@ To deploy the connector in solo or distributed mode, you will need:
 * xref:compatibility.adoc[Compatible versions] of Java, Elasticsearch, and Couchbase Server.
 
 NOTE: Couchbase Enterprise Edition is required if you wish to enable secure connections to Couchbase.
-Likewise, Elasticsearch requires an additional license in order to support secure connections.
+Likewise, versions of Elasticsearch prior to 6.8 and 7.1 require an additional license in order to support secure connections.
 Trial versions of both are available.
 
 == Pre-flight Check
