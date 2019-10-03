@@ -16,15 +16,20 @@
 
 package com.couchbase.connector.elasticsearch;
 
+import com.amazonaws.auth.AWS4Signer;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.http.AWSRequestSigningApacheInterceptor;
 import com.codahale.metrics.Gauge;
 import com.couchbase.client.core.logging.RedactableArgument;
 import com.couchbase.client.java.util.features.Version;
 import com.couchbase.connector.config.common.TrustStoreConfig;
+import com.couchbase.connector.config.es.AwsConfig;
 import com.couchbase.connector.config.es.ElasticsearchConfig;
 import com.couchbase.connector.util.ThrowableHelper;
 import com.google.common.collect.Iterables;
 import org.apache.http.ConnectionClosedException;
 import org.apache.http.HttpHost;
+import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
@@ -42,7 +47,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
-import java.net.ConnectException;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -141,10 +145,11 @@ public class ElasticsearchHelper {
         elasticsearchConfig.username(),
         elasticsearchConfig.password(),
         elasticsearchConfig.secureConnection(),
-        trustStoreConfig);
+        trustStoreConfig,
+        elasticsearchConfig.aws());
   }
 
-  public static RestHighLevelClient newElasticsearchClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
+  public static RestHighLevelClient newElasticsearchClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore, AwsConfig aws) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
     final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
     credentialsProvider.setCredentials(AuthScope.ANY,
         new UsernamePasswordCredentials(username, password));
@@ -153,9 +158,13 @@ public class ElasticsearchHelper {
         SSLContexts.custom().loadTrustMaterial(trustStore.get(), null).build();
 
     final RestClientBuilder builder = RestClient.builder(Iterables.toArray(hosts, HttpHost.class))
-        .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
-            .setSSLContext(sslContext)
-            .setDefaultCredentialsProvider(credentialsProvider))
+        .setHttpClientConfigCallback(httpClientBuilder -> {
+          httpClientBuilder
+              .setSSLContext(sslContext)
+              .setDefaultCredentialsProvider(credentialsProvider);
+          awsSigner(aws).ifPresent(httpClientBuilder::addInterceptorLast);
+          return httpClientBuilder;
+        })
         .setFailureListener(new RestClient.FailureListener() {
           @Override
           public void onFailure(Node host) {
@@ -164,6 +173,21 @@ public class ElasticsearchHelper {
         });
 
     return new RestHighLevelClient(builder);
+  }
+
+  private static Optional<HttpRequestInterceptor> awsSigner(AwsConfig config) {
+    if (config.region().isEmpty()) {
+      return Optional.empty();
+    }
+
+    final String serviceName = "es";
+
+    final AWS4Signer signer = new AWS4Signer();
+    signer.setServiceName(serviceName);
+    signer.setRegionName(config.region());
+
+    return Optional.of(new AWSRequestSigningApacheInterceptor(
+        serviceName, signer, new DefaultAWSCredentialsProviderChain()));
   }
 
 }

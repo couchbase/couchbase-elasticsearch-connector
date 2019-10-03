@@ -84,6 +84,12 @@
   # https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html
   secureConnection = false
 
+# If connecting directly to an Amazon Elasticsearch Service, specify the AWS region.
+# AWS credentials are obtained from the Default Credential Provider Chain.
+# https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html
+[elasticsearch.aws]
+  region = ''
+
 [elasticsearch.bulkRequestLimits]
   bytes = '10mb'
   actions = 1000

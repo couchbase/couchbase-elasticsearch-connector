@@ -163,6 +163,20 @@ Username and password are only required if Elasticsearch is set up to require au
 The base for a relative path is the connector installation directory.
 <4> If your Elasticsearch cluster requires secure connections, configure the <<truststore,Trust Store>> section and then set this to `true` to encrypt the Elasticsearch connections.
 
+=== Amazon Elasticsearch Service
+
+If connecting directly to an instance of the Amazon Elasticsearch Service, all Elasticsearch requests must be signed with AWS credentials.
+Specifying the AWS region of the service tells the connector to sign the requests.
+Credentials are obtained from the https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html[Default Credential Provider Chain].
+
+[source,toml]
+----
+[elasticsearch.aws]
+region = 'us-east-2' <1>
+----
+
+<1> Activates request signing for the specified AWS region.
+Leave this blank unless you're connecting directly to an instance of the Amazon Elasticsearch Service.
 
 === Bulk Request Limits
 

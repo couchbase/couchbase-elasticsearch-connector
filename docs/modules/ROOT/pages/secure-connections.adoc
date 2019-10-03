@@ -21,7 +21,7 @@ Couchbase Server *Enterprise Edition* is required in order to connect to Couchba
 Enterprise Edition may be downloaded and evaluated for free.
 During the download process, see the license agreement for details about commercial use.
 
-Similarly, Elasticsearch requires an *X-Pack license* in order to accept secure connections.
+Similarly, versions of Elasticsearch prior to 6.8 and 7.1 require an additional license in order to support secure connections.
 A trial license can be activated by modifying a configuration setting, as explained in the Elasticsearch documentation linked below.
 
 
@@ -46,7 +46,7 @@ Elasticsearch must first be configured to require TLS/SSL.
 Please refer to the Elasticsearch documentation, specifically https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html[Encrypting communications in Elasticsearch].
 Make sure you also follow the steps for https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html#tls-http[Encrypting HTTP Client Communications].
 
-CAUTION: Enabling X-Pack on an Elasticsearch cluster starts a trial period.
+CAUTION: Enabling X-Pack on versions of Elasticsearch prior to 6.8 and 7.1 starts a trial period.
 When the trial period expires, functionality is degraded unless a license is purchased from Elastic.
 See https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-security.html[Configuring security in Elasticsearch] for details.
 
@@ -56,6 +56,15 @@ This CA certificate is the one you'll add to the connector's trust store in the 
 Verify Elasticsearch requires secure connections by opening `https://localhost:9200` in your web browser.
 (You might get a warning about an untrusted or self-signed certificate).
 You should be prompted for your Elasticsearch credentials, which default to username `elastic` with password `changeme`.
+
+[#aws-cert]
+=== Amazon Elasticsearch Service
+
+The certificates used by the Amazon Elasticsearch Service are signed by a well-known certificate authority.
+When connecting to an instance of the Amazon Elasticsearch Service, you may use the default trust store included with the Java runtime (assuming your Java installation is up-to-date).
+This trust store file is usually named `cacerts` and lives somewhere under `$JAVA_HOME`.
+
+Alternatively, the Amazon CA certificate may be downloaded from https://www.amazontrust.com/repository/[Amazon Trust Services].
 
 [#trust-store]
 == Add Certificates to the Trust Store

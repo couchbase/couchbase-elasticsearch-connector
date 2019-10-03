@@ -23,10 +23,10 @@ import net.consensys.cava.toml.TomlTable;
 import org.apache.http.HttpHost;
 import org.immutables.value.Value;
 
-import static com.couchbase.connector.config.ConfigHelper.readPassword;
 import static com.couchbase.connector.config.ConfigHelper.createHttpHost;
 import static com.couchbase.connector.config.ConfigHelper.expectOnly;
 import static com.couchbase.connector.config.ConfigHelper.getStrings;
+import static com.couchbase.connector.config.ConfigHelper.readPassword;
 import static java.util.stream.Collectors.toList;
 
 @Value.Immutable
@@ -48,6 +48,8 @@ public interface ElasticsearchConfig {
 
   RejectLogConfig rejectLog();
 
+  AwsConfig aws();
+
   @Value.Check
   default void check() {
     if (types().isEmpty()) {
@@ -56,18 +58,25 @@ public interface ElasticsearchConfig {
   }
 
   static ImmutableElasticsearchConfig from(TomlTable config) {
-    expectOnly(config, "hosts", "username", "pathToPassword", "secureConnection", "bulkRequestLimits", "docStructure", "typeDefaults", "type", "rejectionLog");
+    expectOnly(config, "hosts", "username", "pathToPassword", "secureConnection", "aws", "bulkRequestLimits", "docStructure", "typeDefaults", "type", "rejectionLog");
 
     final boolean secureConnection = config.getBoolean("secureConnection", () -> false);
+
+    final AwsConfig aws = AwsConfig.from(config.getTableOrEmpty("aws"));
+
+    // Standard ES HTTP port is 9200. Amazon Elasticsearch Service listens on ports 80 & 443.
+    final int defaultPort = aws.region().isEmpty() ? 9200 :
+        secureConnection ? 443 : 80;
 
     final ImmutableElasticsearchConfig.Builder builder = ImmutableElasticsearchConfig.builder()
         .secureConnection(secureConnection)
         .hosts(getStrings(config, "hosts").stream()
-            .map(h -> createHttpHost(h, 9200, secureConnection))
+            .map(h -> createHttpHost(h, defaultPort, secureConnection))
             .collect(toList()))
         .username(config.getString("username", () -> ""))
         .password(readPassword(config, "elasticsearch", "pathToPassword"))
         .bulkRequest(BulkRequestConfig.from(config.getTableOrEmpty("bulkRequestLimits")))
+        .aws(aws)
         .docStructure(DocStructureConfig.from(config.getTableOrEmpty("docStructure")));
 
     final TomlTable typeDefaults = config.getTableOrEmpty("typeDefaults");

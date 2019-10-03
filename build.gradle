@@ -72,6 +72,8 @@ dependencies {
   compile 'net.sf.jopt-simple:jopt-simple:5.0.4'
   compile 'info.picocli:picocli:3.9.6'
 
+  compile 'com.amazonaws:aws-java-sdk-core:1.11.642'
+
   testCompile 'junit:junit:4.12'
   testCompile 'org.apache.commons:commons-lang3:3.9'
   testCompile("org.assertj:assertj-core:3.11.1")
