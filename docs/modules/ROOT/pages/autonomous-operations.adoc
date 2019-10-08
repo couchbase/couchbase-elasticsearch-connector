@@ -16,6 +16,10 @@ The coordination service used by the connector is https://www.consul.io[HashiCor
 
 Installing and managing a production Consul cluster is beyond the scope of this guide, but we'll show how to quickly and easily set up a Consul server in development mode.
 
+NOTE: Couchbase does not provide support for Consul, nor for configuring Consul for use with the Couchbase Elasticsearch Connector.
+Although not supported, it is a useful solution for coordinating services across your infrastructure, so we offer this quickstart guide here for setting up your development environment.
+
+
 == AO Quickstart Guide
 
 [abstract]
