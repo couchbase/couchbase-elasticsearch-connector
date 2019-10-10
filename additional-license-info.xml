@@ -1,0 +1,31 @@
+<!-- The format of this file is described by https://github.com/jk1/Gradle-License-Report#importers -->
+<topic>
+  <chunk>
+    <chapter title="Libraries included in source form">
+      <table>
+        <tr>
+          <!-- every non-empty chapter must have a title row, which is stripped> -->
+          <th>Name</th>
+          <th>Version</th>
+          <th>License</th>
+        </tr>
+        <tr>
+          <td>
+            <a href="https://github.com/awslabs/aws-request-signing-apache-interceptor">
+              com.amazonaws:aws-request-signing-apache-interceptor
+            </a>
+          </td>
+          <td>git commit deb7941e859e399b767a84f5a975b04967524f39</td>
+          <td>
+            <a href="https://www.apache.org/licenses/LICENSE-2.0.txt">
+              The Apache Software License, Version 2.0
+            </a>
+          </td>
+        </tr>
+        <!-- more libraries here...> -->
+      </table>
+    </chapter>
+    <!-- more chapters here...> -->
+  </chunk>
+  <!-- more chunks here...> -->
+</topic>
