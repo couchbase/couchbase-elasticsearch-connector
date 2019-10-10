@@ -172,7 +172,7 @@ Credentials are obtained from the https://docs.aws.amazon.com/sdk-for-java/v1/de
 [source,toml]
 ----
 [elasticsearch.aws]
-region = 'us-east-2' <1>
+  region = 'us-east-2' <1>
 ----
 
 <1> Activates request signing for the specified AWS region.
