@@ -95,11 +95,12 @@ public class BasicReplicationTest {
         "community-5.0.1");
 
     final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "7.3.0",
+        "7.4.0",
+        "7.3.2",
         "7.2.1",
         "7.1.1",
         "7.0.1",
-        "6.8.2",
+        "6.8.3",
         "6.7.1",
         "6.6.2",
         "6.5.4",
@@ -109,8 +110,7 @@ public class BasicReplicationTest {
         "6.1.4",
         "6.0.1",
         "5.6.15",
-        "5.5.3",
-        "5.4.3"
+        "5.5.3"
     ));
 
     // Elasticsearch versions prior to 5.4 don't support "single-node" discovery.

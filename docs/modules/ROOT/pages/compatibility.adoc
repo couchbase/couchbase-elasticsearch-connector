@@ -9,17 +9,23 @@ Versions not listed on this page may work but are untested and unsupported.
 
 == Elasticsearch
 
-[%autowidth,cols="^,3*^"]
+[%autowidth,cols="^,4*^"]
 |===
- |             3+h| Connector
-h| Elasticsearch↓ | 4.0.0 - 4.0.1 | 4.0.2 | 4.1
- | 5.4 - 5.6      | ✔             | ✔     | ✔
- | 6.0 - 6.6      | ✔             | ✔     | ✔
- | 6.7            | ✖             | ✔     | ✔
- | 6.8            | ✖             | ✖     | ✔
- | 7.0            | ✖             | ✔     | ✔
- | 7.1 - 7.3      | ✖             | ✖     | ✔
+ |             4+h| Connector
+h| Elasticsearch↓ | 4.0.0 - 4.0.1 | 4.0.2 | 4.1 | 4.2
+ | 5.4            | ✔             | ✔     | ✔   | ✖
+ | 5.5 - 5.6      | ✔             | ✔     | ✔   | ✔
+ | 6.0 - 6.6      | ✔             | ✔     | ✔   | ✔
+ | 6.7            | ✖             | ✔     | ✔   | ✔
+ | 6.8            | ✖             | ✖     | ✔   | ✔
+ | 7.0            | ✖             | ✔     | ✔   | ✔
+ | 7.1 - 7.3      | ✖             | ✖     | ✔   | ✔
+ | 7.4            | ✖             | ✖     | ✖   | ✔
 |===
+
+== Amazon Elasticsearch Service
+
+Direct connection to Amazon Elasticsearch Service instances is supported by connector versions 4.2 and later.
 
 
 == Couchbase Server
@@ -27,7 +33,7 @@ h| Elasticsearch↓ | 4.0.0 - 4.0.1 | 4.0.2 | 4.1
 [%autowidth,cols="^,1*^"]
 |===
  |           h| Connector
-h| Couchbase↓ | 4.0.0 - 4.1
+h| Couchbase↓ | 4.0.0 - 4.2
  | < 5.0      | ✖
  | 5.0        | ✔
  | 5.1        | ✔
@@ -41,7 +47,7 @@ h| Couchbase↓ | 4.0.0 - 4.1
 [%autowidth,cols="^,2*^"]
 |===
  |                 2+h| Connector
-h| Java↓            | 4.0.0 - 4.0.1 | 4.0.2 - 4.1
+h| Java↓            | 4.0.0 - 4.0.1 | 4.0.2 - 4.2
  | Oracle JDK 8     | ✔             | ✔
  | AdoptOpenJDK 8   | ✖             | ✔
  | AdoptOpenJDK 11  | ✖             | ✔
@@ -55,6 +61,6 @@ Only required for Autonomous Operations mode.
 [%autowidth,cols="^,1*^"]
 |===
  |           h| Connector
-h| Consul↓    | 4.1
+h| Consul↓    | 4.1 - 4.2
  | 1.5.3      | ✔
 |===
