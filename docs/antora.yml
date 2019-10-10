@@ -1,5 +1,5 @@
 name: elasticsearch-connector
 title: Elasticsearch Connector
-version: '4.1'
+version: '4.2'
 nav:
 - modules/ROOT/nav.adoc
