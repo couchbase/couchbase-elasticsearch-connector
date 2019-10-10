@@ -158,6 +158,10 @@ $ cbes-consul pause --group=my-ao-group
 $ cbes-consul resume --group=my-ao-group
 ----
 
+NOTE: The `cbes-consul` command has an optional `--consul-config` argument which points to a file with Consul-specific configuration options.
+This file is where you would specify a custom ACL token, for example.
+See the xref:configuration.adoc#consul[Consul section of the configuration documentation] for more details.
+
 == Migrating to Autonomous Operations
 
 Replication checkpoint documents created in AO mode are 100% compatible with checkpoints created in other modes.

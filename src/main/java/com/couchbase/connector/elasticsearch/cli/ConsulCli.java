@@ -20,6 +20,8 @@ import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.consul.ConsulConnector;
 import com.couchbase.connector.cluster.consul.ConsulContext;
 import com.couchbase.connector.cluster.consul.DocumentKeys;
+import com.couchbase.connector.config.ConfigException;
+import com.couchbase.connector.config.common.ConsulConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
@@ -224,8 +226,28 @@ abstract class ConsulCommand {
       description = "The hostname and port of the Consul agent to connect to. Defaults to localhost:8500")
   protected String consulAgentAddress = "localhost:8500";
 
+  @Option(names = {"-c", "--consul-config"}, paramLabel = "<consul.toml>",
+      description = "File with optional Consul configuration options.")
+  protected File consulConfig;
+
   protected Consul.Builder consulBuilder() {
-    return Consul.builder().withHostAndPort(HostAndPort.fromString(consulAgentAddress));
+    try {
+      if (consulConfig == null) {
+        System.out.println("Consul config file not specified; will not override Consul agent ACL token.");
+      }
+
+      final ConsulConfig config = consulConfig == null ? null : ConsulConfig.from(consulConfig);
+      Consul.Builder builder = Consul.builder().withHostAndPort(HostAndPort.fromString(consulAgentAddress));
+      if (config != null && !config.aclToken().isEmpty()) {
+        System.out.println("Using Consul ACL token from " + consulConfig);
+        builder.withAclToken(config.aclToken());
+      }
+
+      return builder;
+
+    } catch (IOException e) {
+      throw new ConfigException(e.getMessage());
+    }
   }
 }
 

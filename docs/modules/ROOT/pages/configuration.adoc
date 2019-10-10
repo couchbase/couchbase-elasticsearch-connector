@@ -1,7 +1,7 @@
 = Configuration
 
 [abstract]
-A description of the sections and properties defined in the sample config file, `$CBES_HOME/config/example-connector-config.toml`.
+A description of the sections and properties defined in the sample connector config file, `$CBES_HOME/config/example-connector.toml`, followed by a description of the Consul configuration options specific to Autonomous Operations mode.
 
 TIP: If this is your first time working with the TOML config file format, check out Nate Finch's excellent https://npf.io/2014/08/intro-to-toml/[Intro to TOML], or the https://github.com/toml-lang/toml[official specification].
 
@@ -406,3 +406,30 @@ favoriteColor = '${FAVORITE_COLOR:blue}' <2>
 <2> A colon in the placeholder separates the environment variable name from the default value to use if the variable is not set.
 If the `FAVORITE_COLOR` environment variable is set, its value will be used.
 Otherwise, the specified default value `blue` will be used.
+
+[#consul]
+== Consul
+
+When running the connector in Autonomous Operations mode, you can configure how the connector communicates with Consul.
+Configuration options specific to Consul are defined in a separate file, which may be specified on the `cbes-consul` command line with the `--consul-config` option.
+If this command line option is not specified, default values are used for the configuration keys in this section.
+
+****
+*Why are the Consul options in a separate file?*
+
+In Autonomous Operations mode, the connector configuration is stored in Consul.
+The connector needs to know how to talk to Consul before it can read the connector configuration.
+****
+
+The example file included in the connector distribution is called `$CBES_HOME/config/consul.toml`.
+Here's what it looks like:
+
+[source,toml]
+----
+[consul]
+  aclToken = '${CBES_CONSUL_ACL_TOKEN:}' <1>
+----
+<1> Access Control List Token to include in all Consul requests.
+The default value is an empty string, in which case the token sent to the Consul server will be determined by the Consul agent.
+This example configuration shows how to read the token from the `CBES_CONSUL_ACL_TOKEN` environment variable if present, falling back to empty string if the variable is not set.
+If you prefer not to use an environment variable, you can specify the ACL token directly instead.

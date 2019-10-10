@@ -42,12 +42,6 @@ import static com.google.common.base.Preconditions.checkState;
 public class ConsulConnector {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsulConnector.class);
 
-  public static void main(String[] args) throws Exception {
-    final String serviceName = args[0];
-    final String serviceIdOrNull = args.length == 1 ? null : args[1];
-    run(new ConsulContext(Consul.builder(), serviceName, serviceIdOrNull));
-  }
-
   public static void run(ConsulContext ctx) throws Exception {
     final BlockingQueue<Throwable> fatalErrorQueue = new LinkedBlockingQueue<>();
 
