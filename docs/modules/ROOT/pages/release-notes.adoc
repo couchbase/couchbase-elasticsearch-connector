@@ -15,7 +15,7 @@ For example, to use the 3.0.0 version of the plug-in with Elasticsearch 5.6.4, y
 
 == Elasticsearch Connector 4.2.0 (2019-10-15)
 
-https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.0/couchbase-elasticsearch-connector-4.1.0.zip[couchbase-elasticsearch-connector-4.2.0.zip]
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.0/couchbase-elasticsearch-connector-4.2.0.zip[couchbase-elasticsearch-connector-4.2.0.zip]
 
 Hot on the heels of 4.1, we're releasing 4.2 with support for connecting directly to an Amazon Elasticsearch Service instance.
 There's a new `[elasticsearch.aws]` config section for specifying the AWS region of the service.
