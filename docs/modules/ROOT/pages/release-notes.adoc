@@ -13,6 +13,24 @@ TIP: If you want to use the old plug-in, distributions may be https://github.com
 Make sure to pick the archive whose `es` version component _exactly_ matches your Elasticsearch version.
 For example, to use the 3.0.0 version of the plug-in with Elasticsearch 5.6.4, you would select `elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip`.
 
+== Elasticsearch Connector 4.2.0 (2019-10-15)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.0/couchbase-elasticsearch-connector-4.1.0.zip[couchbase-elasticsearch-connector-4.2.0.zip]
+
+Hot on the heels of 4.1, we're releasing 4.2 with support for connecting directly to an Amazon Elasticsearch Service instance.
+There's a new `[elasticsearch.aws]` config section for specifying the AWS region of the service.
+Amazon credentials are obtained from the https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html[Default Credential Provider Chain].
+
+Also new in 4.2, the `cbes-consul` command now takes an optional `--consul-config` argument which points to a separate config file where you can specify a Consul ACL token.
+
+On the version compatibility front, we've added support for Elasticsearch 7.4 and removed support for Elasticsearch 5.4 (which reached EOL on 2018-11-04).
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-129[CBES-129] Support direct connections to Amazon Elasticsearch Service
+* https://issues.couchbase.com/browse/CBES-140[CBES-140] Support ACL Token Authentication when communicating with Consul
+* https://issues.couchbase.com/browse/CBES-141[CBES-141] Extend support coverage to Elasticsearch 7.4
+
 == Elasticsearch Connector 4.1.0 (2019-09-05)
 
 https://packages.couchbase.com/clients/connectors/elasticsearch/4.1.0/couchbase-elasticsearch-connector-4.1.0.zip[couchbase-elasticsearch-connector-4.1.0.zip]
