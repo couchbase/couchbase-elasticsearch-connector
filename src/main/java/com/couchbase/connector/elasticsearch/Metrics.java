@@ -28,13 +28,18 @@ import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.JvmAttributeGaugeSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
+import com.couchbase.client.dcp.metrics.DefaultDropwizardConfig;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.Clock;
+import io.micrometer.core.instrument.dropwizard.DropwizardConfig;
+import io.micrometer.core.instrument.dropwizard.DropwizardMeterRegistry;
 
 import java.lang.management.ManagementFactory;
 import java.util.Map;
 
+import static com.couchbase.client.dcp.metrics.DefaultDropwizardConfig.PRETTY_TAGS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -52,6 +57,17 @@ public class Metrics {
     // registerAll("jvm.class", new ClassLoadingGaugeSet());
     registerAll("jvm.buffer", new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer()));
     registerAll("jvm.thread", new ThreadStatesGaugeSet());
+  }
+
+  static {
+    // export DCP metrics from Micrometer to the Dropwizard registry
+    DropwizardConfig config = new DefaultDropwizardConfig();
+    io.micrometer.core.instrument.Metrics.addRegistry(new DropwizardMeterRegistry(config, registry, PRETTY_TAGS, Clock.SYSTEM) {
+      @Override
+      protected Double nullGaugeValue() {
+        return null;
+      }
+    });
   }
 
   private static void registerAll(String prefix, MetricSet metricSet) {

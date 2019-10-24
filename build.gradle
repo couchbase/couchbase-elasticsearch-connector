@@ -19,7 +19,7 @@ repositories {
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-version = "4.2.0"
+version = "4.2.1-SNAPSHOT"
 
 // https://github.com/unbroken-dome/gradle-testsets-plugin
 testSets {
@@ -55,7 +55,7 @@ dependencies {
   implementation 'org.slf4j:jcl-over-slf4j:1.7.25'
 
   implementation 'com.couchbase.client:java-client:2.7.9'
-  implementation 'com.couchbase.client:dcp-client:0.24.0'
+  implementation 'com.couchbase.client:dcp-client:0.25.0-SNAPSHOT'
   implementation 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.7.1'
 
   implementation 'io.projectreactor:reactor-core:3.2.9.RELEASE'
