@@ -42,6 +42,7 @@ import com.couchbase.connector.dcp.SnapshotMarker;
 import com.couchbase.connector.elasticsearch.cli.AbstractCliCommand;
 import com.couchbase.connector.elasticsearch.io.RequestFactory;
 import com.couchbase.connector.util.HttpServer;
+import com.couchbase.connector.util.RuntimeHelper;
 import com.couchbase.connector.util.ThrowableHelper;
 import joptsimple.OptionSet;
 import org.elasticsearch.client.RestHighLevelClient;
@@ -172,7 +173,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       initControlHandler(dcpClient, coordinator, snapshots);
       initDataEventHandler(dcpClient, workers::submit, snapshots);
 
-      final Thread saveCheckpoints = new Thread(checkpointService::save);
+      final Thread saveCheckpoints = new Thread(checkpointService::save, "save-checkpoints");
 
       try {
         if (!dcpClient.connect().await(config.couchbase().dcp().connectTimeout().millis(), MILLISECONDS)) {
@@ -193,7 +194,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         initSessionState(dcpClient, checkpointService, partitions);
 
         checkpointExecutor.scheduleWithFixedDelay(checkpointService::save, 10, 10, SECONDS);
-        Runtime.getRuntime().addShutdownHook(saveCheckpoints);
+        RuntimeHelper.addShutdownHook(saveCheckpoints);
 
         try {
           LOGGER.debug("Opening DCP streams for partitions: {}", partitions);
@@ -214,7 +215,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       } finally {
         // If we get here it means there was a fatal exception, or the connector is running in distributed
         // or test mode and a graceful shutdown was requested. Don't need the shutdown hook for any of those cases.
-        Runtime.getRuntime().removeShutdownHook(saveCheckpoints);
+        RuntimeHelper.removeShutdownHook(saveCheckpoints);
 
         checkpointExecutor.shutdown();
         metricReporter.stop();

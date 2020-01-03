@@ -17,6 +17,7 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.couchbase.connector.cluster.consul.rpc.RpcServerTask;
+import com.couchbase.connector.util.RuntimeHelper;
 import com.couchbase.connector.util.ThrowableHelper;
 import com.github.therapi.core.MethodRegistry;
 import com.github.therapi.jsonrpc.DefaultExceptionTranslator;
@@ -141,8 +142,8 @@ public class ConsulConnector {
           System.err.println("Exception in connector shutdown hook.");
           e.printStackTrace();
         }
-      });
-      Runtime.getRuntime().addShutdownHook(shutdownHook);
+      }, "consul-connector-shutdown");
+      RuntimeHelper.addShutdownHook(shutdownHook);
 
       fatalError = fatalErrorQueue.take();
 
@@ -150,7 +151,7 @@ public class ConsulConnector {
       workerService.close();
 
       if (shutdownHook != null) {
-        Runtime.getRuntime().removeShutdownHook(shutdownHook);
+        RuntimeHelper.removeShutdownHook(shutdownHook);
       }
 
       // Cancel any outstanding I/O operations such as the long polls for leader election;
