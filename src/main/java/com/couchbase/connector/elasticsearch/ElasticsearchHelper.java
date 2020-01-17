@@ -62,6 +62,7 @@ import java.util.regex.Pattern;
 
 import static com.couchbase.connector.elasticsearch.io.MoreBackoffPolicies.truncatedExponentialBackoff;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class ElasticsearchHelper {
   private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchHelper.class);
@@ -146,10 +147,19 @@ public class ElasticsearchHelper {
         elasticsearchConfig.password(),
         elasticsearchConfig.secureConnection(),
         trustStoreConfig,
-        elasticsearchConfig.aws());
+        elasticsearchConfig.aws(),
+        elasticsearchConfig.bulkRequest().timeout());
   }
 
-  public static RestHighLevelClient newElasticsearchClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore, AwsConfig aws) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
+  private static long toMillis(TimeValue timeValue) {
+    return timeValue.timeUnit().toMillis(timeValue.duration());
+  }
+
+  public static RestHighLevelClient newElasticsearchClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore, AwsConfig aws, TimeValue bulkRequestTimeout) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
+    final int connectTimeoutMillis = (int) SECONDS.toMillis(5);
+    final int socketTimeoutMillis = (int) Math.max(SECONDS.toMillis(60), toMillis(bulkRequestTimeout) + SECONDS.toMillis(3));
+    LOGGER.info("Elasticsearch client connect timeout = {}ms; socket timeout={}ms", connectTimeoutMillis, socketTimeoutMillis);
+
     final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
     credentialsProvider.setCredentials(AuthScope.ANY,
         new UsernamePasswordCredentials(username, password));
@@ -165,6 +175,10 @@ public class ElasticsearchHelper {
           awsSigner(aws).ifPresent(httpClientBuilder::addInterceptorLast);
           return httpClientBuilder;
         })
+        .setRequestConfigCallback(requestConfigBuilder -> requestConfigBuilder
+            .setConnectTimeout(connectTimeoutMillis)
+            .setSocketTimeout(socketTimeoutMillis)
+        )
         .setFailureListener(new RestClient.FailureListener() {
           @Override
           public void onFailure(Node host) {
