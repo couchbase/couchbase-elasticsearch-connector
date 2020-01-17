@@ -57,6 +57,7 @@ public class Metrics {
     // registerAll("jvm.class", new ClassLoadingGaugeSet());
     registerAll("jvm.buffer", new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer()));
     registerAll("jvm.thread", new ThreadStatesGaugeSet());
+    registerAll("jvm.cpu", new CpuGaugeSet());
   }
 
   static {
