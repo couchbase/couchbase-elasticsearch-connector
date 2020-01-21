@@ -13,6 +13,28 @@ TIP: If you want to use the old plug-in, distributions may be https://github.com
 Make sure to pick the archive whose `es` version component _exactly_ matches your Elasticsearch version.
 For example, to use the 3.0.0 version of the plug-in with Elasticsearch 5.6.4, you would select `elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip`.
 
+== Elasticsearch Connector 4.2.1 (2020-01-21)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.1/couchbase-elasticsearch-connector-4.2.1.zip[couchbase-elasticsearch-connector-4.2.1.zip]
+
+This maintenance release addresses an issue with shutdown hooks that could prevent the connector from terminating in some circumstances.
+
+Also fixed in this release, bulk request timeouts longer than 30 seconds are now honored instead of being reduced to 30 seconds.
+
+Metrics from the Couchbase DCP client are now included in the metrics report, along with gauges for CPU load.
+
+=== Bug Fixes
+
+* https://issues.couchbase.com/browse/CBES-147[CBES-147] Stuck shutdown hook can prevent/delay JVM termination
+* https://issues.couchbase.com/browse/CBES-149[CBES-149] Bulk request timeout is capped at 30 seconds
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-143[CBES-143] Report DCP metrics
+* https://issues.couchbase.com/browse/CBES-148[CBES-148] Report CPU usage metrics
+* https://issues.couchbase.com/browse/CBES-150[CBES-150] Upgrade Couchbase client to 2.7.11 and DCP client to 0.25.0
+
+
 == Elasticsearch Connector 4.2.0 (2019-10-15)
 
 https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.0/couchbase-elasticsearch-connector-4.2.0.zip[couchbase-elasticsearch-connector-4.2.0.zip]
