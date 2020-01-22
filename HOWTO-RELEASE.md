@@ -45,9 +45,9 @@ Otherwise it can be a pain to remove an unwanted tag from Gerrit.
 Here it is, the moment of truth.
 When you're ready to build the distribution archive:
 
-    g clean build
+    ./gradlew clean build
 
-If then build is successful, you're ready to publish the distribution archive to S3 with this shell command:
+If the build is successful, you're ready to publish the distribution archive to S3 with this shell command:
 
     VERS=x.y.z
     aws s3 cp build/distributions/couchbase-elasticsearch-connector-${VERS}.zip \
