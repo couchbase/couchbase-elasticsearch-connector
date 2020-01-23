@@ -83,7 +83,7 @@ public class BasicReplicationTest {
     final boolean exhaustive = Boolean.valueOf(System.getProperty("com.couchbase.integrationTest.exhaustive"));
 
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
-        // "6.5.0-beta",
+        "enterprise-6.5.0",
         "enterprise-6.0.1",
         "enterprise-5.5.1",
         "enterprise-5.5.0",
@@ -95,13 +95,14 @@ public class BasicReplicationTest {
         "community-5.0.1");
 
     final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "7.4.0",
+        "7.5.2",
+        "7.4.2",
         "7.3.2",
         "7.2.1",
         "7.1.1",
         "7.0.1",
-        "6.8.3",
-        "6.7.1",
+        "6.8.6",
+        "6.7.2",
         "6.6.2",
         "6.5.4",
         "6.4.3",
@@ -109,7 +110,7 @@ public class BasicReplicationTest {
         "6.2.4",
         "6.1.4",
         "6.0.1",
-        "5.6.15",
+        "5.6.16",
         "5.5.3"
     ));
 
