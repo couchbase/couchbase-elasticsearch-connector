@@ -58,6 +58,14 @@ public class CustomCouchbaseContainer extends CouchbaseContainer {
         .withPrimaryIndex(false);
     couchbase.start();
     couchbase.initCluster();
+
+    try {
+      SECONDS.sleep(1); // workaround to prevent intermittent test failures due to "KV Service Not Available"
+      couchbase.waitForReadyState();
+    } catch (InterruptedException | TimeoutException e) {
+      throw new RuntimeException(e);
+    }
+
     return couchbase;
   }
 
