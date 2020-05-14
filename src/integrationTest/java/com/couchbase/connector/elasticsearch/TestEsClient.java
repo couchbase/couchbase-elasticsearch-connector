@@ -20,7 +20,9 @@ import com.couchbase.connector.config.es.ConnectorConfig;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ListMultimap;
 import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
@@ -40,7 +42,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -166,7 +167,7 @@ class TestEsClient implements AutoCloseable {
   }
 
   private static MultiGetRequest multiGetRequest(String index, Set<String> ids) {
-   final  MultiGetRequest request = new MultiGetRequest();
+    final MultiGetRequest request = new MultiGetRequest();
     for (String id : ids) {
       request.add(index, "doc", id);
     }
@@ -182,14 +183,29 @@ class TestEsClient implements AutoCloseable {
     poll().atInterval(500, MILLISECONDS).until(() -> {
       try {
         final MultiGetResponse response = client.multiGet(multiGetRequest(index, remaining));
+        final ListMultimap<String, String> errorMessageToDocId = ArrayListMultimap.create();
         for (MultiGetItemResponse item : response) {
           if (item.isFailed()) {
-            LOGGER.warn("Failed to get document {} : {}", item.getId(), item.getFailure().getMessage());
+            errorMessageToDocId.put(item.getFailure().getMessage(), item.getId());
             continue;
           }
           if (item.getResponse().isExists()) {
             idToDocument.put(item.getId(), objectMapper.readTree(item.getResponse().getSourceAsBytes()));
             remaining.remove(item.getId());
+          }
+        }
+
+        // Display only the first error of each kind so we don't spam the logs
+        // with thousands of 'index_not_found_exception' errors
+        for (String errorMessage : errorMessageToDocId.keySet()) {
+          final List<String> docIds = errorMessageToDocId.get(errorMessage);
+          final String firstDocId = docIds.get(0);
+          final int others = docIds.size() - 1;
+
+          if (others == 0) {
+            LOGGER.warn("Failed to get document {} : {}", firstDocId, errorMessage);
+          } else {
+            LOGGER.warn("Failed to get document {} (and {} others) : {}", firstDocId, others, errorMessage);
           }
         }
 
