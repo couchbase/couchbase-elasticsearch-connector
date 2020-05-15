@@ -37,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.ConnectException;
-import java.net.InetSocketAddress;
 import java.security.KeyStore;
 import java.util.Iterator;
 import java.util.Optional;
@@ -57,7 +56,9 @@ public class CouchbaseHelper {
   }
 
   public static DefaultCouchbaseEnvironment.Builder environmentBuilder(CouchbaseConfig config, Supplier<KeyStore> keystore) {
-    final DefaultCouchbaseEnvironment.Builder envBuilder = DefaultCouchbaseEnvironment.builder();
+    final DefaultCouchbaseEnvironment.Builder envBuilder = DefaultCouchbaseEnvironment.builder()
+        .networkResolution(config.network());
+
     if (config.secureConnection()) {
       envBuilder
           .sslEnabled(true)
