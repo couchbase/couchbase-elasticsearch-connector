@@ -34,6 +34,7 @@ import java.util.concurrent.TimeoutException;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
 import static com.couchbase.connector.testcontainers.Poller.poll;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -52,8 +53,16 @@ class IntegrationTestHelper {
     final int expectedAirlineCount = airlines + routes;
     final int expectedAirportCount = 1968;
 
-    poll().until(() -> es.getDocumentCount("airlines") >= expectedAirlineCount);
-    poll().until(() -> es.getDocumentCount("airports") >= expectedAirportCount);
+    poll().withTimeout(5, MINUTES).until(() -> {
+      long count = es.getDocumentCount("airlines");
+      LOGGER.info("airline count = {} / {}", count, expectedAirlineCount);
+      return count >= expectedAirlineCount;
+    });
+    poll().until(() -> {
+      long count = es.getDocumentCount("airports");
+      LOGGER.info("airport count = {} / {}", count, expectedAirportCount);
+      return count >= expectedAirportCount;
+    });
 
     SECONDS.sleep(3); // quiet period, make sure no more documents appear in the index
 

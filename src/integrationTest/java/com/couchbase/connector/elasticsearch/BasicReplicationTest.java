@@ -83,18 +83,30 @@ public class BasicReplicationTest {
     final boolean exhaustive = Boolean.valueOf(System.getProperty("com.couchbase.integrationTest.exhaustive"));
 
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
+        "enterprise-6.5.1",
+        "community-6.5.1",
         "enterprise-6.5.0",
-        "enterprise-6.0.1",
-        "enterprise-5.5.1",
-        "enterprise-5.5.0",
-        "enterprise-5.1.1",
-        "community-6.0.0",
-        "community-5.1.1",
-        "enterprise-5.1.0",
-        "enterprise-5.0.1",
-        "community-5.0.1");
+        "community-6.5.0");
 
+    // Need to figure out how to run the following in Docker with Testcontainers 1.14.1.
+    // They don't support alternate addresses, so we can't use CouchbaseContainer anymore.
+//
+//        "enterprise-6.0.1",
+//        "enterprise-5.5.1",
+//        "enterprise-5.5.0",
+//        "enterprise-5.1.1",
+//        "community-6.0.0",
+//        "community-5.1.1",
+//        "enterprise-5.1.0",
+//        "enterprise-5.0.1",
+//        "community-5.0.1"
+
+
+    // This list is informed by https://www.elastic.co/support/eol
+    // If possible, we also want to support the last minor of every major (like 5.6.16).
     final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
+        "7.7.0",
+        "7.6.2",
         "7.5.2",
         "7.4.2",
         "7.3.2",
@@ -104,24 +116,8 @@ public class BasicReplicationTest {
         "6.8.6",
         "6.7.2",
         "6.6.2",
-        "6.5.4",
-        "6.4.3",
-        "6.3.2",
-        "6.2.4",
-        "6.1.4",
-        "6.0.1",
-        "5.6.16",
-        "5.5.3"
+        "5.6.16"
     ));
-
-    // Elasticsearch versions prior to 5.4 don't support "single-node" discovery.
-    // Because the docker scheme has them bind to a non-loopback address, they run in production mode
-    // and perform bootstrap checks. Some of the checks fail on the Jenkins workers :-(
-    final boolean runningInJenkins = System.getenv("JENKINS_URL") != null;
-    if (!runningInJenkins) {
-      elasticsearchVersions.add("5.3.3");
-      elasticsearchVersions.add("5.2.2");
-    }
 
     if (!exhaustive) {
       // just test the most recent versions

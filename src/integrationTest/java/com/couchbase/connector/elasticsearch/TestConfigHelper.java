@@ -56,13 +56,14 @@ public class TestConfigHelper {
   public static String readConfig(CustomCouchbaseContainer couchbase, ElasticsearchContainer elasticsearch,
                                   Map<String, Object> propertyOverrides) throws IOException {
 
-    final String dockerHost = DockerHelper.getDockerHost();
+    final String dockerHost = couchbase.getContainerIpAddress();
 
     final Map<String, Object> defaultOverrides = ImmutableMap.of(
         "metrics.httpPort", -1,
         "metrics.logInterval", "0",
         "elasticsearch.hosts", singletonList(dockerHost + ":" + elasticsearch.getHost().getPort()),
-        "couchbase.hosts", singletonList(dockerHost + ":" + couchbase.getMappedPort(8091))
+        "couchbase.hosts", singletonList(dockerHost + ":" + couchbase.getMappedPort(8091)),
+        "couchbase.network", "external"
     );
 
     final Map<String, Object> effectiveOverrides = new HashMap<>(defaultOverrides);
