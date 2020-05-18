@@ -28,6 +28,8 @@ import org.testcontainers.containers.Container;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.shaded.com.google.common.base.Stopwatch;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Optional;
 
 import static com.couchbase.connector.testcontainers.ExecUtils.execInContainerUnchecked;
@@ -129,33 +131,33 @@ public class CouchbaseOps {
 
     log.info("Loading sample bucket '" + bucketName + "'...");
 
-//    Container.ExecResult result = execInContainerUnchecked(container,
-//        "cbdocloader",
-//        "--cluster", "localhost", // + ":8091" +
-//        "--username", username,
-//        "--password", password,
-//        "--bucket", bucketName,
-//        "--bucket-quota", String.valueOf(bucketQuotaMb),
-//        "--dataset", "./opt/couchbase/samples/" + bucketName + ".zip");
-//
-//    // Query and index services must be present to avoid this warning. We don't need those services.
-//    if (result.getExitCode() != 0 && !result.getStdout().contains("Errors occurred during the index creation phase")) {
-//      throw new UncheckedIOException(new IOException("Failed to load sample bucket: " + result));
-//    }
-//    log.info("Importing sample bucket with cbdocloader took {}", timer);
-
-    // cbimport is faster, but isn't always available, and fails when query & index services are absent
-    createBucket(bucketName, bucketQuotaMb, 0);
-    execOrDie("cbimport", "json",
-        "--threads", "2",
-        "--cluster", "localhost",
+    Container.ExecResult result = execInContainerUnchecked(container,
+        "cbdocloader",
+        "--cluster", "localhost", // + ":8091" +
         "--username", username,
         "--password", password,
         "--bucket", bucketName,
-        "--format", "sample",
-        "--dataset", "file://opt/couchbase/samples/" + bucketName + ".zip");
+        "--bucket-quota", String.valueOf(bucketQuotaMb),
+        "--dataset", "./opt/couchbase/samples/" + bucketName + ".zip");
 
-    log.info("Importing sample bucket with cbimport took " + timer);
+    // Query and index services must be present to avoid this warning. We don't need those services.
+    if (result.getExitCode() != 0 && !result.getStdout().contains("Errors occurred during the index creation phase")) {
+      throw new UncheckedIOException(new IOException("Failed to load sample bucket: " + result));
+    }
+    log.info("Importing sample bucket with cbdocloader took {}", timer);
+
+    // cbimport is faster, but isn't always available, and fails when query & index services are absent
+//    createBucket(bucketName, bucketQuotaMb, 0);
+//    execOrDie("cbimport", "json",
+//        "--threads", "2",
+//        "--cluster", "localhost",
+//        "--username", username,
+//        "--password", password,
+//        "--bucket", bucketName,
+//        "--format", "sample",
+//        "--dataset", "file://opt/couchbase/samples/" + bucketName + ".zip");
+//
+//    log.info("Importing sample bucket with cbimport took " + timer);
   }
 
   public Optional<Version> getVersion() {

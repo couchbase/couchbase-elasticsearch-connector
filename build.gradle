@@ -77,12 +77,13 @@ dependencies {
 
   testImplementation 'junit:junit:4.12'
   testImplementation 'org.apache.commons:commons-lang3:3.9'
+  testImplementation 'commons-io:commons-io:2.6'
   testImplementation("org.assertj:assertj-core:3.11.1")
   integrationTestImplementation 'com.jayway.jsonpath:json-path:2.4.0'
 
   def testcontainersVersion = '1.14.1'
   integrationTestImplementation "org.testcontainers:testcontainers:${testcontainersVersion}"
-  integrationTestImplementation "org.testcontainers:couchbase:${testcontainersVersion}"
+  //integrationTestImplementation "org.testcontainers:couchbase:${testcontainersVersion}"
   //def testcontainersCommit = 'ac05988143e8d433d' // avoid port conflicts between multiple Couchbase containers on same host
   //integrationTestImplementation "com.github.testcontainers.testcontainers-java:testcontainers:${testcontainersCommit}"
   //integrationTestImplementation "com.github.testcontainers.testcontainers-java:couchbase:${testcontainersCommit}"

@@ -19,7 +19,6 @@ package com.couchbase.connector.testcontainers;
 import com.couchbase.client.dcp.util.Version;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.couchbase.CouchbaseContainer;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,8 +28,9 @@ import java.util.Optional;
 
 import static com.couchbase.connector.elasticsearch.DockerHelper.getDockerHost;
 import static com.google.common.base.Preconditions.checkState;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
-public class CustomCouchbaseContainer extends CouchbaseContainer {
+public class CustomCouchbaseContainer extends SocatCouchbaseContainer {
   private static final Logger log = LoggerFactory.getLogger(CustomCouchbaseContainer.class);
 
   private final CouchbaseOps ops;
@@ -46,6 +46,15 @@ public class CustomCouchbaseContainer extends CouchbaseContainer {
 
     CustomCouchbaseContainer couchbase = new CustomCouchbaseContainer(dockerImageName);
     couchbase.start();
+    couchbase.initCluster();
+
+    try {
+      // Not the most sophisticated wait strategy, but we can refine it later
+      SECONDS.sleep(10);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+
     return couchbase;
   }
 
