@@ -34,6 +34,7 @@ import java.util.Optional;
 
 import static com.couchbase.connector.testcontainers.ExecUtils.execInContainerUnchecked;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class CouchbaseOps {
   private static final Logger log = LoggerFactory.getLogger(CouchbaseOps.class);
@@ -75,6 +76,13 @@ public class CouchbaseOps {
         "--bucket-replica", String.valueOf(replicas)
         , "--wait"
     );
+
+    try {
+      // extra wait for good measure. will this fix failures in CI environment?
+      SECONDS.sleep(5);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
 
     log.info("Creating bucket took {}", timer);
   }
