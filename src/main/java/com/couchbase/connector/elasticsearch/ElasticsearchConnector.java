@@ -38,6 +38,7 @@ import com.couchbase.connector.dcp.CheckpointService;
 import com.couchbase.connector.dcp.CouchbaseCheckpointDao;
 import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.dcp.DcpHelper;
+import com.couchbase.connector.dcp.ResolvedBucketConfig;
 import com.couchbase.connector.dcp.SnapshotMarker;
 import com.couchbase.connector.elasticsearch.cli.AbstractCliCommand;
 import com.couchbase.connector.elasticsearch.io.RequestFactory;
@@ -142,6 +143,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
       // Wait for couchbase server to come online, then open the bucket.
       final Bucket bucket = CouchbaseHelper.waitForBucket(cluster, config.couchbase().bucket());
+      final ResolvedBucketConfig bucketConfig = CouchbaseHelper.getBucketConfig(config.couchbase(), bucket);
 
       final boolean storeMetadataInSourceBucket = config.couchbase().metadataBucket().equals(config.couchbase().bucket());
       final Bucket metadataBucket = storeMetadataInSourceBucket ? bucket : CouchbaseHelper.waitForBucket(cluster, config.couchbase().metadataBucket());
@@ -167,7 +169,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       Metrics.gauge("writeQueue", () -> workers::getQueueSize);
       Metrics.gauge("esWaitMs", () -> workers::getCurrentRequestMillis); // High value indicates the connector has stalled
 
-      final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), config.trustStore());
+      final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), bucketConfig, config.trustStore());
 
       final SnapshotMarker[] snapshots = new SnapshotMarker[2048]; // sized to accommodate max number of vbuckets
       initControlHandler(dcpClient, coordinator, snapshots);

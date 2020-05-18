@@ -29,6 +29,7 @@ import java.io.Closeable;
 import java.io.IOException;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 class TestCouchbaseClient implements Closeable {
   private CouchbaseEnvironment env;
@@ -42,6 +43,8 @@ class TestCouchbaseClient implements Closeable {
   public TestCouchbaseClient(ImmutableConnectorConfig config) {
     this.env = environmentBuilder(config.couchbase(), config.trustStore())
         .mutationTokensEnabled(true)
+        .connectTimeout(SECONDS.toMillis(15))
+        .kvTimeout(SECONDS.toMillis(10))
         .build();
 
     this.cluster = CouchbaseHelper.createCluster(config.couchbase(), env);

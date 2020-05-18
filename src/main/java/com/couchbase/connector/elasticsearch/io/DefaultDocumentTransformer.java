@@ -19,7 +19,7 @@ package com.couchbase.connector.elasticsearch.io;
 import com.couchbase.client.core.logging.RedactableArgument;
 import com.couchbase.client.core.utils.DefaultObjectMapper;
 import com.couchbase.client.dcp.message.DcpMutationMessage;
-import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
+import com.couchbase.client.dcp.deps.io.netty.buffer.ByteBuf;
 import com.couchbase.connector.config.es.DocStructureConfig;
 import com.couchbase.connector.dcp.Event;
 import com.fasterxml.jackson.core.JsonFactory;

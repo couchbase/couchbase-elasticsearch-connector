@@ -16,13 +16,13 @@
 
 package com.couchbase.connector.elasticsearch.cli;
 
-import com.couchbase.client.core.config.CouchbaseBucketConfig;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.dcp.Checkpoint;
 import com.couchbase.connector.dcp.CheckpointDao;
 import com.couchbase.connector.dcp.CouchbaseCheckpointDao;
 import com.couchbase.connector.dcp.CouchbaseHelper;
+import com.couchbase.connector.dcp.ResolvedBucketConfig;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,7 +57,7 @@ public class CheckpointRestore extends AbstractCliCommand {
 
   public static void restore(ConnectorConfig config, File inputFile) throws IOException {
     final Bucket bucket = CouchbaseHelper.openMetadataBucket(config.couchbase(), config.trustStore());
-    final CouchbaseBucketConfig bucketConfig = getBucketConfig(bucket);
+    final ResolvedBucketConfig bucketConfig = getBucketConfig(config.couchbase(), bucket);
 
     final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(bucket, config.group().name());
 

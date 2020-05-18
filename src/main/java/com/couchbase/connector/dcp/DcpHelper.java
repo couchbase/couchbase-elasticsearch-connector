@@ -17,10 +17,13 @@
 package com.couchbase.connector.dcp;
 
 import com.couchbase.client.dcp.Client;
-import com.couchbase.client.dcp.DefaultConnectionNameGenerator;
 import com.couchbase.client.dcp.StreamFrom;
 import com.couchbase.client.dcp.StreamTo;
 import com.couchbase.client.dcp.config.DcpControl;
+import com.couchbase.client.dcp.config.HostAndPort;
+import com.couchbase.client.dcp.core.env.NetworkResolution;
+import com.couchbase.client.dcp.deps.io.netty.buffer.ByteBuf;
+import com.couchbase.client.dcp.deps.io.netty.util.IllegalReferenceCountException;
 import com.couchbase.client.dcp.message.DcpDeletionMessage;
 import com.couchbase.client.dcp.message.DcpExpirationMessage;
 import com.couchbase.client.dcp.message.DcpMutationMessage;
@@ -31,8 +34,6 @@ import com.couchbase.client.dcp.state.FailoverLogEntry;
 import com.couchbase.client.dcp.state.PartitionState;
 import com.couchbase.client.dcp.state.SessionState;
 import com.couchbase.client.dcp.transport.netty.ChannelFlowController;
-import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
-import com.couchbase.client.deps.io.netty.util.IllegalReferenceCountException;
 import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.Coordinator;
 import com.couchbase.connector.config.common.CouchbaseConfig;
@@ -53,6 +54,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toSet;
 
 public class DcpHelper {
   private static final Logger LOGGER = LoggerFactory.getLogger(DcpHelper.class);
@@ -83,17 +85,22 @@ public class DcpHelper {
     buffer.release();
   }
 
-  public static Client newClient(String groupName, CouchbaseConfig config, Supplier<KeyStore> keystore) {
-    final Client.Builder builder = Client.configure()
-        .connectionNameGenerator(DefaultConnectionNameGenerator.forProduct("elasticsearch-connector", VersionHelper.getVersion(), groupName))
+  public static Client newClient(String groupName, CouchbaseConfig config, ResolvedBucketConfig bucketConfig, Supplier<KeyStore> keystore) {
+
+    // ES connector bootstraps using Manager port, but the DCP client wants KV port.
+    // Get the KV ports from the bucket config!
+    Set<String> seedNodes = bucketConfig.getKvAddresses().stream()
+        .map(HostAndPort::format)
+        .collect(toSet());
+
+    final Client.Builder builder = Client.builder()
+        .userAgent("elasticsearch-connector", VersionHelper.getVersion(), groupName)
         .connectTimeout(config.dcp().connectTimeout().millis())
-        .hostnames(config.hosts())
-        .networkResolution(config.network())
+        .seedNodes(seedNodes)
+        .networkResolution(NetworkResolution.valueOf(config.network().name()))
         .bucket(config.bucket())
 //          .poolBuffers(true)
-        .username(config.username())
-        .password(config.password())
-        .controlParam(DcpControl.Names.ENABLE_NOOP, "true")
+        .credentials(config.username(), config.password())
         .controlParam(DcpControl.Names.SET_NOOP_INTERVAL, 20)
         .compression(config.dcp().compression())
         .mitigateRollbacks(

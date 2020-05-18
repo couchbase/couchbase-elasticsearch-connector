@@ -16,7 +16,6 @@
 
 package com.couchbase.connector.elasticsearch.cli;
 
-import com.couchbase.client.core.config.CouchbaseBucketConfig;
 import com.couchbase.client.dcp.Client;
 import com.couchbase.client.dcp.state.PartitionState;
 import com.couchbase.client.dcp.state.SessionState;
@@ -28,6 +27,7 @@ import com.couchbase.connector.dcp.Checkpoint;
 import com.couchbase.connector.dcp.CheckpointDao;
 import com.couchbase.connector.dcp.CouchbaseCheckpointDao;
 import com.couchbase.connector.dcp.DcpHelper;
+import com.couchbase.connector.dcp.ResolvedBucketConfig;
 import com.couchbase.connector.dcp.SnapshotMarker;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
@@ -79,12 +79,12 @@ public class CheckpointClear extends AbstractCliCommand {
     final CouchbaseCluster cluster = createCluster(config.couchbase(), env);
     try {
       final Bucket bucket = cluster.openBucket(config.couchbase().metadataBucket());
-      final CouchbaseBucketConfig bucketConfig = getBucketConfig(bucket);
+      final ResolvedBucketConfig bucketConfig = getBucketConfig(config.couchbase(), bucket);
 
       final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(bucket, config.group().name());
 
       if (catchUp) {
-        setCheckpointToNow(config, checkpointDao);
+        setCheckpointToNow(config, bucketConfig, checkpointDao);
         System.out.println("Set checkpoint for connector '" + config.group().name() + "' to match current state of Couchbase bucket.");
 
       } else {
@@ -101,8 +101,8 @@ public class CheckpointClear extends AbstractCliCommand {
     }
   }
 
-  private static void setCheckpointToNow(ConnectorConfig config, CheckpointDao checkpointDao) throws IOException {
-    final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), config.trustStore());
+  private static void setCheckpointToNow(ConnectorConfig config, ResolvedBucketConfig bucketConfig, CheckpointDao checkpointDao) throws IOException {
+    final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), bucketConfig, config.trustStore());
     try {
       dcpClient.connect().await();
 

@@ -17,11 +17,11 @@
 package com.couchbase.connector.dcp;
 
 import com.couchbase.client.core.logging.RedactableArgument;
+import com.couchbase.client.dcp.deps.io.netty.buffer.ByteBuf;
+import com.couchbase.client.dcp.deps.io.netty.util.IllegalReferenceCountException;
 import com.couchbase.client.dcp.message.DcpMutationMessage;
 import com.couchbase.client.dcp.message.MessageUtil;
 import com.couchbase.client.dcp.transport.netty.ChannelFlowController;
-import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
-import com.couchbase.client.deps.io.netty.util.IllegalReferenceCountException;
 
 import static com.couchbase.connector.dcp.DcpHelper.ackAndRelease;
 import static java.util.Objects.requireNonNull;

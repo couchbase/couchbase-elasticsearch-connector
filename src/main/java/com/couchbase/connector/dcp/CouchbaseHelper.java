@@ -19,6 +19,7 @@ package com.couchbase.connector.dcp;
 import com.codahale.metrics.Gauge;
 import com.couchbase.client.core.RequestCancelledException;
 import com.couchbase.client.core.config.CouchbaseBucketConfig;
+import com.couchbase.client.core.config.DefaultConfigurationProvider;
 import com.couchbase.client.core.message.cluster.GetClusterConfigRequest;
 import com.couchbase.client.core.message.cluster.GetClusterConfigResponse;
 import com.couchbase.client.core.utils.ConnectionString;
@@ -40,6 +41,7 @@ import java.net.ConnectException;
 import java.security.KeyStore;
 import java.util.Iterator;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -47,6 +49,9 @@ import static com.couchbase.connector.elasticsearch.io.MoreBackoffPolicies.trunc
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.stream.Collectors.toSet;
+import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 public class CouchbaseHelper {
   private static final Logger LOGGER = LoggerFactory.getLogger(CouchbaseHelper.class);
@@ -57,7 +62,8 @@ public class CouchbaseHelper {
 
   public static DefaultCouchbaseEnvironment.Builder environmentBuilder(CouchbaseConfig config, Supplier<KeyStore> keystore) {
     final DefaultCouchbaseEnvironment.Builder envBuilder = DefaultCouchbaseEnvironment.builder()
-        .networkResolution(config.network());
+        .networkResolution(config.network())
+        .connectTimeout(SECONDS.toMillis(10));
 
     if (config.secureConnection()) {
       envBuilder
@@ -98,10 +104,32 @@ public class CouchbaseHelper {
     return createCluster(config, env).openBucket(config.metadataBucket());
   }
 
-  public static CouchbaseBucketConfig getBucketConfig(Bucket bucket) {
+  public static int getNumPartitions(Bucket bucket) {
+    return doGetBucketConfig(bucket).numberOfPartitions();
+  }
+
+  private static CouchbaseBucketConfig doGetBucketConfig(Bucket bucket) {
     final GetClusterConfigResponse response = (GetClusterConfigResponse) bucket.core().send(
         new GetClusterConfigRequest()).toBlocking().single();
     return (CouchbaseBucketConfig) response.config().bucketConfig(bucket.name());
+  }
+
+  public static ResolvedBucketConfig getBucketConfig(CouchbaseConfig config, Bucket bucket) {
+    CouchbaseBucketConfig bucketConfig = doGetBucketConfig(bucket);
+
+    Set<String> seedHosts = ConnectionString.fromHostnames(config.hosts())
+        .hosts()
+        .stream()
+        .map(ConnectionString.UnresolvedSocket::hostname)
+        .collect(toSet());
+
+    String networkName = DefaultConfigurationProvider.determineNetworkResolution(bucketConfig, config.network(), seedHosts);
+    LOGGER.info("Selected network configuration: {}", defaultIfNull(networkName, "default"));
+    if (networkName != null) {
+      bucketConfig.useAlternateNetwork(networkName);
+    }
+
+    return new ResolvedBucketConfig(bucketConfig, config.secureConnection());
   }
 
   /**

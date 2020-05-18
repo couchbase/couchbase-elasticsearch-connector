@@ -98,22 +98,22 @@ class IntegrationTestHelper {
   }
 
   static Set<String> upsertOneDocumentToEachVbucket(Bucket bucket, String idPrefix) throws Exception {
-    final int numVbuckets = CouchbaseHelper.getBucketConfig(bucket).numberOfPartitions();
+    final int numPartitions = CouchbaseHelper.getNumPartitions(bucket);
 
     final Stopwatch timer = Stopwatch.createStarted();
     final Set<String> ids = new HashSet<>();
-    for (int i = 0; i < numVbuckets; i++) {
-      final int vbucket = i;
-      final String id = forceKeyToPartition(idPrefix, i, numVbuckets)
-          .orElseThrow(() -> new RuntimeException("failed to force key '" + idPrefix + "' to partition " + vbucket));
+    for (int i = 0; i < numPartitions; i++) {
+      final int partition = i;
+      final String id = forceKeyToPartition(idPrefix, i, numPartitions)
+          .orElseThrow(() -> new RuntimeException("failed to force key '" + idPrefix + "' to partition " + partition));
 
       upsertWithRetry(bucket, JsonDocument.create(id, JsonObject.create()
           .put("magicWord", "xyzzy")
-          .put("vbucket", vbucket)));
+          .put("partition", partition)));
       ids.add(id);
     }
 
-    LOGGER.info("Upserting to {} vbuckets took {}", numVbuckets, timer);
+    LOGGER.info("Upserting to {} partitions took {}", numPartitions, timer);
 
     return ids;
   }

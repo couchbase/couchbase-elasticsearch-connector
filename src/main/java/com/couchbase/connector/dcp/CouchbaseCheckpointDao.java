@@ -64,7 +64,7 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
     this.bucket = requireNonNull(bucket);
     this.xattrs = xattrs;
 
-    final int numPartitions = CouchbaseHelper.getBucketConfig(bucket).numberOfPartitions();
+    final int numPartitions = CouchbaseHelper.getNumPartitions(bucket);
     final String keyPrefix = DcpHelper.metadataDocumentIdPrefix() + clusterId + ":checkpoint:";
 
     // Brute-forcing the key names so they map to the correct partitions is expensive,
