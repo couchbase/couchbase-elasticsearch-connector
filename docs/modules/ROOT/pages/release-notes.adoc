@@ -1,17 +1,30 @@
 = Release Notes
 :description: Elasticsearch Connector release notes
 
-== Standalone Connector vs. Plug-in
+== Elasticsearch Connector 4.2.2 (2020-05-19)
 
-Starting with version 4.0 the connector is now a standalone process.
-The standalone distribution archives are named `couchbase-elasticsearch-connector-`, and download links are provided on this page.
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.2/couchbase-elasticsearch-connector-4.2.2.zip[couchbase-elasticsearch-connector-4.2.2.zip]
 
-Prior to version 4.0 the connector was implemented as an Elasticsearch plug-in.
-The plug-in distributions have archive names starting with `elasticsearch-transport-couchbase-`.
+The connector now behaves better in environments where DNS entries are highly dynamic.
+Instead of caching resolved hostnames, it now resolves hostnames prior to every connection attempt.
 
-TIP: If you want to use the old plug-in, distributions may be https://github.com/couchbase/couchbase-elasticsearch-connector/releases[downloaded from GitHub].
-Make sure to pick the archive whose `es` version component _exactly_ matches your Elasticsearch version.
-For example, to use the 3.0.0 version of the plug-in with Elasticsearch 5.6.4, you would select `elasticsearch-transport-couchbase-3.0.0-cypress-es5.6.4.zip`.
+This release also improves decompression performance, activates Netty native transports, and fixes a bug that prevented the 'couchbase.network' config setting from being honored.
+
+The compatibility matrix is updated to add support for Elasticsearch 7.6 and 7.7.
+Elasticsearch versions prior to 6.6 are dropped due to end of life, with the exception of 5.6.16.
+
+=== Bug Fixes
+
+* https://issues.couchbase.com/browse/CBES-155[CBES-155] Couchbase client ignores 'couchbase.network' config setting
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/JDCP-156[JDCP-163] Force DNS lookups on reconnect
+* https://issues.couchbase.com/browse/JDCP-156[JDCP-156] Enable Netty native transports by default
+* https://issues.couchbase.com/browse/JDCP-82[JDCP-82] Decompress with org.iq80.snappy instead of Netty
+* https://issues.couchbase.com/browse/CBES-158[CBES-158] Upgrade Couchbase SDK from 2.7.11 to 2.7.15
+* https://issues.couchbase.com/browse/CBES-154[CBES-154] Upgrade DCP client from 0.25.0 to 0.28.0
+* https://issues.couchbase.com/browse/JDCP-146[JDCP-146] Upgrade Netty from 4.0.56 to 4.1.48
 
 == Elasticsearch Connector 4.2.1 (2020-01-21)
 

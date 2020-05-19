@@ -34,9 +34,6 @@ This enables connector processes to dynamically join or leave the group, and all
 AO mode is discussed in more detail in the xref:autonomous-operations.adoc[Autonomous Operations] guide.
 The page you're reading now is focused on solo and distributed mode; we recommend becoming familiar with these modes before progressing to AO mode.
 
-// todo link to index page for version 3
-//NOTE: These instructions are for version 4 of the Elasticsearch Connector which runs as a standalone service. Documentation for the `elasticsearch-transport-couchbase` plug-in for Elasticsearch is over here.
-
 == Pre-requisites
 
 Linux is required for production deployments.
@@ -140,8 +137,8 @@ A connector process will shut down gracefully in response to an interrupt signal
 The throughput of the connector is limited by the time it takes for Elasticsearch to index documents.
 If you determine a single instance of the connector is unable to saturate your Elasticsearch indexing capacity, you can run multiple instances of the connector in distributed mode for horizontal scalability.
 
-A Couchbase bucket consists of many separate partitions known as virtual buckets (often abbreviated as "vbuckets").
-When the connector runs in distributed mode, each instance of the connector is responsible for replicating a different subset of the vbuckets.
+A Couchbase bucket consists of many separate partitions (also known as virtual buckets, abbreviated as "vbuckets").
+When the connector runs in distributed mode, each instance of the connector is responsible for replicating a different subset of the partitions.
 
 To run the connector in distributed mode, install the connector on multiple machines.
 Make sure the connector configuration is identical on each machine, except for the `memberNumber` config key, which must be unique within the group.
@@ -149,7 +146,7 @@ Set the `totalMembers` config key to the total number of connector processes in 
 
 WARNING: Make sure to stop all of the connector instances in a group before changing the number of instances in the group.
 
-When a connector instance runs in distributed mode, it replicates from only the vbuckets that correspond to its group membership configuration.
+When a connector instance runs in distributed mode, it replicates from only the partitions that correspond to its group membership configuration.
 
 == Managing Checkpoints
 

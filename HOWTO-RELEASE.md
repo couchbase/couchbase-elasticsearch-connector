@@ -24,6 +24,7 @@ When you're satisfied with the test results, it's time to...
 ## Bump the project version number
 
 1. Edit `build.gradle` and remove the `-SNAPSHOT` suffix from the version string.
+2. Edit `docs/modules/ROOT/pages/_attributes` and bump the `:version:` attribute.
 3. Edit `README.adoc` and bump the version numbers if appropriate.
 4. Commit these changes, with message "Prepare x.y.z release"
 (where x.y.z is the version you're releasing).
