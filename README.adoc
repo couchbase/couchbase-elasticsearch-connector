@@ -42,3 +42,32 @@ To test against _all_ supported versions of Couchbase and Elasticsearch:
 
 === IntelliJ IDEA setup
 Because the project uses annotation processors, some link:INTELLIJ-SETUP.md[fiddly setup] is required when importing the project into IntelliJ IDEA.
+
+
+=== Building a Docker image
+
+`Dockerfile` can be used to build a Docker image from source using gradle. The version should be set in `build.gradle` before running.
+
+    docker build -t imagename:tag .
+
+`Dockerfile.light` can be used to build a Docker image from released binaries hosted at packages.couchbase.com.
+
+    docker build -f Dockerfile.light -t imagename:tag --build-arg VERSION=4.2.2 .
+
+=== Running a Docker image
+
+The built docker image can be configured using volume mounts. The `/opt/couchbase-elasticsearch-connector/config` directory
+should contain the configuration files, and the `/opt/couchbase-elasticsearch-connector/secrets` directory should contain
+the secrets.
+
+Example configuration files can be found in the `src/dist` directory. Be sure to rename `example-connector.toml` to `default-connector.toml`.
+
+    docker run -p 31415:31415 -v ./config:/opt/couchbase-elasticsearch-connector/config -v ./secrets:/opt/couchbase-elasticsearch-connector/secrets -e CBES_GROUPNAME=groupname image:tag
+
+It is also valid to pass environment variables in via the Docker command line, which can then be used to substitute values
+in `default-connector.toml`. Port 31415 can be accessed via HTTP to get metrics.
+
+=== Running in Kubernetes
+
+The connector may also be run in Kubernetes. Due to the nature of the connector, it's usually best to simply deploy it as a
+bare Pod rather than a ReplicSet or Deployment. An example deployment can be found in the `examples/kubernetes` directory.

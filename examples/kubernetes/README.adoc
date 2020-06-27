@@ -1,0 +1,24 @@
+= Running the Couchbase Elasticsearch Connector in Kubernetes
+
+== Prerequisites
+
+- A Kubernetes cluster
+- A Docker image for the connector accessible to Kubernetes
+
+== Steps
+
+1. Update `elasticsearch-connector-configuration.yaml` with your configuration. To support SSL/TLS,
+   add `truststore.jks` to the ConfigMap as a binary file with the certificates to be trusted.
+2. Update `elasticsearch-connector.yaml` with your image name and tag.
+3. `kubectl apply -f .`
+
+== Scaling
+
+A precise number of pods must be run for this connector, matching CBES_TOTALMEMBERS. Each pod should have a different CBES_MEMBERNUMBER
+from 1 to CBES_TOTALMEMBERS. Running more than one pod with the same CBES_MEMBERNUMBER should never happen. If replacing a pod, be sure
+the old pod is deleted before the new one is deployed.
+
+Each pod gets Couchbase vBuckets assigned to it to stream. This means that multiple pods share the load, but they are not providing redundancy.
+If any one pod is not running, then new mutations in the vBuckets the pod is responsible for will not be streamed.
+
+If changing CBES_TOTALMEMBERS, be sure to delete all pods first before changing, then redeploy all pods with the new value.
