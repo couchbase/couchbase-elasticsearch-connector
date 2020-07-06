@@ -24,12 +24,12 @@ import com.couchbase.client.dcp.config.HostAndPort;
 import com.couchbase.client.dcp.core.env.NetworkResolution;
 import com.couchbase.client.dcp.deps.io.netty.buffer.ByteBuf;
 import com.couchbase.client.dcp.deps.io.netty.util.IllegalReferenceCountException;
-import com.couchbase.client.dcp.message.DcpDeletionMessage;
-import com.couchbase.client.dcp.message.DcpExpirationMessage;
-import com.couchbase.client.dcp.message.DcpMutationMessage;
-import com.couchbase.client.dcp.message.DcpSnapshotMarkerRequest;
-import com.couchbase.client.dcp.message.MessageUtil;
-import com.couchbase.client.dcp.message.RollbackMessage;
+import com.couchbase.client.dcp.highlevel.DatabaseChangeListener;
+import com.couchbase.client.dcp.highlevel.Deletion;
+import com.couchbase.client.dcp.highlevel.DocumentChange;
+import com.couchbase.client.dcp.highlevel.Mutation;
+import com.couchbase.client.dcp.highlevel.SnapshotMarker;
+import com.couchbase.client.dcp.highlevel.StreamFailure;
 import com.couchbase.client.dcp.state.FailoverLogEntry;
 import com.couchbase.client.dcp.state.PartitionState;
 import com.couchbase.client.dcp.state.SessionState;
@@ -41,8 +41,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rx.CompletableSubscriber;
-import rx.Subscription;
 
 import java.io.IOException;
 import java.security.KeyStore;
@@ -106,7 +104,7 @@ public class DcpHelper {
         .mitigateRollbacks(
             config.dcp().persistencePollingInterval().duration(),
             config.dcp().persistencePollingInterval().timeUnit())
-        .flowControl(toIntOrDie(config.dcp().flowControlBuffer().getBytes()))
+        .flowControl(toSaturatedInt(config.dcp().flowControlBuffer().getBytes()))
         .bufferAckWatermark(60);
 
     if (config.secureConnection()) {
@@ -117,11 +115,8 @@ public class DcpHelper {
     return builder.build();
   }
 
-  private static int toIntOrDie(long l) {
-    if (l > Integer.MAX_VALUE || l < Integer.MIN_VALUE) {
-      throw new IllegalArgumentException("Magnitude of value " + l + " is too large to be represented by int");
-    }
-    return (int) l;
+  private static int toSaturatedInt(long value) {
+    return (int) Math.min(Integer.MAX_VALUE, Math.max(Integer.MIN_VALUE, value));
   }
 
   /**
@@ -142,64 +137,25 @@ public class DcpHelper {
     return ImmutableList.copyOf(backfillTargetSeqno);
   }
 
-  /**
-   * @param eventSink responsible for processing the event (usually asynchronously)
-   * and calling {@link Event#release()} when finished
-   */
-  public static void initDataEventHandler(Client dcpClient, Consumer<Event> eventSink, SnapshotMarker[] snapshots) {
-    dcpClient.dataEventHandler((flowController, event) -> {
-      if (DcpMutationMessage.is(event) || DcpDeletionMessage.is(event) || DcpExpirationMessage.is(event)) {
-        final short vbucket = MessageUtil.getVbucket(event);
-        final long vbuuid = dcpClient.sessionState().get(vbucket).getLastUuid();
-
-        final Event e = new Event(event, flowController, vbuuid, snapshots[vbucket]);
-        //LOGGER.trace("GOT DATA EVENT: {}", e);
-        eventSink.accept(e);
-
-      } else {
-        LOGGER.warn("Unexpected data event type '{}'", event.readableBytes() > 0 ? event.getByte(1) : "<zero length>");
-        ackAndRelease(flowController, event);
+  public static void initEventListener(Client dcpClient, Coordinator coordinator, Consumer<Event> eventSink) {
+    dcpClient.nonBlockingListener(new DatabaseChangeListener() {
+      @Override
+      public void onFailure(StreamFailure streamFailure) {
+        coordinator.panic("DCP stream failure.", streamFailure.getCause());
       }
-    });
-  }
 
-  public static void initControlHandler(Client dcpClient, Coordinator coordinator, SnapshotMarker[] snapshots) {
-    dcpClient.controlEventHandler((flowController, event) -> {
-      try {
-        if (DcpSnapshotMarkerRequest.is(event)) {
-          final int vbucket = DcpSnapshotMarkerRequest.partition(event);
-          final SnapshotMarker snapshot = new SnapshotMarker(
-              DcpSnapshotMarkerRequest.startSeqno(event),
-              DcpSnapshotMarkerRequest.endSeqno(event));
-          snapshots[vbucket] = snapshot;
-          LOGGER.debug("Snapshot for partition {}: {}", vbucket, snapshot);
+      @Override
+      public void onMutation(Mutation mutation) {
+        onMutationOrDeletion(mutation);
+      }
 
-        } else if (RollbackMessage.is(event)) {
-          final short partition = RollbackMessage.vbucket(event);
-          final long seqno = RollbackMessage.seqno(event);
+      @Override
+      public void onDeletion(Deletion deletion) {
+        onMutationOrDeletion(deletion);
+      }
 
-          LOGGER.warn("Rolling back partition {} to seqno {}", partition, seqno);
-
-          // Careful, we're in the Netty IO thread, so must not await completion.
-          dcpClient.rollbackAndRestartStream(partition, seqno)
-              .subscribe(new CompletableSubscriber() {
-                @Override
-                public void onCompleted() {
-                  LOGGER.info("Rollback for partition {} complete", partition);
-                }
-
-                @Override
-                public void onError(Throwable e) {
-                  coordinator.panic("Failed to roll back partition " + partition + " to seqno " + seqno, e);
-                }
-
-                @Override
-                public void onSubscribe(Subscription d) {
-                }
-              });
-        }
-      } finally {
-        ackAndRelease(flowController, event);
+      private void onMutationOrDeletion(DocumentChange change) {
+        eventSink.accept(new Event(change));
       }
     });
   }
@@ -220,8 +176,10 @@ public class DcpHelper {
 
       final PartitionState ps = sessionState.get(partition);
       ps.setStartSeqno(checkpoint.getSeqno());
-      ps.setSnapshotStartSeqno(checkpoint.getSnapshot().getStartSeqno());
-      ps.setSnapshotEndSeqno(checkpoint.getSnapshot().getEndSeqno());
+      ps.setSnapshot(
+          new SnapshotMarker(
+              checkpoint.getSnapshot().getStartSeqno(),
+              checkpoint.getSnapshot().getEndSeqno()));
 
       // Use seqno -1 (max unsigned) so this synthetic failover log entry will always be pruned
       // if the initial streamOpen request gets a rollback response. If there's no rollback

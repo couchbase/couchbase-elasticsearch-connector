@@ -16,58 +16,35 @@
 
 package com.couchbase.connector.dcp;
 
-import com.couchbase.client.core.logging.RedactableArgument;
-import com.couchbase.client.dcp.deps.io.netty.buffer.ByteBuf;
-import com.couchbase.client.dcp.deps.io.netty.util.IllegalReferenceCountException;
-import com.couchbase.client.dcp.message.DcpMutationMessage;
-import com.couchbase.client.dcp.message.MessageUtil;
-import com.couchbase.client.dcp.transport.netty.ChannelFlowController;
+import com.couchbase.client.dcp.highlevel.DocumentChange;
+import com.couchbase.client.dcp.highlevel.Mutation;
+import com.couchbase.client.dcp.highlevel.StreamOffset;
 
-import static com.couchbase.connector.dcp.DcpHelper.ackAndRelease;
 import static java.util.Objects.requireNonNull;
 
 public class Event {
-  private final String key;
-  private final ByteBuf byteBuf;
-  private final ChannelFlowController flowController;
-  private final long vbuuid;
-  private final long seqno;
-  private final SnapshotMarker snapshot;
-  private final int vbucket;
+  private final DocumentChange change;
   private final boolean mutation;
   private final long receivedNanos = System.nanoTime();
-  private volatile byte[] content;
 
-  public Event(ByteBuf byteBuf, ChannelFlowController flowController, long vbuuid, SnapshotMarker snapshot) {
-    this.key = MessageUtil.getKeyAsString(byteBuf);
-    this.byteBuf = byteBuf;
-    this.flowController = flowController;
-    this.vbuuid = vbuuid;
-    this.vbucket = MessageUtil.getVbucket(byteBuf);
-    this.seqno = DcpMutationMessage.bySeqno(byteBuf); // works for deletion and expiration, too
-    this.mutation = DcpMutationMessage.is(byteBuf);
-    this.snapshot = requireNonNull(snapshot, "null snapshot");
+  public Event(DocumentChange change) {
+    this.change = requireNonNull(change);
+    this.mutation = change instanceof Mutation;
   }
 
   /**
    * Must be called when the connector is finished processing the event.
-   *
-   * @throws IllegalReferenceCountException if buffer has already been released
    */
   public void release() {
-    ackAndRelease(flowController, byteBuf);
+    change.flowControlAck();
   }
 
   public int getVbucket() {
-    return vbucket;
-  }
-
-  public long getVbuuid() {
-    return vbuuid;
+    return change.getVbucket();
   }
 
   public String getKey() {
-    return key;
+    return change.getKey();
   }
 
   public boolean isMutation() {
@@ -83,27 +60,30 @@ public class Event {
    * {@link Long#compareUnsigned(long, long)}
    */
   public long getSeqno() {
-    return seqno;
+    return change.getOffset().getSeqno();
   }
 
   public Checkpoint getCheckpoint() {
-    return new Checkpoint(getVbuuid(), getSeqno(), snapshot);
+    return toCheckpoint(change.getOffset());
   }
 
-  public ByteBuf getByteBuf() {
-    return byteBuf;
+  private static Checkpoint toCheckpoint(StreamOffset offset) {
+    return new Checkpoint(offset.getVbuuid(), offset.getSeqno(),
+        new SnapshotMarker(
+            offset.getSnapshot().getStartSeqno(),
+            offset.getSnapshot().getEndSeqno()));
+  }
+
+  public DocumentChange getChange() {
+    return change;
   }
 
   public byte[] getContent() {
-    if (content == null) {
-      content = MessageUtil.getContentAsByteArray(byteBuf);
-    }
-    return content;
+    return change.getContent();
   }
 
   @Override
   public String toString() {
-    final String type = isMutation() ? "MUT" : "DEL";
-    return type + ":" + getVbucket() + "/" + getCheckpoint() + "=" + RedactableArgument.user(getKey());
+    return change.toString();
   }
 }

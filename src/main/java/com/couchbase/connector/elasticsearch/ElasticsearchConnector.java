@@ -39,7 +39,6 @@ import com.couchbase.connector.dcp.CouchbaseCheckpointDao;
 import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.dcp.DcpHelper;
 import com.couchbase.connector.dcp.ResolvedBucketConfig;
-import com.couchbase.connector.dcp.SnapshotMarker;
 import com.couchbase.connector.elasticsearch.cli.AbstractCliCommand;
 import com.couchbase.connector.elasticsearch.io.RequestFactory;
 import com.couchbase.connector.util.HttpServer;
@@ -59,8 +58,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import static com.couchbase.connector.VersionHelper.getVersionString;
 import static com.couchbase.connector.dcp.CouchbaseHelper.requireCouchbaseVersion;
 import static com.couchbase.connector.dcp.DcpHelper.getCurrentSeqnos;
-import static com.couchbase.connector.dcp.DcpHelper.initControlHandler;
-import static com.couchbase.connector.dcp.DcpHelper.initDataEventHandler;
+import static com.couchbase.connector.dcp.DcpHelper.initEventListener;
 import static com.couchbase.connector.dcp.DcpHelper.initSessionState;
 import static com.couchbase.connector.dcp.DcpHelper.toBoxedShortArray;
 import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
@@ -171,9 +169,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
       final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), bucketConfig, config.trustStore());
 
-      final SnapshotMarker[] snapshots = new SnapshotMarker[2048]; // sized to accommodate max number of vbuckets
-      initControlHandler(dcpClient, coordinator, snapshots);
-      initDataEventHandler(dcpClient, workers::submit, snapshots);
+      initEventListener(dcpClient, coordinator, workers::submit);
 
       final Thread saveCheckpoints = new Thread(checkpointService::save, "save-checkpoints");
 

@@ -18,8 +18,7 @@ package com.couchbase.connector.elasticsearch.io;
 
 import com.couchbase.client.core.logging.RedactableArgument;
 import com.couchbase.client.core.utils.DefaultObjectMapper;
-import com.couchbase.client.dcp.message.DcpMutationMessage;
-import com.couchbase.client.dcp.deps.io.netty.buffer.ByteBuf;
+import com.couchbase.client.dcp.highlevel.Mutation;
 import com.couchbase.connector.config.es.DocStructureConfig;
 import com.couchbase.connector.dcp.Event;
 import com.fasterxml.jackson.core.JsonFactory;
@@ -82,8 +81,12 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
   }
 
   @Override
-  public void setSourceFromEventContent(IndexRequest indexRequest, Event event) {
-    final byte[] bytes = event.getContent();
+  public void setSourceFromEventContent(IndexRequest indexRequest, Event mutationEvent) {
+    if (!mutationEvent.isMutation()) {
+      throw new IllegalArgumentException("expected a mutation event");
+    }
+
+    final byte[] bytes = mutationEvent.getContent();
 
     // optimized passthrough
     if (documentContentAtTopLevel && metadataFieldName == null) {
@@ -98,7 +101,7 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
 
     final Map<String, Object> couchbaseDocument = getDocumentAsMap(bytes);
     if (couchbaseDocument == null) {
-      LOGGER.debug("Skipping document {} because it's not a JSON Object", event);
+      LOGGER.debug("Skipping document {} because it's not a JSON Object", mutationEvent);
       return;
     }
 
@@ -111,9 +114,10 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
     }
 
     if (metadataFieldName != null) {
-      if (esDocument.putIfAbsent(metadataFieldName, getMetadata(event)) != null) {
+      Mutation mutation = (Mutation) mutationEvent.getChange();
+      if (esDocument.putIfAbsent(metadataFieldName, getMetadata(mutation)) != null) {
         LOGGER.warn("Metadata field name conflict; document {} already has field named '{}'",
-            RedactableArgument.user(event), metadataFieldName);
+            RedactableArgument.user(mutationEvent), metadataFieldName);
       }
     }
 
@@ -171,12 +175,11 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
     }
   }
 
-  private Map<String, Object> getMetadata(final Event event) {
-    final ByteBuf buf = event.getByteBuf();
-    final long rev = DcpMutationMessage.revisionSeqno(buf);
-    final long cas = DcpMutationMessage.cas(buf);
-    final int expiration = DcpMutationMessage.expiry(buf);
-    final int flags = DcpMutationMessage.flags(buf);
+  private Map<String, Object> getMetadata(final Mutation mutation) {
+    final long rev = mutation.getRevision();
+    final long cas = mutation.getCas();
+    final int expiration = mutation.getExpiry();
+    final int flags = mutation.getFlagsAsInt();
 
     final Map<String, Object> meta = new HashMap<>();
 
@@ -184,15 +187,15 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
     meta.put("rev", formatRevision(rev, cas, expiration, flags));
     meta.put("flags", flags);
     meta.put("expiration", expiration);
-    meta.put("id", event.getKey());
+    meta.put("id", mutation.getKey());
 
     // Additional DCP metadata
-    meta.put("vbucket", event.getVbucket());
-    meta.put("vbuuid", event.getVbuuid());
-    meta.put("seqno", event.getSeqno());
+    meta.put("vbucket", mutation.getVbucket());
+    meta.put("vbuuid", mutation.getOffset().getVbuuid());
+    meta.put("seqno", mutation.getOffset().getSeqno());
     meta.put("revSeqno", rev);
     meta.put("cas", cas);
-    meta.put("lockTime", DcpMutationMessage.lockTime(buf));
+    meta.put("lockTime", mutation.getLockTime());
 
     return meta;
   }

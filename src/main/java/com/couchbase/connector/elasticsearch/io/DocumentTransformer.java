@@ -25,5 +25,5 @@ public interface DocumentTransformer {
    * given event is eligible for replication to Elasticsearch,
    * otherwise does nothing.
    */
-  void setSourceFromEventContent(IndexRequest indexRequest, Event event);
+  void setSourceFromEventContent(IndexRequest indexRequest, Event mutationEvent);
 }
