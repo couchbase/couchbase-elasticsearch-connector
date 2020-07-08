@@ -70,6 +70,8 @@ public class BasicReplicationTest {
     ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
   }
 
+  static String CATCH_ALL_INDEX = "@default._default";
+
   private static String cachedCouchbaseContainerVersion;
   private static String cachedElasticsearchContainerVersion;
 
@@ -209,7 +211,7 @@ public class BasicReplicationTest {
         // Here's the document we're going to test! Its seqno should be different than document revision.
         final String blueKey = forceKeyToPartition("color:blue", 0, 1024).get();
         final JsonDocument doc = upsertWithRetry(bucket, JsonDocument.create(blueKey, JsonObject.create().put("hex", "0000ff")));
-        final JsonNode content = es.waitForDocument("etc", blueKey);
+        final JsonNode content = es.waitForDocument(CATCH_ALL_INDEX, blueKey);
 
         System.out.println(content);
 
@@ -233,7 +235,7 @@ public class BasicReplicationTest {
 
         // Make sure deletions are propagated to elasticsearch
         bucket.remove(blueKey);
-        es.waitForDeletion("etc", blueKey);
+        es.waitForDeletion(CATCH_ALL_INDEX, blueKey);
 
         // Create an incompatible document (different type for "hex" field, Object instead of String)
         final String redKey = "color:red";
@@ -243,13 +245,13 @@ public class BasicReplicationTest {
                 .put("green", "00")
                 .put("blue", "00")
             )));
-        assertDocumentRejected(es, "etc", redKey, "mapper_parsing_exception");
+        assertDocumentRejected(es, CATCH_ALL_INDEX, redKey, "mapper_parsing_exception");
 
         // Elasticsearch doesn't support BigInteger fields. This error surfaces when creating the index request,
         // before the request is sent to Elasticsearch. Make sure we trapped the error and converted it to a rejection.
         final String bigIntKey = "veryLargeNumber";
         upsertWithRetry(bucket, JsonDocument.create(bigIntKey, JsonObject.create().put("number", new BigInteger("17626319910530664276"))));
-        assertDocumentRejected(es, "etc", bigIntKey, "mapper_parsing_exception");
+        assertDocumentRejected(es, CATCH_ALL_INDEX, bigIntKey, "mapper_parsing_exception");
       }
     }
   }

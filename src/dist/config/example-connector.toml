@@ -121,6 +121,13 @@
   # Empty string means "no default".
   index = ''
 
+  # If true, the 'prefix' and 'regex' rules operate on the qualified key.
+  # A qualified key includes the Couchbase document's parent scope and
+  # collection, for example: "scope.collection.documentId".
+  # If false, 'prefix' and 'regex' rules operate on the unqualified key,
+  # which is simply the Couchbase document ID.
+  matchOnQualifiedKey = false
+
   # Send matching documents though this pipeline.
   # Empty string means "no pipeline".
   pipeline = ''
@@ -178,6 +185,25 @@
   routing = '/airlineid' # JSON pointer to the parent ID field.
   ignoreDeletes = true # Must always be true if `routing` is specified.
 
+# If your couchbase documents are organized into collections, the destination
+# index can be derived from a document's parent scope and/or collection.
+# This example rule matches any document and derives the index name
+# from the scope and collection that contain the document.
+# For example, a document with the qualified key "scope.collection.foo"
+# is written to index "scope.collection".
+[[elasticsearch.type]]
+  matchOnQualifiedKey = true
+  regex = '(?<index>[^.]+.[^.]+).*'
+
+# This rule is similar to the previous one, but it ignores the scope component
+# and derives the index name from just the collection name.
+# For example, a document with the qualified key "scope.collection.foo"
+# is written to index "collection".
+[[elasticsearch.type]]
+  matchOnQualifiedKey = true
+  regex = '[^.]+.(?<index>[^.]+).*'
+
+# This is a "catch-all" rule that matches any document.
 [[elasticsearch.type]]
   prefix = '' # Empty prefix matches any document ID.
   index = 'etc'

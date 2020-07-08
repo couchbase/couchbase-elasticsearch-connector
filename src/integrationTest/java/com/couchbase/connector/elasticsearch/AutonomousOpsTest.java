@@ -34,6 +34,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.couchbase.connector.elasticsearch.BasicReplicationTest.CATCH_ALL_INDEX;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.close;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.upsertOneDocumentToEachVbucket;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.waitForTravelSampleReplication;
@@ -143,7 +144,7 @@ public class AutonomousOpsTest {
       // Allow streaming to begin
       group.resume();
       group.awaitRebalance(3);
-      es.waitForDocuments("etc", upsertOneDocumentToEachVbucket(bucket, "a"));
+      es.waitForDocuments(CATCH_ALL_INDEX, upsertOneDocumentToEachVbucket(bucket, "a"));
 
       System.out.println("Stopping leader");
       worker1.close();
@@ -151,14 +152,14 @@ public class AutonomousOpsTest {
 
       // Wait for new leader to take over and rebalance among remaining workers
       group.awaitRebalance(2);
-      es.waitForDocuments("etc", upsertOneDocumentToEachVbucket(bucket, "b"));
+      es.waitForDocuments(CATCH_ALL_INDEX, upsertOneDocumentToEachVbucket(bucket, "b"));
 
       System.out.println("Adding 'latecomer' worker");
       final Closeable connector4 = group.newWorker(2, "latecomer");
 
       // new node should be integrated into group
       group.awaitRebalance(3);
-      es.waitForDocuments("etc", upsertOneDocumentToEachVbucket(bucket, "c"));
+      es.waitForDocuments(CATCH_ALL_INDEX, upsertOneDocumentToEachVbucket(bucket, "c"));
 
       // stop a node that isn't the leader
       System.out.println("Stopping 'latecomer' worker");
@@ -167,7 +168,7 @@ public class AutonomousOpsTest {
 
       // leaver should be removed from the group
       group.awaitRebalance(2);
-      es.waitForDocuments("etc", upsertOneDocumentToEachVbucket(bucket, "d"));
+      es.waitForDocuments(CATCH_ALL_INDEX, upsertOneDocumentToEachVbucket(bucket, "d"));
 
       System.out.println("Shutting down connector...");
     }

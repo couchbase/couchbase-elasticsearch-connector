@@ -47,6 +47,10 @@ public class Event {
     return change.getKey();
   }
 
+  public String getKey(boolean qualifiedWithScopeAndCollection) {
+    return qualifiedWithScopeAndCollection ? change.getQualifiedKey() : change.getKey();
+  }
+
   public boolean isMutation() {
     return mutation;
   }
