@@ -30,7 +30,7 @@ import com.couchbase.client.deps.io.netty.channel.socket.nio.NioServerSocketChan
 import com.couchbase.client.deps.io.netty.handler.codec.http.DefaultFullHttpResponse;
 import com.couchbase.client.deps.io.netty.handler.codec.http.FullHttpResponse;
 import com.couchbase.client.deps.io.netty.handler.codec.http.HttpContentCompressor;
-import com.couchbase.client.deps.io.netty.handler.codec.http.HttpHeaders;
+import com.couchbase.client.deps.io.netty.handler.codec.http.HttpHeaderNames;
 import com.couchbase.client.deps.io.netty.handler.codec.http.HttpObject;
 import com.couchbase.client.deps.io.netty.handler.codec.http.HttpObjectAggregator;
 import com.couchbase.client.deps.io.netty.handler.codec.http.HttpRequest;
@@ -163,7 +163,7 @@ public class HttpServer implements Closeable {
       final HttpRequest request = (HttpRequest) msg;
       LOGGER.debug("HTTP request: {} ", request);
 
-      final QueryStringDecoder decoder = new QueryStringDecoder(request.getUri());
+      final QueryStringDecoder decoder = new QueryStringDecoder(request.uri());
 
       final HttpResponseStatus status;
       final ByteBuf content;
@@ -191,8 +191,8 @@ public class HttpServer implements Closeable {
       }
 
       final FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, content);
-      response.headers().set(HttpHeaders.Names.CONTENT_TYPE, contentType);
-      response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, content.readableBytes());
+      response.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType);
+      response.headers().set(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
       ctx.writeAndFlush(response)
           .addListener(ChannelFutureListener.CLOSE); // ignore keepalive -- let's just play it safe
     }
