@@ -40,6 +40,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 import static com.couchbase.connector.util.EnvironmentHelper.getInstallDir;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -76,15 +77,29 @@ public class ConfigHelper {
   }
 
   public static List<String> getStrings(TomlTable toml, String name) {
+    List<String> results = getOptionalList(toml, name, Function.identity());
+    if (results.isEmpty()) {
+      throw new ConfigException("Config key '" + name + "' must be present, and must have at least one value.");
+    }
+    return results;
+  }
+
+  public static <R> List<R> getOptionalList(TomlTable toml, String name, Function<String, R> transformer) {
     final TomlArray array = toml.getArray(name);
     if (array == null) {
-      throw new ConfigException("Missing config key: " + name);
+      return ImmutableList.of();
     }
     try {
       return ImmutableList.copyOf(
-          array.toList().stream().map(String.class::cast).collect(toList()));
+          array.toList()
+              .stream()
+              .map(String.class::cast)
+              .map(transformer)
+              .collect(toList()));
     } catch (ClassCastException e) {
-      throw new ConfigException(("Array '" + name + "' may only contain strings"));
+      throw new ConfigException("Array '" + name + "' may only contain strings");
+    } catch (RuntimeException e) {
+      throw new ConfigException("Failed to parse array '" + name + "'; " + e.getMessage());
     }
   }
 

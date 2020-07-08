@@ -102,6 +102,8 @@ Here's where the Couchbase connection parameters and credentials are specified.
   username = 'Administrator' <5>
   pathToPassword = 'secrets/couchbase-password.toml' <6>
   secureConnection = false <7>
+  scope = '' <8>
+  collections = ['myScope.widgets','myScope.invoices'] <9>
 ----
 <1> A list of bootstrap nodes for the Couchbase cluster.
 Multiple nodes can be specified like `['host1','host2']`.
@@ -115,6 +117,13 @@ Setting the value to `auto` tells the connector to select whichever network cont
 <6> Path to a separate TOML file with a single 'password' key.
 The base for a relative path is the connector installation directory.
 <7> If you have configured the <<truststore,Trust Store>> section, set this to `true` to encrypt the Couchbase connections.
+<8> (Since 4.2.3) If you want to replicate from only one scope, name it here.
+<9> (Since 4.2.3) If you want to replicate from a subset of collections within a scope, or collections in different scopes, name the collections here.
+Qualify each collection name with its parent scope, like `'scope.collection'`.
+
+NOTE: The `scope` and `collections` properties are mutually exclusive.
+You can specify one or the other, but not both.
+If you specify neither, the connector will examine every document in the bucket.
 
 TIP: If you want to replicate from multiple buckets, you can run a separate connector group for each bucket.
 

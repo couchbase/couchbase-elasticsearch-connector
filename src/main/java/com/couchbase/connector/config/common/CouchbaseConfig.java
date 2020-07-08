@@ -17,12 +17,17 @@
 package com.couchbase.connector.config.common;
 
 import com.couchbase.client.core.env.NetworkResolution;
+import com.couchbase.connector.config.ConfigException;
+import com.couchbase.connector.config.ScopeAndCollection;
+import com.google.common.collect.ImmutableList;
 import net.consensys.cava.toml.TomlTable;
 import org.immutables.value.Value;
 
+import javax.annotation.Nullable;
 import java.util.List;
 
 import static com.couchbase.connector.config.ConfigHelper.expectOnly;
+import static com.couchbase.connector.config.ConfigHelper.getOptionalList;
 import static com.couchbase.connector.config.ConfigHelper.getStrings;
 import static com.couchbase.connector.config.ConfigHelper.readPassword;
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -42,12 +47,27 @@ public interface CouchbaseConfig {
 
   String metadataBucket();
 
+  @Nullable
+  String scope();
+
+  @Value.Default
+  default List<ScopeAndCollection> collections() {
+    return ImmutableList.of();
+  }
+
   boolean secureConnection();
 
   DcpConfig dcp();
 
+  @Value.Check
+  default void check() {
+    if (!isNullOrEmpty(scope()) && !collections().isEmpty()) {
+      throw new ConfigException("Invalid configuration; you can specify 'scope' OR 'collections', but not both.");
+    }
+  }
+
   static ImmutableCouchbaseConfig from(TomlTable config) {
-    expectOnly(config, "bucket", "metadataBucket", "hosts", "network", "username", "pathToPassword", "dcp", "secureConnection");
+    expectOnly(config, "bucket", "metadataBucket", "scope", "collections", "hosts", "network", "username", "pathToPassword", "dcp", "secureConnection");
 
     final String sourceBucket = config.getString("bucket", () -> "default");
     final String networkName = config.getString("network", () -> "auto");
@@ -55,6 +75,8 @@ public interface CouchbaseConfig {
 
     return ImmutableCouchbaseConfig.builder()
         .bucket(sourceBucket)
+        .scope(config.getString("scope"))
+        .collections(getOptionalList(config, "collections", ScopeAndCollection::parse))
         .metadataBucket(isNullOrEmpty(metadataBucket) ? sourceBucket : metadataBucket)
         .hosts(getStrings(config, "hosts"))
         .network(networkName.isEmpty() ? NetworkResolution.AUTO : NetworkResolution.custom(networkName))

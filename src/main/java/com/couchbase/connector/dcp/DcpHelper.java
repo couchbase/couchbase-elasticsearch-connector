@@ -36,6 +36,7 @@ import com.couchbase.client.dcp.state.SessionState;
 import com.couchbase.client.dcp.transport.netty.ChannelFlowController;
 import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.Coordinator;
+import com.couchbase.connector.config.ScopeAndCollection;
 import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -91,16 +92,22 @@ public class DcpHelper {
         .map(HostAndPort::format)
         .collect(toSet());
 
+    Set<String> collectionNames = config.collections()
+        .stream().map(ScopeAndCollection::format)
+        .collect(toSet());
+
     final Client.Builder builder = Client.builder()
         .userAgent("elasticsearch-connector", VersionHelper.getVersion(), groupName)
         .connectTimeout(config.dcp().connectTimeout().millis())
         .seedNodes(seedNodes)
         .networkResolution(NetworkResolution.valueOf(config.network().name()))
         .bucket(config.bucket())
-//          .poolBuffers(true)
         .credentials(config.username(), config.password())
         .controlParam(DcpControl.Names.SET_NOOP_INTERVAL, 20)
         .compression(config.dcp().compression())
+        .collectionsAware(true)
+        .scopeName(config.scope())
+        .collectionNames(collectionNames)
         .mitigateRollbacks(
             config.dcp().persistencePollingInterval().duration(),
             config.dcp().persistencePollingInterval().timeUnit())

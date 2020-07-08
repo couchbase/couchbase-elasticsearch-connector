@@ -65,6 +65,25 @@
   # [truststore] section to be configured.
   secureConnection = false
 
+  # By default the connector examines every document in the bucket.
+  #
+  # Set the 'scope' property if you want to limit the replication to
+  # all collections within a single scope. The value is the name of the
+  # scope to replicate from.
+  # For example:
+  #   scope = 'myScope'
+  #
+  # Set the 'collections' property if you want to limit the replication to
+  # a subset of the collections in a scope, or collections in different scopes.
+  # The value is a list of qualified collections names (scope.collection).
+  # For example:
+  #   collections = ['myScope.widgets','myScope.invoices']
+  #
+  # NOTE: The 'scope' and 'collections' properties are mutually exlcusive.
+  # You can set one OR the other, but not both.
+  scope = ''
+  collections = []
+
 # Options for the Couchbase Database Change Protocol (DCP).
 [couchbase.dcp]
   compression = true
