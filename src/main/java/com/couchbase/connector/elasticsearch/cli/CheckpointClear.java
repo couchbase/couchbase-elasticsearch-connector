@@ -20,12 +20,14 @@ import com.couchbase.client.dcp.Client;
 import com.couchbase.client.dcp.state.PartitionState;
 import com.couchbase.client.dcp.state.SessionState;
 import com.couchbase.client.java.Bucket;
-import com.couchbase.client.java.CouchbaseCluster;
-import com.couchbase.client.java.env.CouchbaseEnvironment;
+import com.couchbase.client.java.Cluster;
+import com.couchbase.client.java.Collection;
+import com.couchbase.client.java.env.ClusterEnvironment;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.dcp.Checkpoint;
 import com.couchbase.connector.dcp.CheckpointDao;
 import com.couchbase.connector.dcp.CouchbaseCheckpointDao;
+import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.dcp.DcpHelper;
 import com.couchbase.connector.dcp.ResolvedBucketConfig;
 import com.couchbase.connector.dcp.SnapshotMarker;
@@ -75,13 +77,14 @@ public class CheckpointClear extends AbstractCliCommand {
   }
 
   private static void run(ConnectorConfig config, boolean catchUp) throws IOException {
-    final CouchbaseEnvironment env = environmentBuilder(config.couchbase(), config.trustStore()).build();
-    final CouchbaseCluster cluster = createCluster(config.couchbase(), env);
+    final ClusterEnvironment env = environmentBuilder(config.couchbase(), config.trustStore()).build();
+    final Cluster cluster = createCluster(config.couchbase(), env);
     try {
-      final Bucket bucket = cluster.openBucket(config.couchbase().metadataBucket());
-      final ResolvedBucketConfig bucketConfig = getBucketConfig(config.couchbase(), bucket);
+      final Bucket metadataBucket = CouchbaseHelper.waitForBucket(cluster, config.couchbase().metadataBucket());
+      final Collection metadataCollection = CouchbaseHelper.getMetadataCollection(metadataBucket);
+      final ResolvedBucketConfig bucketConfig = getBucketConfig(config.couchbase(), metadataBucket);
 
-      final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(bucket, config.group().name());
+      final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(metadataCollection, config.group().name());
 
       if (catchUp) {
         setCheckpointToNow(config, bucketConfig, checkpointDao);

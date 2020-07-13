@@ -36,6 +36,7 @@ import java.io.InputStream;
 import java.util.Map;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.getBucketConfig;
+import static com.couchbase.connector.dcp.CouchbaseHelper.getMetadataCollection;
 
 public class CheckpointRestore extends AbstractCliCommand {
 
@@ -59,7 +60,7 @@ public class CheckpointRestore extends AbstractCliCommand {
     final Bucket bucket = CouchbaseHelper.openMetadataBucket(config.couchbase(), config.trustStore());
     final ResolvedBucketConfig bucketConfig = getBucketConfig(config.couchbase(), bucket);
 
-    final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(bucket, config.group().name());
+    final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(getMetadataCollection(bucket), config.group().name());
 
     final ObjectMapper mapper = new ObjectMapper();
     try (InputStream is = new FileInputStream(inputFile)) {

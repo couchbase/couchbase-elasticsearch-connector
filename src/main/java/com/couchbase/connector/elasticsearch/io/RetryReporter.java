@@ -16,7 +16,6 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
-import com.couchbase.client.core.logging.RedactableArgument;
 import com.couchbase.connector.dcp.Event;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
@@ -25,6 +24,7 @@ import org.slf4j.Logger;
 
 import java.util.List;
 
+import static com.couchbase.client.core.logging.RedactableArgument.redactUser;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -48,7 +48,7 @@ class RetryReporter {
     }
 
     final String message = "status=" + failure.getStatus() + " message=" + failure.getMessage();
-    errorMessageToEvents.put(message, RedactableArgument.user(e).toString());
+    errorMessageToEvents.put(message, redactUser(e).toString());
   }
 
   void report() {

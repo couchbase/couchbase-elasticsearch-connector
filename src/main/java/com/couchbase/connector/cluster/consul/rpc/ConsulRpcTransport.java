@@ -16,7 +16,6 @@
 
 package com.couchbase.connector.cluster.consul.rpc;
 
-import com.couchbase.client.core.logging.RedactableArgument;
 import com.couchbase.connector.cluster.consul.ConsulDocumentWatcher;
 import com.couchbase.connector.cluster.consul.ConsulHelper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -39,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.couchbase.client.core.logging.RedactableArgument.redactSystem;
 import static com.couchbase.connector.cluster.consul.ConsulHelper.getWithRetry;
 import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.constantBackoff;
 import static java.util.Objects.requireNonNull;
@@ -156,7 +156,7 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
   @Override
   public String toString() {
     return "ConsulRpcTransport{" +
-        "endpointKey='" + RedactableArgument.system(endpointKey) + '\'' +
+        "endpointKey='" + redactSystem(endpointKey) + '\'' +
         ", timeout=" + timeout +
         '}';
   }

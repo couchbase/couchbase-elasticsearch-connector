@@ -17,78 +17,60 @@
 package com.couchbase.connector.dcp;
 
 import com.codahale.metrics.Gauge;
-import com.couchbase.client.core.RequestCancelledException;
+import com.couchbase.client.core.Core;
+import com.couchbase.client.core.config.BucketConfig;
 import com.couchbase.client.core.config.CouchbaseBucketConfig;
-import com.couchbase.client.core.config.DefaultConfigurationProvider;
-import com.couchbase.client.core.message.cluster.GetClusterConfigRequest;
-import com.couchbase.client.core.message.cluster.GetClusterConfigResponse;
-import com.couchbase.client.core.utils.ConnectionString;
+import com.couchbase.client.core.service.ServiceType;
+import com.couchbase.client.dcp.util.Version;
 import com.couchbase.client.java.Bucket;
-import com.couchbase.client.java.CouchbaseCluster;
-import com.couchbase.client.java.cluster.ClusterInfo;
-import com.couchbase.client.java.env.CouchbaseEnvironment;
-import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
-import com.couchbase.client.java.error.TemporaryFailureException;
-import com.couchbase.client.java.util.features.Version;
+import com.couchbase.client.java.Cluster;
+import com.couchbase.client.java.Collection;
+import com.couchbase.client.java.env.ClusterEnvironment;
 import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.couchbase.connector.elasticsearch.Metrics;
-import com.couchbase.connector.util.ThrowableHelper;
-import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 
-import java.net.ConnectException;
 import java.security.KeyStore;
-import java.util.Iterator;
+import java.time.Duration;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-import static com.couchbase.connector.elasticsearch.io.MoreBackoffPolicies.truncatedExponentialBackoff;
+import static com.couchbase.client.core.env.IoConfig.networkResolution;
+import static com.couchbase.client.core.env.SecurityConfig.enableTls;
+import static com.couchbase.client.core.env.TimeoutConfig.connectTimeout;
+import static com.couchbase.client.dcp.core.utils.CbCollections.setOf;
+import static com.couchbase.client.java.ClusterOptions.clusterOptions;
+import static com.couchbase.client.java.diagnostics.WaitUntilReadyOptions.waitUntilReadyOptions;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static java.util.stream.Collectors.toSet;
-import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 public class CouchbaseHelper {
   private static final Logger LOGGER = LoggerFactory.getLogger(CouchbaseHelper.class);
+  private static final Duration CONFIG_TIMEOUT = Duration.ofSeconds(30);
 
   private CouchbaseHelper() {
     throw new AssertionError("not instantiable");
   }
 
-  public static DefaultCouchbaseEnvironment.Builder environmentBuilder(CouchbaseConfig config, Supplier<KeyStore> keystore) {
-    final DefaultCouchbaseEnvironment.Builder envBuilder = DefaultCouchbaseEnvironment.builder()
-        .networkResolution(config.network())
-        .connectTimeout(SECONDS.toMillis(10));
+  public static ClusterEnvironment.Builder environmentBuilder(CouchbaseConfig config, Supplier<KeyStore> keystore) {
+    final ClusterEnvironment.Builder envBuilder = ClusterEnvironment.builder()
+        .ioConfig(networkResolution(config.network()))
+        .timeoutConfig(connectTimeout(Duration.ofSeconds(10)));
 
     if (config.secureConnection()) {
-      envBuilder
-          .sslEnabled(true)
-          .sslTruststore(keystore.get());
-    }
-
-    // Dirty kludge to allow non-standard bootstrap port for containerized Couchbase
-    final ConnectionString c = ConnectionString.fromHostnames(config.hosts());
-    for (ConnectionString.UnresolvedSocket host : c.hosts()) {
-      final int port = host.port();
-      if (port != 0) {
-        LOGGER.debug("Using bootstrap port {}", port);
-        envBuilder.bootstrapHttpDirectPort(port);
-        break;
-      }
+      envBuilder.securityConfig(enableTls(true)
+          .trustStore(keystore.get()));
     }
 
     return envBuilder;
   }
 
-  public static CouchbaseCluster createCluster(CouchbaseConfig config, CouchbaseEnvironment couchbaseEnvironment) {
-    final CouchbaseCluster cluster = CouchbaseCluster.create(couchbaseEnvironment, config.hosts());
-    cluster.authenticate(config.username(), config.password());
-    return cluster;
+  public static Cluster createCluster(CouchbaseConfig config, ClusterEnvironment env) {
+    String hosts = String.join(",", config.hosts());
+    return Cluster.connect(hosts, clusterOptions(config.username(), config.password())
+        .environment(env));
   }
 
   /**
@@ -99,36 +81,57 @@ public class CouchbaseHelper {
    */
   @Deprecated
   public static Bucket openMetadataBucket(CouchbaseConfig config, Supplier<KeyStore> keystore) {
-    // xxx there's no way to shut down this environment :-/
-    final CouchbaseEnvironment env = environmentBuilder(config, keystore).build();
-    return createCluster(config, env).openBucket(config.metadataBucket());
+    // xxx caller has no way of shutting down this environment :-/
+    final ClusterEnvironment env = environmentBuilder(config, keystore).build();
+    return createCluster(config, env).bucket(config.metadataBucket());
   }
 
   public static int getNumPartitions(Bucket bucket) {
     return doGetBucketConfig(bucket).numberOfPartitions();
   }
 
+  public static int getNumPartitions(Collection collection) {
+    return doGetBucketConfig(collection).numberOfPartitions();
+  }
+
   private static CouchbaseBucketConfig doGetBucketConfig(Bucket bucket) {
-    final GetClusterConfigResponse response = (GetClusterConfigResponse) bucket.core().send(
-        new GetClusterConfigRequest()).toBlocking().single();
-    return (CouchbaseBucketConfig) response.config().bucketConfig(bucket.name());
+    return (CouchbaseBucketConfig) getConfig(bucket)
+        .block(CONFIG_TIMEOUT);
+  }
+
+  private static CouchbaseBucketConfig doGetBucketConfig(Collection collection) {
+    return (CouchbaseBucketConfig) getConfig(collection)
+        .block(CONFIG_TIMEOUT);
+  }
+
+  public static Mono<BucketConfig> getConfig(Bucket bucket) {
+    return getConfig(bucket.core(), bucket.name());
+  }
+
+  public static Mono<BucketConfig> getConfig(Collection collection) {
+    return getConfig(collection.core(), collection.bucketName());
+  }
+
+  public static Mono<BucketConfig> getConfig(Core core, String bucketName) {
+    return core
+        .configurationProvider()
+        .configs()
+        .flatMap(clusterConfig ->
+            Mono.justOrEmpty(clusterConfig.bucketConfig(bucketName)))
+        .filter(CouchbaseHelper::hasPartitionInfo)
+        .next();
+  }
+
+  /**
+   * Returns true unless the config is from a newly-created bucket
+   * whose partition count is not yet available.
+   */
+  private static boolean hasPartitionInfo(BucketConfig config) {
+    return ((CouchbaseBucketConfig) config).numberOfPartitions() > 0;
   }
 
   public static ResolvedBucketConfig getBucketConfig(CouchbaseConfig config, Bucket bucket) {
     CouchbaseBucketConfig bucketConfig = doGetBucketConfig(bucket);
-
-    Set<String> seedHosts = ConnectionString.fromHostnames(config.hosts())
-        .hosts()
-        .stream()
-        .map(ConnectionString.UnresolvedSocket::hostname)
-        .collect(toSet());
-
-    String networkName = DefaultConfigurationProvider.determineNetworkResolution(bucketConfig, config.network(), seedHosts);
-    LOGGER.info("Selected network configuration: {}", defaultIfNull(networkName, "default"));
-    if (networkName != null) {
-      bucketConfig.useAlternateNetwork(networkName);
-    }
-
     return new ResolvedBucketConfig(bucketConfig, config.secureConnection());
   }
 
@@ -136,25 +139,20 @@ public class CouchbaseHelper {
    * Opens the bucket, retrying connection failures until the operation succeeds.
    * Any other kind of exception is propagated.
    */
-  public static Bucket waitForBucket(CouchbaseCluster cluster, String bucket) throws InterruptedException {
-    final Iterator<TimeValue> retryDelays = truncatedExponentialBackoff(
-        TimeValue.timeValueSeconds(1), TimeValue.timeValueMinutes(1)).iterator();
+  public static Bucket waitForBucket(Cluster cluster, String bucketName) {
+    Bucket bucket = cluster.bucket(bucketName);
+    bucket.waitUntilReady(bucket.environment().timeoutConfig().connectTimeout(),
+        waitUntilReadyOptions().serviceTypes(setOf(ServiceType.KV)));
+    return bucket;
+  }
 
-    while (true) {
-      try {
-        return cluster.openBucket(bucket);
-      } catch (Exception e) {
-        if (!ThrowableHelper.hasCause(e,
-            ConnectException.class, RequestCancelledException.class, TemporaryFailureException.class)) {
-          LOGGER.warn("Failed to open bucket", e);
-          throw e;
-        }
-        final TimeValue delay = retryDelays.next();
-        LOGGER.debug("failed to open bucket", e);
-        LOGGER.warn("Couchbase connection failure, couldn't open bucket. Retrying in {}", delay);
-        MILLISECONDS.sleep(delay.millis());
-      }
-    }
+  public static Collection getMetadataCollection(Bucket metadataBucket) {
+    return metadataBucket.defaultCollection();
+  }
+
+  public static Collection getMetadataCollection(Cluster cluster, CouchbaseConfig config) {
+    Bucket bucket = waitForBucket(cluster, config.metadataBucket());
+    return bucket.defaultCollection();
   }
 
   /**
@@ -194,18 +192,22 @@ public class CouchbaseHelper {
   }
 
   @SuppressWarnings("unchecked")
-  public static Gauge<String> registerCouchbaseVersionGauge(CouchbaseCluster cluster) {
+  public static Gauge<String> registerCouchbaseVersionGauge(Cluster cluster) {
     return Metrics.gauge("couchbaseVersion", () -> () -> {
-      final ClusterInfo couchbaseClusterInfo = cluster.clusterManager().info(2, TimeUnit.SECONDS);
-      return couchbaseClusterInfo.getMinVersion().toString();
+      // this API was removed in SDK 3. Hmmm.....
+//      final ClusterInfo couchbaseClusterInfo = cluster.clusterManager().info(2, TimeUnit.SECONDS);
+//      return couchbaseClusterInfo.getMinVersion().toString();
+      return "0.0.0";
     });
   }
 
-  public static Version requireCouchbaseVersion(CouchbaseCluster cluster, Version requiredVersion) {
-    final Version actualVersion = cluster.clusterManager().info().getMinVersion();
-    if (actualVersion.compareTo(requiredVersion) < 0) {
-      throw new RuntimeException("Couchbase Server version " + requiredVersion + " or later required; actual version is " + actualVersion);
-    }
-    return actualVersion;
+  public static Version requireCouchbaseVersion(Cluster cluster, Version requiredVersion) {
+    return Version.parseVersion("0.0.0");
+    // this API was removed in SDK 3. Hmmm.....
+//    final Version actualVersion = cluster.clusterManager().info().getMinVersion();
+//    if (actualVersion.compareTo(requiredVersion) < 0) {
+//      throw new RuntimeException("Couchbase Server version " + requiredVersion + " or later required; actual version is " + actualVersion);
+//    }
+//    return actualVersion;
   }
 }

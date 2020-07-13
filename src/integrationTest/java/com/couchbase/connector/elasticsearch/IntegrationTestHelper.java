@@ -17,10 +17,8 @@
 package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.client.java.Bucket;
-import com.couchbase.client.java.document.Document;
-import com.couchbase.client.java.document.JsonDocument;
-import com.couchbase.client.java.document.json.JsonObject;
-import com.couchbase.client.java.error.TemporaryFailureException;
+import com.couchbase.client.java.json.JsonObject;
+import com.couchbase.client.java.kv.MutationResult;
 import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Stopwatch;
@@ -29,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
@@ -77,24 +74,8 @@ class IntegrationTestHelper {
     assertEquals(expectedRouting, airline.path("_routing").asText());
   }
 
-  static <D extends Document<?>> D upsertWithRetry(Bucket bucket, D document) throws Exception {
-    return callWithRetry(() -> bucket.upsert(document));
-  }
-
-  private static <R> R callWithRetry(Callable<R> callable) throws Exception {
-    final int maxAttempts = 10;
-    TemporaryFailureException deferred = null;
-    for (int attempt = 0; attempt <= maxAttempts; attempt++) {
-      if (attempt != 0) {
-        SECONDS.sleep(1);
-      }
-      try {
-        return callable.call();
-      } catch (TemporaryFailureException e) {
-        deferred = e;
-      }
-    }
-    throw deferred;
+  static MutationResult upsertWithRetry(Bucket bucket, JsonDocument document) throws Exception {
+    return bucket.defaultCollection().upsert(document.id(), document.content());
   }
 
   static Set<String> upsertOneDocumentToEachVbucket(Bucket bucket, String idPrefix) throws Exception {

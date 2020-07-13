@@ -20,8 +20,7 @@ import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.http.AWSRequestSigningApacheInterceptor;
 import com.codahale.metrics.Gauge;
-import com.couchbase.client.core.logging.RedactableArgument;
-import com.couchbase.client.java.util.features.Version;
+import com.couchbase.client.dcp.util.Version;
 import com.couchbase.connector.config.common.TrustStoreConfig;
 import com.couchbase.connector.config.es.AwsConfig;
 import com.couchbase.connector.config.es.ElasticsearchConfig;
@@ -60,6 +59,7 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.couchbase.client.core.logging.RedactableArgument.redactSystem;
 import static com.couchbase.connector.elasticsearch.io.MoreBackoffPolicies.truncatedExponentialBackoff;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -105,9 +105,9 @@ public class ElasticsearchHelper {
     esInfo.put("version", r.getVersion().toString());
     esInfo.put("build", r.getBuild());
     esInfo.put("available", r.isAvailable());
-    esInfo.put("clusterName", RedactableArgument.system(r.getClusterName()));
-    esInfo.put("clusterUuid", RedactableArgument.system(r.getClusterUuid()));
-    esInfo.put("nodeName", RedactableArgument.system(r.getNodeName()));
+    esInfo.put("clusterName", redactSystem(r.getClusterName()));
+    esInfo.put("clusterUuid", redactSystem(r.getClusterUuid()));
+    esInfo.put("nodeName", redactSystem(r.getNodeName()));
     return esInfo.toString();
   }
 

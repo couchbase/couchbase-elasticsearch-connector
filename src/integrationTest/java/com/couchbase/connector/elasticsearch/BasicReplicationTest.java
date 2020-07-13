@@ -16,10 +16,12 @@
 
 package com.couchbase.connector.elasticsearch;
 
-import com.couchbase.client.deps.io.netty.util.ResourceLeakDetector;
+import com.couchbase.client.core.msg.kv.MutationToken;
+import com.couchbase.client.dcp.deps.io.netty.util.ResourceLeakDetector;
 import com.couchbase.client.java.Bucket;
-import com.couchbase.client.java.document.JsonDocument;
-import com.couchbase.client.java.document.json.JsonObject;
+import com.couchbase.client.java.Collection;
+import com.couchbase.client.java.json.JsonObject;
+import com.couchbase.client.java.kv.MutationResult;
 import com.couchbase.connector.cluster.consul.AsyncTask;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableConnectorConfig;
@@ -196,6 +198,8 @@ public class BasicReplicationTest {
   public void createDeleteReject() throws Throwable {
     try (TestCouchbaseClient cb = new TestCouchbaseClient(commonConfig)) {
       final Bucket bucket = cb.createTempBucket(couchbase);
+      final Collection collection = bucket.defaultCollection();
+
       final ImmutableConnectorConfig config = withBucketName(commonConfig, bucket.name());
 
       try (TestEsClient es = new TestEsClient(config);
@@ -210,7 +214,7 @@ public class BasicReplicationTest {
 
         // Here's the document we're going to test! Its seqno should be different than document revision.
         final String blueKey = forceKeyToPartition("color:blue", 0, 1024).get();
-        final JsonDocument doc = upsertWithRetry(bucket, JsonDocument.create(blueKey, JsonObject.create().put("hex", "0000ff")));
+        final MutationResult upsertResult = upsertWithRetry(bucket, JsonDocument.create(blueKey, JsonObject.create().put("hex", "0000ff")));
         final JsonNode content = es.waitForDocument(CATCH_ALL_INDEX, blueKey);
 
         System.out.println(content);
@@ -226,15 +230,17 @@ public class BasicReplicationTest {
         assertEquals(0, meta.path("expiration").longValue());
         assertThat(meta.path("rev").textValue()).startsWith(expectedDocumentRevision + "-");
         assertTrue(meta.path("flags").isIntegralNumber());
-        assertEquals(doc.cas(), meta.path("cas").longValue());
-        assertEquals(doc.mutationToken().sequenceNumber(), meta.path("seqno").longValue());
-        assertEquals(doc.mutationToken().vbucketID(), meta.path("vbucket").longValue());
-        assertEquals(doc.mutationToken().vbucketUUID(), meta.path("vbuuid").longValue());
+        assertEquals(upsertResult.cas(), meta.path("cas").longValue());
+
+        MutationToken mutationToken = upsertResult.mutationToken().orElseThrow(() -> new AssertionError("expected mutation token"));
+        assertEquals(mutationToken.sequenceNumber(), meta.path("seqno").longValue());
+        assertEquals(mutationToken.partitionID(), meta.path("vbucket").longValue());
+        assertEquals(mutationToken.partitionUUID(), meta.path("vbuuid").longValue());
 
         assertEquals("0000ff", content.path("doc").path("hex").textValue());
 
         // Make sure deletions are propagated to elasticsearch
-        bucket.remove(blueKey);
+        collection.remove(blueKey);
         es.waitForDeletion(CATCH_ALL_INDEX, blueKey);
 
         // Create an incompatible document (different type for "hex" field, Object instead of String)

@@ -40,6 +40,7 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.getBucketConfig;
+import static com.couchbase.connector.dcp.CouchbaseHelper.getMetadataCollection;
 import static java.util.stream.Collectors.toSet;
 
 public class CheckpointBackup extends AbstractCliCommand {
@@ -75,7 +76,7 @@ public class CheckpointBackup extends AbstractCliCommand {
     final ResolvedBucketConfig bucketConfig = getBucketConfig(config.couchbase(), bucket);
     final String bucketUuid = ""; // don't care bucketConfig.uuid();
 
-    final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(bucket, config.group().name());
+    final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(getMetadataCollection(bucket), config.group().name());
 
     final int numVbuckets = bucketConfig.numberOfPartitions();
     final Set<Integer> vbuckets = IntStream.range(0, numVbuckets).boxed().collect(toSet());

@@ -16,7 +16,6 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
-import com.couchbase.client.core.logging.RedactableArgument;
 import com.couchbase.connector.config.es.BulkRequestConfig;
 import com.couchbase.connector.dcp.Checkpoint;
 import com.couchbase.connector.dcp.CheckpointService;
@@ -53,6 +52,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
+import static com.couchbase.client.core.logging.RedactableArgument.redactUser;
 import static com.couchbase.connector.dcp.DcpHelper.isMetadata;
 import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.truncatedExponentialBackoff;
 import static com.couchbase.connector.util.ThrowableHelper.propagateCauseIfPossible;
@@ -153,7 +153,7 @@ public class ElasticsearchWriter implements Closeable {
     if (request == null) {
       try {
         if (LOGGER.isTraceEnabled()) {
-          LOGGER.trace("Skipping event, no matching type: {}", RedactableArgument.user(event));
+          LOGGER.trace("Skipping event, no matching type: {}", redactUser(event));
         }
 
         if (buffer.isEmpty()) {
@@ -290,13 +290,13 @@ public class ElasticsearchWriter implements Closeable {
 
             if (request instanceof EventRejectionIndexRequest) {
               // ES rejected the rejection log entry! Total fail.
-              LOGGER.error("Failed to index rejection document for event {}; status code: {} {}", RedactableArgument.user(e), failure.getStatus(), failure.getMessage());
+              LOGGER.error("Failed to index rejection document for event {}; status code: {} {}", redactUser(e), failure.getStatus(), failure.getMessage());
               Metrics.rejectionLogFailureMeter().mark();
               updateLatencyMetrics(e, nowNanos);
               e.release();
 
             } else {
-              LOGGER.warn("Permanent failure to index event {}; status code: {} {}", RedactableArgument.user(e), failure.getStatus(), failure.getMessage());
+              LOGGER.warn("Permanent failure to index event {}; status code: {} {}", redactUser(e), failure.getStatus(), failure.getMessage());
               Metrics.rejectionMeter().mark();
 
               // don't release event; the request factory assumes ownership

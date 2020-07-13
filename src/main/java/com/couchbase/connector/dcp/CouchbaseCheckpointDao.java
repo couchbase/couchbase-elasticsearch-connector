@@ -16,15 +16,15 @@
 
 package com.couchbase.connector.dcp;
 
-import com.couchbase.client.core.message.kv.subdoc.multi.Lookup;
-import com.couchbase.client.java.Bucket;
-import com.couchbase.client.java.document.ByteArrayDocument;
-import com.couchbase.client.java.document.RawJsonDocument;
-import com.couchbase.client.java.document.json.JsonObject;
-import com.couchbase.client.java.error.DocumentDoesNotExistException;
-import com.couchbase.client.java.error.TemporaryFailureException;
-import com.couchbase.client.java.subdoc.DocumentFragment;
-import com.couchbase.client.java.subdoc.SubdocOptionsBuilder;
+import com.couchbase.client.core.error.DocumentNotFoundException;
+import com.couchbase.client.core.error.TemporaryFailureException;
+import com.couchbase.client.java.Collection;
+import com.couchbase.client.java.codec.RawBinaryTranscoder;
+import com.couchbase.client.java.codec.RawJsonTranscoder;
+import com.couchbase.client.java.json.JsonObject;
+import com.couchbase.client.java.kv.LookupInResult;
+import com.couchbase.client.java.kv.LookupInSpec;
+import com.couchbase.client.java.kv.MutateInSpec;
 import com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -41,8 +41,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
+import static com.couchbase.client.java.kv.UpsertOptions.upsertOptions;
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
 import static com.couchbase.connector.elasticsearch.io.MoreBackoffPolicies.truncatedExponentialBackoff;
+import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
@@ -52,19 +54,19 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
 
   private static final ObjectMapper mapper = new ObjectMapper();
 
-  private final Bucket bucket;
+  private final Collection collection;
   private final String[] checkpointDocumentKeys; // indexed by partition (vbucket)
   private final boolean xattrs;
 
-  public CouchbaseCheckpointDao(Bucket bucket, String clusterId) {
-    this(bucket, clusterId, true);
+  public CouchbaseCheckpointDao(Collection collection, String clusterId) {
+    this(collection, clusterId, true);
   }
 
-  public CouchbaseCheckpointDao(Bucket bucket, String clusterId, boolean xattrs) {
-    this.bucket = requireNonNull(bucket);
+  public CouchbaseCheckpointDao(Collection collection, String clusterId, boolean xattrs) {
+    this.collection = requireNonNull(collection);
     this.xattrs = xattrs;
 
-    final int numPartitions = CouchbaseHelper.getNumPartitions(bucket);
+    final int numPartitions = CouchbaseHelper.getNumPartitions(collection);
     final String keyPrefix = DcpHelper.metadataDocumentIdPrefix() + clusterId + ":checkpoint:";
 
     // Brute-forcing the key names so they map to the correct partitions is expensive,
@@ -136,22 +138,22 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
   }
 
   private void upsertXattrs(String documentId, Map<String, Object> content) {
-    bucket.mutateIn(documentId)
-        .upsert(XATTR_NAME, content, new SubdocOptionsBuilder().xattr(true))
-        .execute();
+    collection.mutateIn(documentId, singletonList(MutateInSpec.upsert(XATTR_NAME, content).xattr()));
   }
 
   private void createDocument(String documentId, Map<String, Object> content) throws JsonProcessingException {
     if (xattrs) {
       try {
         upsertXattrs(documentId, content);
-      } catch (DocumentDoesNotExistException e) {
-        bucket.upsert(ByteArrayDocument.create(documentId, EMPTY_BYTE_ARRAY));
+      } catch (DocumentNotFoundException e) {
+        collection.upsert(documentId, EMPTY_BYTE_ARRAY, upsertOptions()
+            .transcoder(RawBinaryTranscoder.INSTANCE));
         upsertXattrs(documentId, content);
       }
     } else {
       final String json = mapper.writeValueAsString(content);
-      bucket.upsert(RawJsonDocument.create(documentId, json));
+      collection.upsert(documentId, json, upsertOptions()
+          .transcoder(RawJsonTranscoder.INSTANCE));
     }
   }
 
@@ -164,11 +166,11 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
   }
 
   @Override
-  public void clear(String bucketUuid, Set<Integer> vbuckets) throws IOException {
+  public void clear(String bucketUuid, Set<Integer> vbuckets) {
     for (int vbucket : vbuckets) {
       try {
-        bucket.remove(documentIdForVbucket(vbucket));
-      } catch (DocumentDoesNotExistException alreadyGone) {
+        collection.remove(documentIdForVbucket(vbucket));
+      } catch (DocumentNotFoundException alreadyGone) {
         // that's okay
       }
     }
@@ -205,22 +207,18 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
   private JsonNode readDocument(String documentId) throws IOException {
     if (xattrs) {
       try {
-        final DocumentFragment<Lookup> lookup = bucket.lookupIn(documentId)
-            .get(XATTR_NAME, new SubdocOptionsBuilder().xattr(true))
-            .execute();
-
-        final JsonObject content = (JsonObject) lookup.content(0);
-        return mapper.readTree(content.toString());
+        LookupInResult lookup = collection.lookupIn(documentId, singletonList(LookupInSpec.get(XATTR_NAME).xattr()));
+        return mapper.readTree(lookup.contentAsObject(0).toString());
 
       } catch (Exception e) {
         return null;
       }
     } else {
-      RawJsonDocument doc = bucket.get(RawJsonDocument.create(documentId));
+      JsonObject doc = collection.get(documentId).contentAsObject();
       if (doc == null) {
         return null;
       }
-      return mapper.readTree(doc.content());
+      return mapper.readTree(doc.toString());
     }
   }
 }

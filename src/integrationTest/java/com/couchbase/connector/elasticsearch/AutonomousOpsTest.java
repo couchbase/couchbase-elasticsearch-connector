@@ -16,7 +16,7 @@
 
 package com.couchbase.connector.elasticsearch;
 
-import com.couchbase.client.deps.io.netty.util.ResourceLeakDetector;
+import com.couchbase.client.dcp.deps.io.netty.util.ResourceLeakDetector;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
 import com.couchbase.connector.testcontainers.ElasticsearchContainer;

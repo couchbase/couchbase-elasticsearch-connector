@@ -18,7 +18,7 @@ package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
-import com.couchbase.client.java.env.CouchbaseEnvironment;
+import com.couchbase.client.java.env.ClusterEnvironment;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import com.couchbase.connector.dcp.CouchbaseHelper;
@@ -27,13 +27,13 @@ import com.google.common.io.Closer;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 class TestCouchbaseClient implements Closeable {
-  private CouchbaseEnvironment env;
-  private Cluster cluster;
+  private final ClusterEnvironment env;
+  private final Cluster cluster;
   private final Closer closer = Closer.create();
 
   public TestCouchbaseClient(String config) {
@@ -41,11 +41,11 @@ class TestCouchbaseClient implements Closeable {
   }
 
   public TestCouchbaseClient(ImmutableConnectorConfig config) {
-    this.env = environmentBuilder(config.couchbase(), config.trustStore())
-        .mutationTokensEnabled(true)
-        .connectTimeout(SECONDS.toMillis(15))
-        .kvTimeout(SECONDS.toMillis(10))
-        .build();
+    ClusterEnvironment.Builder builder = environmentBuilder(config.couchbase(), config.trustStore());
+    builder.ioConfig().enableMutationTokens(true);
+    builder.timeoutConfig().connectTimeout(Duration.ofSeconds(15));
+    builder.timeoutConfig().kvTimeout(Duration.ofSeconds(10));
+    this.env = builder.build();
 
     this.cluster = CouchbaseHelper.createCluster(config.couchbase(), env);
   }
@@ -60,7 +60,7 @@ class TestCouchbaseClient implements Closeable {
    */
   public Bucket createTempBucket(CustomCouchbaseContainer couchbase) {
     final TempBucket temp = closer.register(new TempBucket(couchbase));
-    return cluster().openBucket(temp.name());
+    return cluster().bucket(temp.name());
   }
 
   /**
@@ -69,7 +69,7 @@ class TestCouchbaseClient implements Closeable {
    */
   public Bucket createTempBucket(CustomCouchbaseContainer couchbase, String bucketName) {
     final TempBucket temp = closer.register(new TempBucket(couchbase, bucketName));
-    return cluster().openBucket(temp.name());
+    return cluster().bucket(temp.name());
   }
 
   @Override

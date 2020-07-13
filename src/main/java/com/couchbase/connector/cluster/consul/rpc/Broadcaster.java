@@ -16,13 +16,11 @@
 
 package com.couchbase.connector.cluster.consul.rpc;
 
-import com.couchbase.client.core.logging.RedactableArgument;
 import com.google.common.base.Stopwatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +31,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Function;
+
+import static com.couchbase.client.core.logging.RedactableArgument.redactSystem;
 
 public class Broadcaster implements Closeable {
   private static final Logger LOGGER = LoggerFactory.getLogger(Broadcaster.class);
@@ -72,7 +72,7 @@ public class Broadcaster implements Closeable {
           e = e.getCause();
         }
         results.put(endpoint, RpcResult.newFailure(e));
-        LOGGER.error("Failed to apply '{}' callback for endpoint {}", description, RedactableArgument.system(endpoint), e);
+        LOGGER.error("Failed to apply '{}' callback for endpoint {}", description, redactSystem(endpoint), e);
       }
     }
 

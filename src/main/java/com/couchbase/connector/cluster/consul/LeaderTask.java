@@ -16,8 +16,8 @@
 
 package com.couchbase.connector.cluster.consul;
 
-import com.couchbase.client.core.utils.DefaultObjectMapper;
-import com.couchbase.client.deps.com.fasterxml.jackson.databind.JsonNode;
+import com.couchbase.client.dcp.core.utils.DefaultObjectMapper;
+import com.couchbase.client.dcp.deps.com.fasterxml.jackson.databind.JsonNode;
 import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.cluster.consul.rpc.Broadcaster;
 import com.couchbase.connector.cluster.consul.rpc.RpcEndpoint;

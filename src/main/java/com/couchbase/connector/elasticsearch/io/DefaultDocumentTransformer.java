@@ -16,8 +16,7 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
-import com.couchbase.client.core.logging.RedactableArgument;
-import com.couchbase.client.core.utils.DefaultObjectMapper;
+import com.couchbase.client.dcp.core.utils.DefaultObjectMapper;
 import com.couchbase.client.dcp.highlevel.Mutation;
 import com.couchbase.connector.config.es.DocStructureConfig;
 import com.couchbase.connector.dcp.Event;
@@ -35,6 +34,8 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
+
+import static com.couchbase.client.core.logging.RedactableArgument.redactUser;
 
 public class DefaultDocumentTransformer implements DocumentTransformer {
   private static final Logger LOGGER = LoggerFactory.getLogger(DefaultDocumentTransformer.class);
@@ -117,7 +118,7 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
       Mutation mutation = (Mutation) mutationEvent.getChange();
       if (esDocument.putIfAbsent(metadataFieldName, getMetadata(mutation)) != null) {
         LOGGER.warn("Metadata field name conflict; document {} already has field named '{}'",
-            RedactableArgument.user(mutationEvent), metadataFieldName);
+            redactUser(mutationEvent), metadataFieldName);
       }
     }
 

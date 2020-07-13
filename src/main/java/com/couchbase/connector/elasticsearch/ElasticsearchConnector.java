@@ -17,14 +17,14 @@
 package com.couchbase.connector.elasticsearch;
 
 import com.codahale.metrics.Slf4jReporter;
-import com.couchbase.client.core.logging.RedactableArgument;
 import com.couchbase.client.dcp.Client;
 import com.couchbase.client.dcp.StreamFrom;
 import com.couchbase.client.dcp.StreamTo;
+import com.couchbase.client.dcp.util.Version;
 import com.couchbase.client.java.Bucket;
-import com.couchbase.client.java.CouchbaseCluster;
-import com.couchbase.client.java.env.CouchbaseEnvironment;
-import com.couchbase.client.java.util.features.Version;
+import com.couchbase.client.java.Cluster;
+import com.couchbase.client.java.Collection;
+import com.couchbase.client.java.env.ClusterEnvironment;
 import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.Coordinator;
 import com.couchbase.connector.cluster.Membership;
@@ -55,6 +55,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static com.couchbase.client.core.logging.RedactableArgument.redactSystem;
 import static com.couchbase.connector.VersionHelper.getVersionString;
 import static com.couchbase.connector.dcp.CouchbaseHelper.requireCouchbaseVersion;
 import static com.couchbase.connector.dcp.DcpHelper.getCurrentSeqnos;
@@ -111,7 +112,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
     final Coordinator coordinator = new StaticCoordinator();
 
-    LOGGER.info("Read configuration: {}", RedactableArgument.system(config));
+    LOGGER.info("Read configuration: {}", redactSystem(config));
 
     final ScheduledExecutorService checkpointExecutor = Executors.newSingleThreadScheduledExecutor();
 
@@ -126,15 +127,15 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         LOGGER.info("Metrics HTTP server is disabled. Edit the [metrics] 'httpPort' config property to enable.");
       }
 
-      final CouchbaseEnvironment env = CouchbaseHelper.environmentBuilder(config.couchbase(), config.trustStore()).build();
-      final CouchbaseCluster cluster = CouchbaseHelper.createCluster(config.couchbase(), env);
+      final ClusterEnvironment env = CouchbaseHelper.environmentBuilder(config.couchbase(), config.trustStore()).build();
+      final Cluster cluster = CouchbaseHelper.createCluster(config.couchbase(), env);
 
       Metrics.gauge("connectorVersion", () -> VersionHelper::getVersionString);
       ElasticsearchHelper.registerElasticsearchVersionGauge(esClient);
       CouchbaseHelper.registerCouchbaseVersionGauge(cluster);
 
       final Version elasticsearchVersion = waitForElasticsearchAndRequireVersion(
-          esClient, new Version(2, 0, 0), new Version(5, 2, 1));
+          esClient, new Version(2, 0, 0), new Version(5, 6, 16));
       LOGGER.info("Elasticsearch version {}", elasticsearchVersion);
 
       validateConfig(elasticsearchVersion, config.elasticsearch());
@@ -145,12 +146,13 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
       final boolean storeMetadataInSourceBucket = config.couchbase().metadataBucket().equals(config.couchbase().bucket());
       final Bucket metadataBucket = storeMetadataInSourceBucket ? bucket : CouchbaseHelper.waitForBucket(cluster, config.couchbase().metadataBucket());
+      final Collection metadataCollection = CouchbaseHelper.getMetadataCollection(metadataBucket);
 
       // Do this after waiting for the bucket, because waitForBucket has nicer retry backoff.
       // Checkpoint metadata is stored using Extended Attributes, a feature introduced in 5.0.
       LOGGER.info("Couchbase Server version {}", requireCouchbaseVersion(cluster, new Version(5, 0, 0)));
 
-      final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(metadataBucket, config.group().name());
+      final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(metadataCollection, config.group().name());
 
       final String bucketUuid = ""; // todo get this from dcp client
       final CheckpointService checkpointService = new CheckpointService(bucketUuid, checkpointDao);

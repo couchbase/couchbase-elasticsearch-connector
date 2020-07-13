@@ -79,7 +79,7 @@ public interface CouchbaseConfig {
         .collections(getOptionalList(config, "collections", ScopeAndCollection::parse))
         .metadataBucket(isNullOrEmpty(metadataBucket) ? sourceBucket : metadataBucket)
         .hosts(getStrings(config, "hosts"))
-        .network(networkName.isEmpty() ? NetworkResolution.AUTO : NetworkResolution.custom(networkName))
+        .network(networkName.isEmpty() ? NetworkResolution.AUTO : NetworkResolution.valueOf(networkName))
         .username(config.getString("username", () -> ""))
         .password(readPassword(config, "couchbase", "pathToPassword"))
         .secureConnection(config.getBoolean("secureConnection", () -> false))

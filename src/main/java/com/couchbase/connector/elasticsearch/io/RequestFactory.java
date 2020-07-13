@@ -17,7 +17,6 @@
 package com.couchbase.connector.elasticsearch.io;
 
 import com.codahale.metrics.Timer;
-import com.couchbase.client.core.logging.RedactableArgument;
 import com.couchbase.connector.config.es.DocStructureConfig;
 import com.couchbase.connector.config.es.RejectLogConfig;
 import com.couchbase.connector.config.es.TypeConfig;
@@ -38,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 
+import static com.couchbase.client.core.logging.RedactableArgument.redactUser;
 import static com.couchbase.connector.dcp.DcpHelper.isMetadata;
 import static java.util.Objects.requireNonNull;
 
@@ -115,7 +115,7 @@ public class RequestFactory {
       return request.source() == null ? null : request;
 
     } catch (Exception failure) {
-      LOGGER.warn("Failed to create doc write request for {} ; adding an entry to the rejection log instead.", RedactableArgument.user(event), failure);
+      LOGGER.warn("Failed to create doc write request for {} ; adding an entry to the rejection log instead.", redactUser(event), failure);
       Metrics.rejectionMeter().mark();
       return newRejectionLogRequest(event, matchResult, failure);
     }
@@ -132,14 +132,14 @@ public class RequestFactory {
 
     if (parser.nextToken() == null) {
       LOGGER.warn("Document '{}' has no field matching routing JSON pointer '{}'",
-          RedactableArgument.user(event.getKey()), routingPointer);
+          redactUser(event.getKey()), routingPointer);
       return null;
     }
 
     final String routingValue = parser.getValueAsString();
     if (routingValue == null) {
       LOGGER.warn("Document '{}' has a null or non-scalar value for routing JSON pointer '{}'",
-          RedactableArgument.user(event.getKey()), routingPointer);
+          redactUser(event.getKey()), routingPointer);
       return null;
     }
 
