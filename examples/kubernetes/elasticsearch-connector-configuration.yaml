@@ -19,7 +19,7 @@ data:
     # To preserve the checkpoint, run the `cbes-checkpoint-backup` command
     # before renaming, and `cbes-checkpoint-restore` afterwards.
     [group]
-      name = 'example-group'
+      name = '${CBES_GROUP:example-group}'
 
     # The simplest way to deploy the connector is "static" mode. In this mode,
     # each worker process is independent of the others, and must be manually

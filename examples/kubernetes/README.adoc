@@ -12,13 +12,18 @@
 2. Update `elasticsearch-connector.yaml` with your image name and tag.
 3. `kubectl apply -f .`
 
+== Group Name
+
+Any given stream to Elasticsearch should have a unique group name. This group name is used to persist state
+information so that the stream may resume gracefully. To change the group name, update the `cbes-group` labels
+throughout `elasticsearch-connector.yaml`. This name must be changed at each location it appears.
+
 == Scaling
 
-A precise number of pods must be run for this connector, matching CBES_TOTALMEMBERS. Each pod should have a different CBES_MEMBERNUMBER
-from 1 to CBES_TOTALMEMBERS. Running more than one pod with the same CBES_MEMBERNUMBER should never happen. If replacing a pod, be sure
-the old pod is deleted before the new one is deployed.
+A precise number of pods must be run for this connector, matching `CBES_TOTALMEMBERS`. Each pod should have a different `CBES_MEMBERNUMBER`
+from 1 to `CBES_TOTALMEMBERS`. Running more than one pod with the same `CBES_MEMBERNUMBER` should never happen. This is handled automatically
+by the StatefulSet, so long as the `replica` value for the StatefulSet always matches the `CBES_TOTALMEMBERS` value in the environment
+variables for the Pod template.
 
 Each pod gets Couchbase vBuckets assigned to it to stream. This means that multiple pods share the load, but they are not providing redundancy.
 If any one pod is not running, then new mutations in the vBuckets the pod is responsible for will not be streamed.
-
-If changing CBES_TOTALMEMBERS, be sure to delete all pods first before changing, then redeploy all pods with the new value.

@@ -1,103 +1,98 @@
+# Headless service to back the StatefulSet
 apiVersion: v1
-kind: Pod
+kind: Service
 metadata:
-  name: elasticsearch-connector-1
+  name: elasticsearch-connector-example-group
   labels:
     app: elasticsearch-connector
+    cbes-group: example-group
 spec:
-  affinity:
-    # Try to avoid scheduling the pods on the same node
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-            - key: app
-              operator: In
-              values:
-              - elasticsearch-connector
-          topologyKey: failure-domain.beta.kubernetes.io/zone
-  containers:
-  - image: registry/image:tag # Replace with your image
-    imagePullPolicy: IfNotPresent
-    name: connector
-    resources:
-      limits:
-        cpu: '8'
-        memory: '16Gi'
-      requests:
-        cpu: '4'
-        memory: '8Gi'
-    env:
-      - name: CBES_MEMBERNUMBER
-        value: "1" # Number of *this* pod from the total set
-      - name: CBES_TOTALMEMBERS
-        value: "2" # Number of pods being deployed
-    volumeMounts:
-    - mountPath: /opt/couchbase-elasticsearch-connector/config
-      name: config
-      readOnly: true
-    - mountPath: /opt/couchbase-elasticsearch-connector/secrets
-      name: secrets
-      readOnly: true
-  restartPolicy: Always
-  volumes:
-  - name: config
-    configMap:
-      name: elasticsearch-connector-configuration
-  - name: secrets
-    secret:
-      secretName: elasticsearch-connector-secrets
+  selector:
+    app: elasticsearch-connector
+    cbes-group: example-group
+  clusterIP: None
+  ports:
+  - name: metrics
+    port: 31415
 ---
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: StatefulSet
 metadata:
-  name: elasticsearch-connector-2
+  name: elasticsearch-connector-example-group
   labels:
     app: elasticsearch-connector
+    cbes-group: example-group
 spec:
-  affinity:
-    # Try to avoid scheduling the pods on the same node
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-            - key: app
-              operator: In
-              values:
-              - elasticsearch-connector
-          topologyKey: failure-domain.beta.kubernetes.io/zone
-  containers:
-  - image: registry/image:tag # Replace with your image
-    imagePullPolicy: IfNotPresent
-    name: connector
-    resources:
-      limits:
-        cpu: '8'
-        memory: '16Gi'
-      requests:
-        cpu: '4'
-        memory: '8Gi'
-    env:
-      - name: CBES_MEMBERNUMBER
-        value: "2" # Number of *this* pod from the total set
-      - name: CBES_TOTALMEMBERS
-        value: "2" # Number of pods being deployed
-    volumeMounts:
-    - mountPath: /opt/couchbase-elasticsearch-connector/config
-      name: config
-      readOnly: true
-    - mountPath: /opt/couchbase-elasticsearch-connector/secrets
-      name: secrets
-      readOnly: true
-  restartPolicy: Always
-  volumes:
-  - name: config
-    configMap:
-      name: elasticsearch-connector-configuration
-  - name: secrets
-    secret:
-      secretName: elasticsearch-connector-secrets
+  selector:
+    matchLabels:
+      app: elasticsearch-connector
+      cbes-group: example-group
+  serviceName: elasticsearch-connector-example-group
+  replicas: 2 # Must match CBES_TOTALMEMBERS set in env
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        app: elasticsearch-connector
+        cbes-group: example-group
+    spec:
+      affinity:
+        # Try to avoid scheduling the pods on the same node
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - elasticsearch-connector
+              topologyKey: failure-domain.beta.kubernetes.io/zone
+      containers:
+      - image: registry/image:tag # Replace with your image
+        imagePullPolicy: IfNotPresent
+        name: connector
+        resources:
+          limits:
+            cpu: '8'
+            memory: '16Gi'
+          requests:
+            cpu: '4'
+            memory: '8Gi'
+        env:
+        - name: CBES_GROUP
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['cbes-group']
+        - name: CBES_TOTALMEMBERS
+          value: "2" # Must match replica count
+        command:
+        # Get the CBES_MEMBERNUMBER from the name of the pod
+        - /bin/bash
+        - -c
+        - export CBES_MEMBERNUMBER=$((${HOSTNAME##*-} + 1)) && cbes
+        livenessProbe:
+          # This probe is imperfect, but confirms the HTTP metrics server is still running
+          httpGet:
+            path: /metrics
+            port: 31415
+          timeoutSeconds: 10
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          failureThreshold: 2
+        volumeMounts:
+        - mountPath: /opt/couchbase-elasticsearch-connector/config
+          name: config
+          readOnly: true
+        - mountPath: /opt/couchbase-elasticsearch-connector/secrets
+          name: secrets
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: elasticsearch-connector-configuration
+      - name: secrets
+        secret:
+          secretName: elasticsearch-connector-secrets
