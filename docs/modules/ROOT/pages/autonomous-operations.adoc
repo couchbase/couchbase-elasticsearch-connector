@@ -162,6 +162,13 @@ NOTE: The `cbes-consul` command has an optional `--consul-config` argument which
 This file is where you would specify a custom ACL token, for example.
 See the xref:configuration.adoc#consul[Consul section of the configuration documentation] for more details.
 
+.Identify current leader
+[source,console]
+----
+$ consul kv get couchbase/cbes/<group-name>/leader <1>
+----
+<1> Replace `<group-name>` with the name of your connector group.
+
 == Migrating to Autonomous Operations
 
 Replication checkpoint documents created in AO mode are 100% compatible with checkpoints created in other modes.
