@@ -62,7 +62,7 @@ public class TestConfigHelper {
         "metrics.httpPort", -1,
         "metrics.logInterval", "0",
         "elasticsearch.hosts", singletonList(dockerHost + ":" + elasticsearch.getHost().getPort()),
-        "couchbase.hosts", singletonList(dockerHost + ":" + couchbase.getMappedPort(11210))
+        "couchbase.hosts", singletonList(dockerHost + ":" + couchbase.getMappedPort(11210) + "=kv")
 //        ,"couchbase.network", "external"
     );
 

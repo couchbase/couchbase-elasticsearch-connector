@@ -21,6 +21,8 @@ import com.couchbase.client.core.Core;
 import com.couchbase.client.core.config.BucketConfig;
 import com.couchbase.client.core.config.CouchbaseBucketConfig;
 import com.couchbase.client.core.service.ServiceType;
+import com.couchbase.client.core.util.ConnectionString;
+import com.couchbase.client.dcp.config.HostAndPort;
 import com.couchbase.client.dcp.util.Version;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
@@ -35,8 +37,11 @@ import reactor.core.publisher.Mono;
 
 import java.security.KeyStore;
 import java.time.Duration;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static com.couchbase.client.core.env.IoConfig.networkResolution;
 import static com.couchbase.client.core.env.SecurityConfig.enableTls;
@@ -68,9 +73,44 @@ public class CouchbaseHelper {
     return envBuilder;
   }
 
+  /**
+   * Transforms the given list of addresses by replacing any unqualified ports
+   * (like "example.com:12345") with the qualified version using the given
+   * default port type. For example, if the port type is MANAGER, then
+   * "example.com:12345" becomes "example.com:12345=manager".
+   * <p>
+   * Ports that are already qualified are not modified.
+   * Addresses without ports are not modified.
+   */
+  static List<String> qualifyPorts(List<String> hosts, ConnectionString.PortType defaultPortType) {
+    return ConnectionString.create(String.join(",", hosts))
+        .hosts()
+        .stream()
+        .map(s -> {
+          HostAndPort hap = new HostAndPort(s.hostname(), s.port());
+          if (s.port() == 0) {
+            return hap.formatHost();
+          }
+          ConnectionString.PortType portType = s.portType().orElse(defaultPortType);
+          return hap.format() + "=" + getAlias(portType);
+
+        })
+        .collect(Collectors.toList());
+  }
+
+  static String getAlias(ConnectionString.PortType portType) {
+    return portType.name().toLowerCase(Locale.ROOT);
+  }
+
   public static Cluster createCluster(CouchbaseConfig config, ClusterEnvironment env) {
-    String hosts = String.join(",", config.hosts());
-    return Cluster.connect(hosts, clusterOptions(config.username(), config.password())
+    List<String> hosts = config.hosts();
+
+    // For compatibility with previous 4.2.x versions of the connector,
+    // interpret unqualified ports as MANAGER ports instead of KV ports.
+    hosts = qualifyPorts(hosts, ConnectionString.PortType.MANAGER);
+
+    String connectionString = String.join(",", hosts);
+    return Cluster.connect(connectionString, clusterOptions(config.username(), config.password())
         .environment(env));
   }
 
@@ -142,8 +182,16 @@ public class CouchbaseHelper {
    */
   public static Bucket waitForBucket(Cluster cluster, String bucketName) {
     Bucket bucket = cluster.bucket(bucketName);
-    bucket.waitUntilReady(bucket.environment().timeoutConfig().connectTimeout(),
-        waitUntilReadyOptions().serviceTypes(setOf(ServiceType.KV)));
+    Duration timeout = bucket.environment().timeoutConfig().connectTimeout();
+
+    // Multiplying timeout by 2 as a temporary workaround for JVMCBC-817
+    // (giving the config loader time for the KV attempt to timeout and still leaving
+    // time for loading the config from the manager).
+    timeout = timeout.multipliedBy(2);
+
+    bucket.waitUntilReady(timeout, waitUntilReadyOptions()
+        .serviceTypes(setOf(ServiceType.KV)));
+
     return bucket;
   }
 

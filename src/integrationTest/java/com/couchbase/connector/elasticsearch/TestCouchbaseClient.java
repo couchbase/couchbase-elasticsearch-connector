@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.elasticsearch;
 
+import com.couchbase.client.core.service.ServiceType;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.env.ClusterEnvironment;
@@ -29,6 +30,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
 
+import static com.couchbase.client.dcp.core.utils.CbCollections.setOf;
+import static com.couchbase.client.java.diagnostics.WaitUntilReadyOptions.waitUntilReadyOptions;
 import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
 
 class TestCouchbaseClient implements Closeable {
@@ -60,7 +63,18 @@ class TestCouchbaseClient implements Closeable {
    */
   public Bucket createTempBucket(CustomCouchbaseContainer couchbase) {
     final TempBucket temp = closer.register(new TempBucket(couchbase));
-    return cluster().bucket(temp.name());
+    Bucket bucket = cluster().bucket(temp.name());
+    Duration timeout = bucket.environment().timeoutConfig().connectTimeout();
+
+    // Multiplying timeout by 2 as a temporary workaround for JVMCBC-817
+    // (giving the config loader time for the KV attempt to timeout and still leaving
+    // time for loading the config from the manager).
+    timeout = timeout.multipliedBy(2);
+
+    bucket.waitUntilReady(timeout, waitUntilReadyOptions()
+        .serviceTypes(setOf(ServiceType.KV)));
+
+    return bucket;
   }
 
   /**
