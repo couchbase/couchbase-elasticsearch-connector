@@ -215,6 +215,8 @@ Experiment with these parameters to see what yields the best performance with yo
 <4> Limits the number of simultaneous bulk requests the connector will make.
 Setting this to `1` will reduce the load on your Elasticsearch cluster.
 
+NOTE: A bulk request is full when _either_ the `bytes` limit _or_ the `actions` limit is reached, whichever comes first.
+
 CAUTION: Actual bulk request size may exceed the `bytes` limit by approximately the size of a single document.
 Make sure the limit configured here is *well under* the Elasticsearch cluster's https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-http.html#_settings_2[`http.max_content_length`] setting.
 
