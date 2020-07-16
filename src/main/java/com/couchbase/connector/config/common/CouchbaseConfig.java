@@ -47,6 +47,11 @@ public interface CouchbaseConfig {
 
   String metadataBucket();
 
+  @Value.Default
+  default ScopeAndCollection metadataCollection() {
+    return ScopeAndCollection.DEFAULT;
+  }
+
   @Nullable
   String scope();
 
@@ -67,17 +72,19 @@ public interface CouchbaseConfig {
   }
 
   static ImmutableCouchbaseConfig from(TomlTable config) {
-    expectOnly(config, "bucket", "metadataBucket", "scope", "collections", "hosts", "network", "username", "pathToPassword", "dcp", "secureConnection");
+    expectOnly(config, "bucket", "metadataBucket", "metadataCollection", "scope", "collections", "hosts", "network", "username", "pathToPassword", "dcp", "secureConnection");
 
     final String sourceBucket = config.getString("bucket", () -> "default");
     final String networkName = config.getString("network", () -> "auto");
     final String metadataBucket = config.getString("metadataBucket", () -> "");
+    final String metadataCollection = config.getString("metadataCollection", () -> "_default._default");
 
     return ImmutableCouchbaseConfig.builder()
         .bucket(sourceBucket)
         .scope(config.getString("scope"))
         .collections(getOptionalList(config, "collections", ScopeAndCollection::parse))
         .metadataBucket(isNullOrEmpty(metadataBucket) ? sourceBucket : metadataBucket)
+        .metadataCollection(isNullOrEmpty(metadataCollection) ? ScopeAndCollection.DEFAULT : ScopeAndCollection.parse(metadataCollection))
         .hosts(getStrings(config, "hosts"))
         .network(networkName.isEmpty() ? NetworkResolution.AUTO : NetworkResolution.valueOf(networkName))
         .username(config.getString("username", () -> ""))

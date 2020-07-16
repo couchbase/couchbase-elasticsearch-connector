@@ -51,6 +51,12 @@
   # separate existing bucket, put that bucket's name here.
   metadataBucket = ''
 
+  # If you want to store replication checkpoint documents in a specific
+  # collection, name that collection here (qualified by scope, like
+  # 'myScope.cbesCheckpoints'). Otherwise, checkpoints will be stored
+  # in the bucket's default collection. The collection must already exist.
+  metadataCollection=''
+
   # At a minimum, the Couchbase user must have the "Data DCP Reader"
   # role for the source bucket, and "Data Reader" & "Data Writer"
   # roles for the bucket where replication checkpoints are stored.

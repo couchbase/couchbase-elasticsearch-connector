@@ -21,6 +21,8 @@ import java.util.Objects;
 import static java.util.Objects.requireNonNull;
 
 public class ScopeAndCollection {
+  public static final ScopeAndCollection DEFAULT = new ScopeAndCollection("_default", "_default");
+
   private final String scope;
   private final String collection;
 

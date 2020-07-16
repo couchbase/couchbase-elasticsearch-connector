@@ -146,7 +146,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
       final boolean storeMetadataInSourceBucket = config.couchbase().metadataBucket().equals(config.couchbase().bucket());
       final Bucket metadataBucket = storeMetadataInSourceBucket ? bucket : CouchbaseHelper.waitForBucket(cluster, config.couchbase().metadataBucket());
-      final Collection metadataCollection = CouchbaseHelper.getMetadataCollection(metadataBucket);
+      final Collection metadataCollection = CouchbaseHelper.getMetadataCollection(metadataBucket, config.couchbase());
 
       // Do this after waiting for the bucket, because waitForBucket has nicer retry backoff.
       // Checkpoint metadata is stored using Extended Attributes, a feature introduced in 5.0.

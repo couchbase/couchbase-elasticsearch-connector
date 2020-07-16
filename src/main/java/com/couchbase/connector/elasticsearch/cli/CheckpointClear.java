@@ -81,7 +81,7 @@ public class CheckpointClear extends AbstractCliCommand {
     final Cluster cluster = createCluster(config.couchbase(), env);
     try {
       final Bucket metadataBucket = CouchbaseHelper.waitForBucket(cluster, config.couchbase().metadataBucket());
-      final Collection metadataCollection = CouchbaseHelper.getMetadataCollection(metadataBucket);
+      final Collection metadataCollection = CouchbaseHelper.getMetadataCollection(metadataBucket, config.couchbase());
       final ResolvedBucketConfig bucketConfig = getBucketConfig(config.couchbase(), metadataBucket);
 
       final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(metadataCollection, config.group().name());

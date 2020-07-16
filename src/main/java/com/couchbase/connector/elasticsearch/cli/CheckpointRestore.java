@@ -60,7 +60,9 @@ public class CheckpointRestore extends AbstractCliCommand {
     final Bucket bucket = CouchbaseHelper.openMetadataBucket(config.couchbase(), config.trustStore());
     final ResolvedBucketConfig bucketConfig = getBucketConfig(config.couchbase(), bucket);
 
-    final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(getMetadataCollection(bucket), config.group().name());
+    final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(
+        getMetadataCollection(bucket, config.couchbase()),
+        config.group().name());
 
     final ObjectMapper mapper = new ObjectMapper();
     try (InputStream is = new FileInputStream(inputFile)) {

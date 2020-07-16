@@ -26,6 +26,7 @@ import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.Collection;
 import com.couchbase.client.java.env.ClusterEnvironment;
+import com.couchbase.connector.config.ScopeAndCollection;
 import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.couchbase.connector.elasticsearch.Metrics;
 import org.slf4j.Logger;
@@ -146,13 +147,18 @@ public class CouchbaseHelper {
     return bucket;
   }
 
-  public static Collection getMetadataCollection(Bucket metadataBucket) {
-    return metadataBucket.defaultCollection();
+  public static Collection getMetadataCollection(Bucket metadataBucket, CouchbaseConfig config) {
+    ScopeAndCollection c = config.metadataCollection();
+    // Default collection requires special handling to prevent SDK 3.0.6 from trying to
+    // refresh the collection map, which fails prior to Couchbase Server 7.0.
+    return c.equals(ScopeAndCollection.DEFAULT)
+        ? metadataBucket.defaultCollection()
+        : metadataBucket.scope(c.getScope()).collection(c.getCollection());
   }
 
   public static Collection getMetadataCollection(Cluster cluster, CouchbaseConfig config) {
     Bucket bucket = waitForBucket(cluster, config.metadataBucket());
-    return bucket.defaultCollection();
+    return getMetadataCollection(bucket, config);
   }
 
   /**

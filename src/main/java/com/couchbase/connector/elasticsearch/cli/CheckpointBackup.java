@@ -76,7 +76,9 @@ public class CheckpointBackup extends AbstractCliCommand {
     final ResolvedBucketConfig bucketConfig = getBucketConfig(config.couchbase(), bucket);
     final String bucketUuid = ""; // don't care bucketConfig.uuid();
 
-    final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(getMetadataCollection(bucket), config.group().name());
+    final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(
+        getMetadataCollection(bucket, config.couchbase()),
+        config.group().name());
 
     final int numVbuckets = bucketConfig.numberOfPartitions();
     final Set<Integer> vbuckets = IntStream.range(0, numVbuckets).boxed().collect(toSet());
