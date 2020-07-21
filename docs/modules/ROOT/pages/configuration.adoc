@@ -272,6 +272,7 @@ The default values can be overridden by specific type definitions, which we'll l
   typeName = '_doc' <3>
   ignore = false <4>
   ignoreDeletes = false <5>
+  matchOnQualifiedKey = false <6>
 ----
 <1> Write matching documents to this index.
 Empty string (`''`) means "no default".
@@ -280,6 +281,9 @@ Empty string (`''`) means "no pipeline".
 <3> Assign this Elasticsearch type to matching documents.
 <4> If `true`, ignore matching documents entirely.
 <5> If `true`, never delete matching documents from Elasticsearch.
+<6> (Since 4.2.3; Uncommitted) If `true`, the `prefix` and `regex` properties described in the next section match against the qualified document ID, which includes the document's scope and collection.
+Otherwise, they match against just the document ID.
+For example, "scope.collection.documentId" versus just "documentId".
 
 ==== Document matching rules
 Every type definition must have a rule for matching document IDs.
@@ -354,6 +358,42 @@ Finally, here's the promised example of using a regular expression with a captur
 ----
 <1> Matches IDs that start with one or more characters followed by "::".
 It directs "user::alice" to index "user", and "foo::bar::123" to index "foo".
+
+==== Collection and Scope match
+
+When the `matchOnQualifiedKey` property is `true`, the `regex` and `prefix` values match against the qualified key (for example: "scope.collection.documentId").
+
+You can take advantage of this to create a type rule specific to a collection, or a rule that derives the Elasticsearch index name from the Couchbase collection name.
+
+.Match anything in a specific collection
+[source,toml]
+----
+[[elasticsearch.type]]
+  matchOnQualifiedKey = true
+  prefix = 'scope.collection.' <1>
+  index = 'foo'
+----
+<1> Matches any document in collection "scope.collection", and writes it to Elasticsearch index "foo".
+
+.Couchbase collection -> Elasticsearch index
+[source,toml]
+----
+[[elasticsearch.type]]
+  matchOnQualifiedKey = true
+  regex = '[^.]+.(?<index>[^.]+).*' <1>
+----
+<1> Matches any document.
+Writes a document with qualified key "scope.collection.foo" to Elasticsearch index "collection".
+
+.Couchbase scope.collection -> Elasticsearch index
+[source,toml]
+----
+[[elasticsearch.type]]
+  matchOnQualifiedKey = true
+  regex = '(?<index>[^.]+.[^.]+).*' <1>
+----
+<1> Matches any document.
+Writes a document with qualified key "scope.collection.foo" to Elasticsearch index "scope.collection".
 
 ==== Custom Routing and Parent/Child Relationships
 
