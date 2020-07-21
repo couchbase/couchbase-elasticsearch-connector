@@ -1,9 +1,48 @@
 = Release Notes
-:description: Elasticsearch Connector release notes
 
-== Elasticsearch Connector 4.2.2 (2020-05-19)
+[abstract]
+Release notes, installation instructions, and download archive for the Couchbase Elasticsearch Connector.
 
-https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.2/couchbase-elasticsearch-connector-4.2.2.zip[couchbase-elasticsearch-connector-4.2.2.zip]
+== Installation
+
+Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
+Refer to xref:getting-started.adoc[] for detailed installation instructions.
+
+[[v4.2.3]]
+== Version 4.2.3 (2020-07-21)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.3/couchbase-elasticsearch-connector-4.2.3.zip[Download]
+
+This release adds "uncommitted" support for Collections and Scopes, a new feature planned for Couchbase Server 7.0.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-163[CBES-163]:
+Type definitions now have a `matchOnQualifiedKey` property that lets a rule match against the qualified document name, which includes the scope and collection.
+This enables type definition rules that write to an Elasticsearch index whose name matches the Couchbase collection name.
+
+* https://issues.couchbase.com/browse/CBES-164[CBES-164]:
+The `[couchbase]` config section now has optional `scope` and `collection` properties that limit the replication to a single scope or to a set of collections.
+
+* https://issues.couchbase.com/browse/CBES-165[CBES-165]:
+The `[couchbase]` config section now has optional `metadataCollection` property that controls which collection is used to store metadata like replication checkpoints.
+
+=== Known Issues
+
+* https://issues.couchbase.com/browse/CBES-170[CBES-170]:
+If you specify a custom port for a Couchbase host, it can take a long while to connect, and the connector will log lots of warnings about being unable to connect to the KV service.
+
+The workaround is to bootstrap using a KV port (default 11210) instead of a manager port (default 8091), and to explicitly tag the port as belonging to the KV service, like this:
+
+[source,toml]
+----
+hosts = ['example.com:12345=kv']
+----
+
+[[v4.2.2]]
+== Version 4.2.2 (2020-05-19)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.2/couchbase-elasticsearch-connector-4.2.2.zip[Download]
 
 The connector now behaves better in environments where DNS entries are highly dynamic.
 Instead of caching resolved hostnames, it now resolves hostnames prior to every connection attempt.
@@ -26,9 +65,10 @@ Elasticsearch versions prior to 6.6 are dropped due to end of life, with the exc
 * https://issues.couchbase.com/browse/CBES-154[CBES-154] Upgrade DCP client from 0.25.0 to 0.28.0
 * https://issues.couchbase.com/browse/JDCP-146[JDCP-146] Upgrade Netty from 4.0.56 to 4.1.48
 
-== Elasticsearch Connector 4.2.1 (2020-01-21)
+[[v4.2.1]]
+== Version 4.2.1 (2020-01-21)
 
-https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.1/couchbase-elasticsearch-connector-4.2.1.zip[couchbase-elasticsearch-connector-4.2.1.zip]
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.1/couchbase-elasticsearch-connector-4.2.1.zip[Download]
 
 This maintenance release addresses an issue with shutdown hooks that could prevent the connector from terminating in some circumstances.
 
@@ -47,10 +87,10 @@ Metrics from the Couchbase DCP client are now included in the metrics report, al
 * https://issues.couchbase.com/browse/CBES-148[CBES-148] Report CPU usage metrics
 * https://issues.couchbase.com/browse/CBES-150[CBES-150] Upgrade Couchbase client to 2.7.11 and DCP client to 0.25.0
 
+[[v4.2.0]]
+== Version 4.2.0 (2019-10-15)
 
-== Elasticsearch Connector 4.2.0 (2019-10-15)
-
-https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.0/couchbase-elasticsearch-connector-4.2.0.zip[couchbase-elasticsearch-connector-4.2.0.zip]
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.0/couchbase-elasticsearch-connector-4.2.0.zip[Download]
 
 Hot on the heels of 4.1, we're releasing 4.2 with support for connecting directly to an Amazon Elasticsearch Service instance.
 There's a new `[elasticsearch.aws]` config section for specifying the AWS region of the service.
@@ -66,9 +106,10 @@ On the version compatibility front, we've added support for Elasticsearch 7.4 an
 * https://issues.couchbase.com/browse/CBES-140[CBES-140] Support ACL Token Authentication when communicating with Consul
 * https://issues.couchbase.com/browse/CBES-141[CBES-141] Extend support coverage to Elasticsearch 7.4
 
-== Elasticsearch Connector 4.1.0 (2019-09-05)
+[[v4.1.0]]
+== Version 4.1.0 (2019-09-05)
 
-https://packages.couchbase.com/clients/connectors/elasticsearch/4.1.0/couchbase-elasticsearch-connector-4.1.0.zip[couchbase-elasticsearch-connector-4.1.0.zip]
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.1.0/couchbase-elasticsearch-connector-4.1.0.zip[Download]
 
 We are excited to unveil the new Autonomous Operations (AO) mode with major improvements to the availability and manageability of the connector.
 When the connector is deployed in AO mode, worker processes use your HashiCorp Consul cluster to communicate with each other and automatically distribute the replication workload.
@@ -90,9 +131,10 @@ Finally, the range of supported Elasticsearch versions is extended to include 7.
 * https://issues.couchbase.com/browse/CBES-135[CBES-135] Expose multi-network config options
 * https://issues.couchbase.com/browse/CBES-138[CBES-138] Upgrade to Couchbase client 2.7.9 and DCP client 0.24.0
 
-== Elasticsearch Connector 4.0.2 (2019-05-21)
+[[v4.0.2]]
+== Version 4.0.2 (2019-05-21)
 
-https://packages.couchbase.com/clients/connectors/elasticsearch/4.0.2/couchbase-elasticsearch-connector-4.0.2.zip[couchbase-elasticsearch-connector-4.0.2.zip]
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.0.2/couchbase-elasticsearch-connector-4.0.2.zip[Download]
 
 This maintenance release fixes a bug that prevented some versions of Couchbase Server from rebalancing when the connector is running.
 
@@ -108,10 +150,10 @@ It also adds compatibility with the official Docker images for Elasticsearch 6.7
 
 * https://issues.couchbase.com/browse/CBES-128[CBES-128] Couchbase Server fails to rebalance if Elasticsearch connector is running
 
+[[v4.0.1]]
+== Version 4.0.1 (2019-04-15)
 
-== Elasticsearch Connector 4.0.1 (2019-04-15)
-
-https://packages.couchbase.com/clients/connectors/elasticsearch/4.0.1/couchbase-elasticsearch-connector-4.0.1.zip[couchbase-elasticsearch-connector-4.0.1.zip]
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.0.1/couchbase-elasticsearch-connector-4.0.1.zip[Download]
 
 This maintenance release improves the stability of the connector and adds new configuration options.
 
@@ -126,9 +168,10 @@ This maintenance release improves the stability of the connector and adds new co
 
 * https://issues.couchbase.com/browse/CBES-117[CBES-117] Connector exits on values that fail to parse
 
-== Elasticsearch Connector 4.0.0 (2018-10-12)
+[[v4.0.0]]
+== Version 4.0.0 (2018-10-12)
 
-https://packages.couchbase.com/clients/connectors/elasticsearch/4.0.0/couchbase-elasticsearch-connector-4.0.0.zip[couchbase-elasticsearch-connector-4.0.0.zip]
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.0.0/couchbase-elasticsearch-connector-4.0.0.zip[Download]
 
 === New in this version
 
@@ -158,7 +201,8 @@ was removed in ES 6.
 * Routing documents to specific Elasticsearch shards is not implemented.
 Please let us know if this feature is still relevant for your deployment.
 
-== Elasticsearch Plug-in 3.0.2 (2018-09-18)
+[[v3.0.2]]
+== Plug-in Version 3.0.2 (2018-09-18)
 
 Maintenance release for improved compatibility and stability.
 
@@ -168,7 +212,8 @@ Maintenance release for improved compatibility and stability.
 * https://issues.couchbase.com/browse/CBES-83[CBES-83]: VersionConflictEngineException in storeUUID if document already exists.
 (Causes XDCR replication to be removed.)
 
-== Elasticsearch Plug-in 3.0.1 (2018-02-18)
+[[v3.0.1]]
+== Plug-in Version 3.0.1 (2018-02-18)
 
 The `birch` development line has been retired.
 The `cypress` line now supports all 5.x versions of Elasticsearch.
@@ -190,7 +235,8 @@ This is already the case if you're using the default mapping template included i
 * https://issues.couchbase.com/browse/CBES-49[CBES-49]: RegexParentSelector reads parent ID format from wrong config property.
 * https://issues.couchbase.com/browse/CBES-50[CBES-50]: RoutingMissingException when deleting child documents.
 
-== Elasticsearch Plug-in 3.0.0 (2017-11-22)
+[[v3.0.0]]
+== Plug-in Version 3.0.0 (2017-11-22)
 
 With https://github.com/couchbaselabs/couchbase-elasticsearch-connector/releases/tag/3.0.0-cypress[this release], the Couchbase plug-in for Elasticsearch moves to a new versioning and branch management strategy that allows for simultaneous releases across ES versions (see <<Version Compatibility>>).
 All the versions are expected to work and are supported.
@@ -222,13 +268,15 @@ The code has just been relabeled for easier maintenance.
 The Elasticsearch Plug-in does not support IPv6.
 So to use the plug-in, the Couchbase Server and Elasticsearch clusters will need to run on instances which are addressable with IPv4.
 
-== Elasticsearch Plug-in 2.2 (2017-02)
+[[v2.2.0]]
+== Plug-in Version 2.2 (2017-02)
 
 This release note applies to the 2.2 version of the Elasticsearch Transport Plug-in (February 2017).
 It adds a number of bug fixes.
 See xref:getting-started.adoc[Installation and Configuration] for versioning and compatibility information.
 
-== Elasticsearch Plug-in 2.1.1 (2015-09)
+[[v2.1.1]]
+== Plug-in Version 2.1.1 (2015-09)
 
 This release note applies to the 2.1.1 version of the Elasticsearch Transport Plug-in (September 2015).
 It adds compatibility with newer Elasticsearch versions up to 1.7.x, multiple new features, and quite a few bug fixes, including several that solve issues found in 2.1.0.
@@ -245,7 +293,8 @@ Some configuration option-names changed.
 |1.3.0 - 1.7.x
 |===
 
-== Elasticsearch Plug-in 2.0 (2014-10)
+[[v2.0.0]]
+== Plug-in Version 2.0 (2014-10)
 
 This release note is for the Elasticsearch plug-in release 2.0 GA (October 2014).
 Elasticsearch plug-in version 2.0 is compatible with:
@@ -265,7 +314,8 @@ The following are known issues:
 If a Couchbase cluster has a lot of deletes, the Elasticsearch log could fill up with a lot of messages.
 (https://www.couchbase.com/issues/browse/CBES-31[CBES-31])
 
-== Elasticsearch Plug-in 1.3.0 (2014-04)
+[[v1.3.0]]
+== Plug-in Version 1.3.0 (2014-04)
 
 This release note is for the Elasticsearch plug-in release 1.3.0 GA (April 2014).
 This release is compatible only with Elasticsearch 1.0.1.
@@ -277,19 +327,22 @@ This release is compatible with Couchbase Server 2.5.x, and it is backward compa
 * Fixed failure handling due to bounded queue with Elasticsearch 1.x.
 (https://www.couchbase.com/issues/browse/CBES-27[CBES-27])
 
-== Elasticsearch Plug-in 1.2.0 (2013-10)
+[[v1.2.0]]
+== Plug-in Version 1.2.0 (2013-10)
 
 This release note is for the Elasticsearch plug-in release 1.2.0 GA (October 2013).
 This release adds compatibility with Elasticsearch 0.90.5.
 
 This release is compatible with Couchbase Server 2.2, and it is backward compatible with earlier 2.x releases.
 
-== Elasticsearch Plug-in 1.1.0 (2013-08)
+[[v1.1.0]]
+== Plug-in Version 1.1.0 (2013-08)
 
 This release note is for the Elasticsearch plug-in release 1.1.0 GA (August 2013).
 This release adds compatibility with Elasticsearch 0.90.2.
 
-== Elasticsearch Plug-in 1.0.0 (2013-02)
+[[v1.0.0]]
+== Plug-in Version 1.0.0 (2013-02)
 
 This release note is for the Elasticsearch plug-in release 1.0.0 GA (February 2013).
 This is the first general availability (GA) release.
@@ -305,6 +358,7 @@ It contains the following enhancements and bug fixes:
 (https://issues.couchbase.com/browse/CBES-11[CBES-11])
 * Improved log information when indexing stub documents.
 
-== Elasticsearch Plug-in 1.0.0 Beta (2013-02)
+[[v1.0.0-beta]]
+== Plug-in Version 1.0.0 Beta (2013-02)
 
 This is the beta release of the Couchbase plug-in for Elasticsearch 1.0.0 Beta (February 2013).
