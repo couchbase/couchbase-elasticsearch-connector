@@ -34,6 +34,9 @@ Visit the https://www.consul.io[Consul web site] and navigate to the download pa
 Download xref:compatibility.adoc[a compatible version of Consul] (other versions may work, but these are the ones we currently test and support).
 Install the Consul binary by moving it to a directory in your `PATH`.
 
+* An Elasticsearch connector process will terminate if it finds itself in an unsafe state.
+For a production deployment, you'll need to be familiar with systemd, upstart, init, or some other tool for monitoring a process and restarting it when it terminates.
+
 === Start the Consul Server
 
 Run this command to start a single-node Consul cluster in development mode:
@@ -188,8 +191,13 @@ Sensitive properties like passwords must be still be configured on each worker's
 == From Development to Production
 
 In a production environment, the recommended topology is to spread the connector workers over several machines,
-and to run the Consul agent on each machine that hosts a worker.
+and to run the Consul agent in client mode on each machine that hosts a worker.
 
 You'll also need at least one Consul agent running in server mode; the recommended number of servers is 3 or 5.
 
-Please see the Consul documentation for detailed information about administering a production Consul cluster.
+TIP: Please see the Consul documentation for detailed information about administering a production Consul cluster.
+
+If an Elasticsearch connector process cannot communicate with the Consul cluster, the connector will immediately terminate.
+This is expected, and is done to prevent unsafe operations.
+Changes to the Consul cluster topology may trigger this behavior.
+To ensure availability, the connector must be launched using systemd, upstart, init, or some other tool capable of restarting the process when it terminates.
