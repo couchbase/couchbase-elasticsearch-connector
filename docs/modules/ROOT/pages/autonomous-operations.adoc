@@ -81,6 +81,9 @@ The config file should now be present in Consul's Key/Value store which you can 
 NOTE: One limitation of running Consul in development mode is that data is not persisted between runs.
 You'll need to re-run the connector configuration command after every Consul restart.
 
+
+== Using cbes-consul
+
 === Run Connector Workers
 
 Use this command to start a connector worker using the configuration defined in Consul:
