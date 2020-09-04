@@ -362,3 +362,9 @@ It contains the following enhancements and bug fixes:
 == Plug-in Version 1.0.0 Beta (2013-02)
 
 This is the beta release of the Couchbase plug-in for Elasticsearch 1.0.0 Beta (February 2013).
+
+
+== Older Releases
+
+Although https://www.couchbase.com/support-policy/enterprise-software[no longer supported], documentation for older releases continues to be available in our https://docs-archive.couchbase.com/home/index.html[docs archive].
+
