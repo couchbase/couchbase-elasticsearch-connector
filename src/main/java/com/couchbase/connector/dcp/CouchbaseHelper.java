@@ -20,6 +20,7 @@ import com.codahale.metrics.Gauge;
 import com.couchbase.client.core.Core;
 import com.couchbase.client.core.config.BucketConfig;
 import com.couchbase.client.core.config.CouchbaseBucketConfig;
+import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.core.service.ServiceType;
 import com.couchbase.client.core.util.ConnectionString;
 import com.couchbase.client.dcp.config.HostAndPort;
@@ -31,6 +32,7 @@ import com.couchbase.client.java.env.ClusterEnvironment;
 import com.couchbase.connector.config.ScopeAndCollection;
 import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.couchbase.connector.elasticsearch.Metrics;
+import com.couchbase.connector.util.SeedNodeHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
@@ -40,6 +42,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -149,6 +152,10 @@ public class CouchbaseHelper {
     return getConfig(bucket.core(), bucket.name());
   }
 
+  public static BucketConfig getConfig(Bucket bucket, Duration timeout) {
+    return getConfig(bucket).block(timeout);
+  }
+
   public static Mono<BucketConfig> getConfig(Collection collection) {
     return getConfig(collection.core(), collection.bucketName());
   }
@@ -174,6 +181,12 @@ public class CouchbaseHelper {
   public static ResolvedBucketConfig getBucketConfig(CouchbaseConfig config, Bucket bucket) {
     CouchbaseBucketConfig bucketConfig = doGetBucketConfig(bucket);
     return new ResolvedBucketConfig(bucketConfig, config.secureConnection());
+  }
+
+  public static Set<SeedNode> getKvNodes(CouchbaseConfig config, Bucket bucket) {
+    String connectionString = String.join(",", config.hosts());
+    Duration timeout = Duration.ofSeconds(30);
+    return SeedNodeHelper.getKvNodes(bucket, connectionString, config.secureConnection(), config.network(), timeout);
   }
 
   /**

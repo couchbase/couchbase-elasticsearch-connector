@@ -17,6 +17,7 @@
 package com.couchbase.connector.elasticsearch;
 
 import com.codahale.metrics.Slf4jReporter;
+import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.dcp.Client;
 import com.couchbase.client.dcp.StreamFrom;
 import com.couchbase.client.dcp.StreamTo;
@@ -38,7 +39,6 @@ import com.couchbase.connector.dcp.CheckpointService;
 import com.couchbase.connector.dcp.CouchbaseCheckpointDao;
 import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.dcp.DcpHelper;
-import com.couchbase.connector.dcp.ResolvedBucketConfig;
 import com.couchbase.connector.elasticsearch.cli.AbstractCliCommand;
 import com.couchbase.connector.elasticsearch.io.RequestFactory;
 import com.couchbase.connector.util.HttpServer;
@@ -142,7 +142,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
       // Wait for couchbase server to come online, then open the bucket.
       final Bucket bucket = CouchbaseHelper.waitForBucket(cluster, config.couchbase().bucket());
-      final ResolvedBucketConfig bucketConfig = CouchbaseHelper.getBucketConfig(config.couchbase(), bucket);
+      final Set<SeedNode> kvNodes = CouchbaseHelper.getKvNodes(config.couchbase(), bucket);
 
       final boolean storeMetadataInSourceBucket = config.couchbase().metadataBucket().equals(config.couchbase().bucket());
       final Bucket metadataBucket = storeMetadataInSourceBucket ? bucket : CouchbaseHelper.waitForBucket(cluster, config.couchbase().metadataBucket());
@@ -169,7 +169,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       Metrics.gauge("writeQueue", () -> workers::getQueueSize);
       Metrics.gauge("esWaitMs", () -> workers::getCurrentRequestMillis); // High value indicates the connector has stalled
 
-      final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), bucketConfig, config.trustStore());
+      final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), kvNodes, config.trustStore());
 
       initEventListener(dcpClient, coordinator, workers::submit);
 

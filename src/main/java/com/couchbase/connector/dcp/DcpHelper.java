@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.dcp;
 
+import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.dcp.Client;
 import com.couchbase.client.dcp.StreamFrom;
 import com.couchbase.client.dcp.StreamTo;
@@ -84,11 +85,12 @@ public class DcpHelper {
     buffer.release();
   }
 
-  public static Client newClient(String groupName, CouchbaseConfig config, ResolvedBucketConfig bucketConfig, Supplier<KeyStore> keystore) {
+  public static Client newClient(String groupName, CouchbaseConfig config, Set<SeedNode> kvNodes, Supplier<KeyStore> keystore) {
 
     // ES connector bootstraps using Manager port, but the DCP client wants KV port.
     // Get the KV ports from the bucket config!
-    Set<String> seedNodes = bucketConfig.getKvAddresses().stream()
+    Set<String> seedNodes = kvNodes.stream()
+        .map(node -> new HostAndPort(node.address(), node.kvPort().orElseThrow(() -> new AssertionError("seed node missing KV port"))))
         .map(HostAndPort::format)
         .collect(toSet());
 

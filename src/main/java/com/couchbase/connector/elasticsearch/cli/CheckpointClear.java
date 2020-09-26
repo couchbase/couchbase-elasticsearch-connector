@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.elasticsearch.cli;
 
+import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.dcp.Client;
 import com.couchbase.client.dcp.state.PartitionState;
 import com.couchbase.client.dcp.state.SessionState;
@@ -47,6 +48,7 @@ import java.util.stream.IntStream;
 import static com.couchbase.connector.dcp.CouchbaseHelper.createCluster;
 import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
 import static com.couchbase.connector.dcp.CouchbaseHelper.getBucketConfig;
+import static com.couchbase.connector.dcp.CouchbaseHelper.getKvNodes;
 import static com.couchbase.connector.dcp.DcpHelper.allPartitions;
 import static java.util.stream.Collectors.toSet;
 
@@ -83,11 +85,12 @@ public class CheckpointClear extends AbstractCliCommand {
       final Bucket metadataBucket = CouchbaseHelper.waitForBucket(cluster, config.couchbase().metadataBucket());
       final Collection metadataCollection = CouchbaseHelper.getMetadataCollection(metadataBucket, config.couchbase());
       final ResolvedBucketConfig bucketConfig = getBucketConfig(config.couchbase(), metadataBucket);
+      final Set<SeedNode> kvNodes = getKvNodes(config.couchbase(), metadataBucket);
 
       final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(metadataCollection, config.group().name());
 
       if (catchUp) {
-        setCheckpointToNow(config, bucketConfig, checkpointDao);
+        setCheckpointToNow(config, kvNodes, checkpointDao);
         System.out.println("Set checkpoint for connector '" + config.group().name() + "' to match current state of Couchbase bucket.");
 
       } else {
@@ -104,8 +107,8 @@ public class CheckpointClear extends AbstractCliCommand {
     }
   }
 
-  private static void setCheckpointToNow(ConnectorConfig config, ResolvedBucketConfig bucketConfig, CheckpointDao checkpointDao) throws IOException {
-    final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), bucketConfig, config.trustStore());
+  private static void setCheckpointToNow(ConnectorConfig config, Set<SeedNode> kvNodes, CheckpointDao checkpointDao) throws IOException {
+    final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), kvNodes, config.trustStore());
     try {
       dcpClient.connect().await();
 
