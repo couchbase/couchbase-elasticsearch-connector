@@ -8,6 +8,35 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.2.4]]
+== Version 4.2.4 (2020-10-20)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.4/couchbase-elasticsearch-connector-4.2.4.zip[Download]
+
+This release improves compatibility with Couchbase Cloud, and fixes a few minor issues.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-170[CBES-170]:
+Bootstrap performance is improved when specifying custom ports.
+
+* https://issues.couchbase.com/browse/CBES-179[CBES-179]:
+Upgraded the Couchbase Java SDK from 3.0.6 to 3.0.9.
+The connector no longer logs spurious warnings about being unable to fetch collections manifests.
+
+* https://issues.couchbase.com/browse/CBES-177[CBES-177]:
+Upgraded the DCP client from 0.28.0 to 0.30.0.
+
+=== Bug Fixes
+
+* https://issues.couchbase.com/browse/CBES-173[CBES-173]:
+Fixed a regression in version 4.2.3 that broke alternate address resolution.
+The connector now handles DNS SRV and alternate addresses correctly, and can connect to Couchbase Cloud or other network environments that use alternate addresses.
+
+* https://issues.couchbase.com/browse/CBES-172[CBES-172]:
+Removed duplicate command line scripts from the ZIP archive.
+You can now `unzip` the archive without being prompted about overwriting the duplicate files.
+
 [[v4.2.3]]
 == Version 4.2.3 (2020-07-21)
 
