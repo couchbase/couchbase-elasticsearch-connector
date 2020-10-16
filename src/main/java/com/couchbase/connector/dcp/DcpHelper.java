@@ -40,7 +40,6 @@ import com.couchbase.connector.cluster.Coordinator;
 import com.couchbase.connector.config.ScopeAndCollection;
 import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -209,13 +208,5 @@ public class DcpHelper {
       allPartitions.add(i);
     }
     return allPartitions;
-  }
-
-  public static Short[] toBoxedShortArray(Iterable<? extends Number> numbers) {
-    final List<Short> result = new ArrayList<>();
-    for (Number i : numbers) {
-      result.add(i.shortValue());
-    }
-    return Iterables.toArray(result, Short.class);
   }
 }

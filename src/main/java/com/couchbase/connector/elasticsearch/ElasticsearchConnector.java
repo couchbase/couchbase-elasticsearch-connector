@@ -61,7 +61,6 @@ import static com.couchbase.connector.dcp.CouchbaseHelper.requireCouchbaseVersio
 import static com.couchbase.connector.dcp.DcpHelper.getCurrentSeqnos;
 import static com.couchbase.connector.dcp.DcpHelper.initEventListener;
 import static com.couchbase.connector.dcp.DcpHelper.initSessionState;
-import static com.couchbase.connector.dcp.DcpHelper.toBoxedShortArray;
 import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
 import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.waitForElasticsearchAndRequireVersion;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -198,7 +197,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
         try {
           LOGGER.debug("Opening DCP streams for partitions: {}", partitions);
-          dcpClient.startStreaming(toBoxedShortArray(partitions)).await();
+          dcpClient.startStreaming(partitions).await();
         } catch (RuntimeException e) {
           ThrowableHelper.propagateCauseIfPossible(e, InterruptedException.class);
           throw e;
