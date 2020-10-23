@@ -51,6 +51,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -175,8 +176,10 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       final Thread saveCheckpoints = new Thread(checkpointService::save, "save-checkpoints");
 
       try {
-        if (!dcpClient.connect().await(config.couchbase().dcp().connectTimeout().millis(), MILLISECONDS)) {
-          LOGGER.error("Failed to establish initial DCP connection within {} -- shutting down.", config.couchbase().dcp().connectTimeout());
+        try {
+          dcpClient.connect().block(Duration.ofMillis(config.couchbase().dcp().connectTimeout().millis()));
+        } catch (Exception e) {
+          LOGGER.error("Failed to establish initial DCP connection within {} -- shutting down.", config.couchbase().dcp().connectTimeout(), e);
           System.exit(1);
         }
 
@@ -189,7 +192,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         }
         checkpointService.init(getCurrentSeqnos(dcpClient, partitions));
 
-        dcpClient.initializeState(StreamFrom.BEGINNING, StreamTo.INFINITY).await();
+        dcpClient.initializeState(StreamFrom.BEGINNING, StreamTo.INFINITY).block();
         initSessionState(dcpClient, checkpointService, partitions);
 
         checkpointExecutor.scheduleWithFixedDelay(checkpointService::save, 10, 10, SECONDS);
@@ -197,7 +200,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
         try {
           LOGGER.debug("Opening DCP streams for partitions: {}", partitions);
-          dcpClient.startStreaming(partitions).await();
+          dcpClient.startStreaming(partitions).block();
         } catch (RuntimeException e) {
           ThrowableHelper.propagateCauseIfPossible(e, InterruptedException.class);
           throw e;
@@ -218,7 +221,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
         checkpointExecutor.shutdown();
         metricReporter.stop();
-        dcpClient.disconnect().await();
+        dcpClient.disconnect().block();
         workers.close(); // to avoid buffer leak, must close *after* dcp client stops feeding it events
         checkpointExecutor.awaitTermination(10, SECONDS);
         cluster.disconnect();

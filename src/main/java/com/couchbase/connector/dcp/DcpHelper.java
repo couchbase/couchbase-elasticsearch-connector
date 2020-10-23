@@ -134,7 +134,7 @@ public class DcpHelper {
   public static ImmutableList<Long> getCurrentSeqnos(Client dcpClient, Set<Integer> partitions) {
     final int numPartitions = dcpClient.numPartitions();
 
-    dcpClient.initializeState(StreamFrom.NOW, StreamTo.INFINITY).await();
+    dcpClient.initializeState(StreamFrom.NOW, StreamTo.INFINITY).block();
     final Long[] backfillTargetSeqno = new Long[numPartitions];
     for (int i = 0; i < numPartitions; i++) {
       backfillTargetSeqno[i] = partitions.contains(i) ? dcpClient.sessionState().get(i).getStartSeqno() : 0;
