@@ -43,6 +43,12 @@ Perhaps the most important metric for implementing a health check, this gauge re
 This includes the time it takes to retry the request, if necessary.
 An exceptionally long duration might indicate the connector is stalled in a retry loop.
 
+`cbes.backlog` (Since 4.2.5; uncommitted)::
+An estimate of the number of Couchbase document changes yet to be processed.
+This is a general indication of how well the connector is keeping up with changes in Couchbase.
+Note that the count only includes changes in the Couchbase partitions handled by this connector instance.
+Unlike `cbes.backfill`, this value is dynamic; it goes up when changes happen in Couchbase, and goes down as the changes are processed by the connector.
+
 `cbes.backfill`::
 This is the number of Couchbase documents not yet replicated to Elasticsearch at the time the connector started.
 The value reported by this gauge never changes.

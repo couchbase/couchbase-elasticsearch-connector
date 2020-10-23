@@ -19,6 +19,7 @@ package com.couchbase.connector.cluster.consul;
 import com.google.common.base.Throwables;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.io.Closeable;
 import java.io.InterruptedIOException;
@@ -36,6 +37,14 @@ public class ReactorHelper {
    */
   public static Closeable asCloseable(Disposable d) {
     return d::dispose;
+  }
+
+  public static <T> T blockSingle(Mono<T> mono) {
+    return mono.single().block();
+  }
+
+  public static <T> T blockSingle(Mono<T> mono, Duration timeout) {
+    return mono.single().block(timeout);
   }
 
   /**

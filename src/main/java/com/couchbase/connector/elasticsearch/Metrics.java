@@ -32,12 +32,18 @@ import com.couchbase.client.dcp.metrics.DefaultDropwizardConfig;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Stopwatch;
+import com.google.common.base.Suppliers;
 import io.micrometer.core.instrument.Clock;
 import io.micrometer.core.instrument.dropwizard.DropwizardConfig;
 import io.micrometer.core.instrument.dropwizard.DropwizardMeterRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.management.ManagementFactory;
+import java.time.Duration;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static com.couchbase.client.dcp.metrics.DefaultDropwizardConfig.PRETTY_TAGS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -47,6 +53,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
  * Provides static access to a shared metrics registry.
  */
 public class Metrics {
+  private static final Logger log = LoggerFactory.getLogger(Metrics.class);
+
   private static final MetricRegistry registry = new MetricRegistry();
   private static final String PREFIX = "cbes.";
 
@@ -58,6 +66,10 @@ public class Metrics {
     registerAll("jvm.buffer", new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer()));
     registerAll("jvm.thread", new ThreadStatesGaugeSet());
     registerAll("jvm.cpu", new CpuGaugeSet());
+
+    // This one calls InetAddress.getLocalHost().getHostName()
+    // which can be sloooooow...
+    registry().remove("jvm.attr.name");
   }
 
   static {
@@ -103,6 +115,24 @@ public class Metrics {
       registry.remove(PREFIX + name);
       return registry.gauge(PREFIX + name, supplier);
     }
+  }
+
+  /**
+   * For gauges whose values should be cached to prevent repeated calculation during reporting
+   * when multiple reports are used. Uses default
+   */
+  public static Gauge cachedGauge(String name, Supplier<?> supplier, Duration expiration) {
+    Supplier memoized = Suppliers.memoizeWithExpiration(supplier::get, expiration.toMillis(), MILLISECONDS);
+    return gauge(name, () -> memoized::get);
+  }
+
+  /**
+   * For gauges whose values should be cached to prevent repeated calculation during reporting
+   * when multiple reports are used. Uses default expiry duration.
+   */
+  public static <T> Gauge<T> cachedGauge(String name, Supplier<T> supplier) {
+    final Duration DEFAULT_EXPIRY = Duration.ofSeconds(1);
+    return cachedGauge(name, supplier, DEFAULT_EXPIRY);
   }
 
   public static MetricRegistry registry() {
@@ -166,11 +196,14 @@ public class Metrics {
   }
 
   public static String toJson(boolean pretty) {
+    Stopwatch timer = Stopwatch.createStarted();
     try {
       return (pretty ? mapper.writerWithDefaultPrettyPrinter() : mapper.writer())
           .writeValueAsString(toJsonNode());
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
+    } finally {
+      log.info("Serializing metrics as JSON took " + timer);
     }
   }
 

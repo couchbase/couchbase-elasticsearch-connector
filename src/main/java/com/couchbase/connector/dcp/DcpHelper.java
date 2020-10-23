@@ -31,6 +31,7 @@ import com.couchbase.client.dcp.highlevel.DocumentChange;
 import com.couchbase.client.dcp.highlevel.Mutation;
 import com.couchbase.client.dcp.highlevel.SnapshotMarker;
 import com.couchbase.client.dcp.highlevel.StreamFailure;
+import com.couchbase.client.dcp.message.PartitionAndSeqno;
 import com.couchbase.client.dcp.state.FailoverLogEntry;
 import com.couchbase.client.dcp.state.PartitionState;
 import com.couchbase.client.dcp.state.SessionState;
@@ -45,13 +46,16 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.security.KeyStore;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import static com.couchbase.connector.cluster.consul.ReactorHelper.blockSingle;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toSet;
 
@@ -143,6 +147,19 @@ public class DcpHelper {
     // !! Leave the session state the way it is, so CheckpointClear can inspect it
 
     return ImmutableList.copyOf(backfillTargetSeqno);
+  }
+
+  public static Map<Integer, Long> getCurrentSeqnosAsMap(Client dcpClient, Set<Integer> partitions, Duration timeout) {
+    Map<Integer, Long> partitionToSeqno = blockSingle(
+        dcpClient.getSeqnos()
+            .collectMap(PartitionAndSeqno::partition, PartitionAndSeqno::seqno, TreeMap::new),
+        timeout);
+
+    if (!partitions.isEmpty()) {
+      partitionToSeqno.keySet().retainAll(partitions);
+    }
+
+    return partitionToSeqno;
   }
 
   public static void initEventListener(Client dcpClient, Coordinator coordinator, Consumer<Event> eventSink) {

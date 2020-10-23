@@ -190,7 +190,8 @@ public class ElasticsearchConnector extends AbstractCliCommand {
           // need to do this check, because if we started streaming with an empty list, the DCP client would open streams for *all* partitions
           throw new IllegalArgumentException("There are more workers than Couchbase vbuckets; this worker doesn't have any work to do.");
         }
-        checkpointService.init(getCurrentSeqnos(dcpClient, partitions));
+        checkpointService.init(getCurrentSeqnos(dcpClient, partitions),
+            () -> DcpHelper.getCurrentSeqnosAsMap(dcpClient, partitions, Duration.ofSeconds(5)));
 
         dcpClient.initializeState(StreamFrom.BEGINNING, StreamTo.INFINITY).block();
         initSessionState(dcpClient, checkpointService, partitions);

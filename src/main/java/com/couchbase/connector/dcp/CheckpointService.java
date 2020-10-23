@@ -19,7 +19,7 @@ package com.couchbase.connector.dcp;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.couchbase.connector.elasticsearch.Metrics;
-import com.google.common.base.Suppliers;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,14 +51,23 @@ public class CheckpointService {
   private volatile long remainingBackfillItems = -1;
   private volatile long totalBackfillItems = -1;
 
+  // Supplies a map from partition to sequence number for all partitions this
+  // connector instance is responsible for.
+  private volatile Supplier<Map<Integer, Long>> highSeqnoProvider = Collections::emptyMap;
+
   public CheckpointService(String bucketUuid, CheckpointDao streamPositionDao) {
     this.bucketUuid = bucketUuid;
     this.streamPositionDao = requireNonNull(streamPositionDao);
   }
 
-  public void init(List<Long> backfillTargetSeqnos) {
+  /**
+   * @param highSeqnoProvider a supplier to invoke to get the current sequence numbers
+   * in all partitions this connector instance is responsible for.
+   */
+  public void init(List<Long> backfillTargetSeqnos, Supplier<Map<Integer, Long>> highSeqnoProvider) {
     final int numPartitions = backfillTargetSeqnos.size();
     this.backfillTargetSeqnos = ImmutableList.copyOf(backfillTargetSeqnos);
+    this.highSeqnoProvider = requireNonNull(highSeqnoProvider);
 
     LOGGER.info("Initializing checkpoint service with backfill target seqnos: {}", backfillTargetSeqnos);
     this.positions = new AtomicReferenceArray<>(numPartitions);
@@ -129,20 +139,50 @@ public class CheckpointService {
   private void registerBackfillMetrics() {
     Metrics.gauge("backfill", () -> () -> totalBackfillItems);
 
-    // memoize so the backfill per partition isn't logged twice every time the stats are reported
-    final Supplier<Long> remainingBackfillItemsSupplier = Suppliers.memoizeWithExpiration(() -> {
-      if (remainingBackfillItems != 0) {
-        updateBackfillProgress();
-      }
+    Gauge<Long> backfillRemainingGauge = Metrics.cachedGauge("backfillRemaining", () -> {
+      updateBackfillProgress();
       return remainingBackfillItems;
-    }, 250, TimeUnit.MILLISECONDS);
+    });
 
-    final Gauge backfillRemainingGauge = Metrics.gauge("backfillRemaining", () -> remainingBackfillItemsSupplier::get);
+    Metrics.cachedGauge("backlog", this::getLocalBacklog);
 
-    Metrics.gauge("backfillEstTimeLeft", () -> () -> {
-      final long remaining = (long) backfillRemainingGauge.getValue();
+    Metrics.cachedGauge("backfillEstTimeLeft", () -> {
+      final long remaining = backfillRemainingGauge.getValue();
       return new TimeValue((long) (remaining * Metrics.indexTimePerDocument().getSnapshot().getMean()), TimeUnit.NANOSECONDS).toString();
     });
+  }
+
+  /**
+   * Returns an estimate of the total number of unprocessed sequence numbers
+   * in all partitions this connector instance is responsible for.
+   */
+  private long getLocalBacklog() {
+    Stopwatch timer = Stopwatch.createStarted();
+    Map<Integer, Long> highSeqnos = highSeqnoProvider.get();
+    timer.stop();
+    LOGGER.info("Getting current seqnos took {}", timer);
+
+    long result = 0;
+    for (Map.Entry<Integer, Long> entry : highSeqnos.entrySet()) {
+      int partition = entry.getKey();
+      long seqno = entry.getValue();
+
+      Checkpoint checkpoint = positions.get(partition);
+      if (checkpoint == null) {
+        LOGGER.warn("Can't calculate local backlog for partition {}; no checkpoint available (yet?)", partition);
+        continue;
+      }
+
+      long backlogForPartition = Math.max(0, seqno - checkpoint.getSeqno());
+      LOGGER.debug("Local backlog for partition {}: {} (connector: {} server: {})", partition, backlogForPartition, checkpoint.getSeqno(), seqno);
+      try {
+        result = Math.addExact(result, backlogForPartition);
+      } catch (ArithmeticException e) {
+        result = Long.MAX_VALUE;
+      }
+
+    }
+    return result;
   }
 
   private void updateBackfillProgress() {
