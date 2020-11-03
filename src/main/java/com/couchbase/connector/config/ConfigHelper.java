@@ -45,6 +45,7 @@ import java.util.function.Function;
 import static com.couchbase.connector.util.EnvironmentHelper.getInstallDir;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
+import static org.apache.commons.lang3.StringUtils.startsWithIgnoreCase;
 
 public class ConfigHelper {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigHelper.class);
@@ -68,12 +69,17 @@ public class ConfigHelper {
   }
 
   public static HttpHost createHttpHost(String s, int defaultPort, boolean secure) {
+    if (secure && startsWithIgnoreCase(s, "http:")) {
+      throw new ConfigException("Elasticsearch host URL " + s + " uses scheme 'http' which conflicts with 'secureConnection' setting of true. For a secure connection, omit the 'http://' prefix, or use prefix 'https://'.");
+    }
+
     final HttpHost host = HttpHost.create(s);
     if ("https".equals(host.getSchemeName()) && !secure) {
       throw new ConfigException("Elasticsearch host URL " + host + " uses https; must set elasticsearch 'secureConnection' config key to true.");
     }
-    return host.getPort() != -1 ? host :
-        new HttpHost(host.getHostName(), defaultPort, secure ? "https" : "http");
+
+    int port = host.getPort() == -1 ? defaultPort : host.getPort();
+    return new HttpHost(host.getHostName(), port, secure ? "https" : "http");
   }
 
   public static List<String> getStrings(TomlTable toml, String name) {
