@@ -55,7 +55,7 @@ dependencies {
   implementation 'org.slf4j:jcl-over-slf4j:1.7.25'
 
   implementation 'com.couchbase.client:java-client:3.0.9'
-  implementation 'com.couchbase.client:dcp-client:0.31.0-SNAPSHOT'
+  implementation 'com.couchbase.client:dcp-client:0.31.0'
   implementation 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.7.1'
 
   implementation 'io.projectreactor:reactor-core:3.2.9.RELEASE'
