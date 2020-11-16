@@ -8,6 +8,30 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.2.5]]
+== Version 4.2.5 (2020-11-17)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.5/couchbase-elasticsearch-connector-4.2.5.zip[Download]
+
+This release fixes an issue with configuring secure connections to Elasticsearch using custom ports.
+It also adds a new metric for monitoring the replication backlog.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-121[CBES-121]:
+Added new `cbes.backlog` metric which estimates the number of Couchbase document changes yet to be processed.
+This is a general indication of how well the connector is keeping up with changes in Couchbase.
+Note that the count only includes changes in the Couchbase partitions handled by the connector instance reporting the metric.
+Unlike `cbes.backfill`, this value is dynamic; it goes up when changes happen in Couchbase, and goes down as the changes are processed by the connector.
+
+* https://issues.couchbase.com/browse/CBES-178[CBES-178]:
+Upgraded the DCP client from 0.30.0 to 0.31.0.
+
+=== Bug Fixes
+
+* https://issues.couchbase.com/browse/CBES-173[CBES-173]:
+Fixed an issue that prevented the connector from establishing a secure connection to Elasticsearch if a custom port was specified.
+
 [[v4.2.4]]
 == Version 4.2.4 (2020-10-20)
 
