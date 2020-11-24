@@ -39,6 +39,21 @@ Copy the certificate into a plain text file. The filename does not matter, but l
 
 To use a different root certificate, you can follow instructions on the xref:server:manage:manage-security/configure-server-certificates.adoc[Configure Server Certificates] page.
 
+[#couchbase-cloud]
+== Couchbase Cloud Support
+
+Once you have created a Cluster in Couchbase Cloud, navigate to the `Connect` tab and download the security certificate.
+
+image::cloud-ui.png[Cloud UI]
+
+The downloaded certificate is in `pem` format, let's convert it into a `crt` format and call it `couchbase.crt`.
+The `openssl` tool can be utilized for this task:
+
+[source]
+----
+$ openssl x509 -outform der -in your-root-certificate.pem -out couchbase.crt
+----
+
 [#get-elasticsearch-cert]
 == Get the Elasticsearch CA Certificate
 
