@@ -28,6 +28,13 @@ A trial license can be activated by modifying a configuration setting, as explai
 [#get-couchbase-cert]
 == Get the Couchbase CA Certificate
 
+The steps for getting the Couchbase certificate are different depending on whether you are hosting your own Couchbase Server cluster or using Couchbase Cloud.
+
+[#get-couchbase-cert-server]
+=== Couchbase Server (Self-hosted)
+[abstract]
+How to get the certificate for a Couchbase Server cluster you have deployed yourself.
+
 Open the Couchbase Admin Console web UI and click on *Security* in the navigation sidebar.
 Then click *Root Certificate* in the sub-section navigation bar along the top of the page.
 
@@ -35,9 +42,21 @@ NOTE: You might see a warning that Couchbase is using a self-signed certificate.
 That's fine.
 This certificate will be added to the connector's trust store, so it will be trusted regardless of who signed it.
 
-Copy the certificate into a plain text file. The filename does not matter, but let's call it `couchbase.crt`.
+Copy the certificate into a plain text file.
+The filename does not matter, but let's call it `couchbase.pem`.
 
 To use a different root certificate, you can follow instructions on the xref:server:manage:manage-security/configure-server-certificates.adoc[Configure Server Certificates] page.
+
+[#get-couchbase-cert-cloud]
+=== Couchbase Cloud
+[abstract]
+How to get the certificate for a Couchbase Cloud cluster.
+
+Once you have created a Cluster in Couchbase Cloud, navigate to the `Connect` tab and download the security certificate.
+
+image::cloud-ui.png[Cloud UI]
+
+Rename the downloaded file to `couchbase.pem`. (The name doesn't really matter, but the rest of this guide refers to the Couchbase certificate file by that name.)
 
 [#get-elasticsearch-cert]
 == Get the Elasticsearch CA Certificate
@@ -74,7 +93,7 @@ We'll use the Java `keytool` command to create a keystore and populate it with t
 
 To add the Couchbase root certificate:
 
-    keytool -importcert -keystore truststore.jks -file couchbase.crt
+    keytool -importcert -keystore truststore.jks -file couchbase.pem
 
 If the keystore file `truststore.jks` does not yet exist, you will be prompted to choose a password for the new keystore.
 Otherwise, you will be prompted for the password of the existing keystore.
@@ -82,7 +101,7 @@ Otherwise, you will be prompted for the password of the existing keystore.
 You will then be presented with a summary of the information in the certificate, and asked if you want to trust the certificate.
 If the information is correct, enter `y` to confirm.
 
-Run the `keytool` command again, replacing `couchbase.crt` with the path to the Elasticsearch root certificate.
+Run the `keytool` command again, replacing `couchbase.pem` with the path to the Elasticsearch root certificate.
 
 == Configure the Connector
 

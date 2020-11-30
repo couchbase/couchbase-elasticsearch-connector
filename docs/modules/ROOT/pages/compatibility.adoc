@@ -29,6 +29,9 @@ h| Elasticsearch↓ | 4.1 | 4.2.0 - 4.2.1 | 4.2.2 - 4.2.4
 
 Direct connection to Amazon Elasticsearch Service instances is supported by connector versions 4.2 and later.
 
+== Couchbase Cloud
+
+Connector versions 4.2.4 and later are compatible with Couchbase Cloud.
 
 == Couchbase Server
 
@@ -36,6 +39,7 @@ Direct connection to Amazon Elasticsearch Service instances is supported by conn
 |===
  |           h| Connector
 h| Couchbase↓ | 4.1 - 4.2
+ | 6.6        | ✔
  | 6.5        | ✔
  | 6.0        | ✔
  | 5.5        | ✔
