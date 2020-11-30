@@ -29,7 +29,7 @@ Upgraded the DCP client from 0.30.0 to 0.31.0.
 
 === Bug Fixes
 
-* https://issues.couchbase.com/browse/CBES-173[CBES-173]:
+* https://issues.couchbase.com/browse/CBES-179[CBES-179]:
 Fixed an issue that prevented the connector from establishing a secure connection to Elasticsearch if a custom port was specified.
 
 [[v4.2.4]]
@@ -44,7 +44,7 @@ This release improves compatibility with Couchbase Cloud, and fixes a few minor 
 * https://issues.couchbase.com/browse/CBES-170[CBES-170]:
 Bootstrap performance is improved when specifying custom ports.
 
-* https://issues.couchbase.com/browse/CBES-179[CBES-179]:
+* https://issues.couchbase.com/browse/CBES-175[CBES-175]:
 Upgraded the Couchbase Java SDK from 3.0.6 to 3.0.9.
 The connector no longer logs spurious warnings about being unable to fetch collections manifests.
 
