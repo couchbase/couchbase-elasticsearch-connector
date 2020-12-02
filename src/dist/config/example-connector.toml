@@ -71,6 +71,13 @@
   # [truststore] section to be configured.
   secureConnection = false
 
+  # Set this to `false` to disable TLS hostname verification for Couchbase
+  # connections. Less secure, but might be required if for some reason you
+  # can't issue a certificate whose Subject Alternative Names match the
+  # hostname used to connect to the server. Only disable if you understand
+  # the impact and can accept the risks.
+  hostnameVerification = true
+
   # By default the connector examines every document in the bucket.
   #
   # Set the 'scope' property if you want to limit the replication to

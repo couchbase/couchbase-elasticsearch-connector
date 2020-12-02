@@ -103,8 +103,9 @@ Here's where the Couchbase connection parameters and credentials are specified.
   username = 'Administrator' <6>
   pathToPassword = 'secrets/couchbase-password.toml' <7>
   secureConnection = false <8>
-  scope = '' <9>
-  collections = ['myScope.widgets','myScope.invoices'] <10>
+  hostnameVerification = true <9>
+  scope = '' <10>
+  collections = ['myScope.widgets','myScope.invoices'] <11>
 ----
 <1> A list of bootstrap nodes for the Couchbase cluster.
 Multiple nodes can be specified like `['host1','host2']`.
@@ -124,8 +125,11 @@ Empty string means store metadata in the default collection: `_default._default`
 <7> Path to a separate TOML file with a single 'password' key.
 The base for a relative path is the connector installation directory.
 <8> If you have configured the <<truststore,Trust Store>> section, set this to `true` to encrypt the Couchbase connections.
-<9> (Since 4.2.3; Uncommitted) If you want to replicate from only one scope, name it here.
-<10> (Since 4.2.3; Uncommitted) If you want to replicate from a subset of collections within a scope, or collections in different scopes, name the collections here.
+<9> (Since 4.2.6; Uncommitted) Set this to `false` if you are using a secure connection to Couchbase but for whatever reason need to disable TLS hostname verification.
+Note that disabling hostname verification will cause the TLS connection to not verify that the hostname/ip is actually associated with the certificate and as a result not detect certain kinds of attacks.
+Only disable if you understand the impact and can accept the risks.
+<10> (Since 4.2.3; Uncommitted) If you want to replicate from only one scope, name it here.
+<11> (Since 4.2.3; Uncommitted) If you want to replicate from a subset of collections within a scope, or collections in different scopes, name the collections here.
 Qualify each collection name with its parent scope, like `'scope.collection'`.
 
 NOTE: The `scope` and `collections` properties are mutually exclusive.

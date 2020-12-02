@@ -62,6 +62,8 @@ public interface CouchbaseConfig {
 
   boolean secureConnection();
 
+  boolean hostnameVerification();
+
   DcpConfig dcp();
 
   @Value.Check
@@ -72,7 +74,7 @@ public interface CouchbaseConfig {
   }
 
   static ImmutableCouchbaseConfig from(TomlTable config) {
-    expectOnly(config, "bucket", "metadataBucket", "metadataCollection", "scope", "collections", "hosts", "network", "username", "pathToPassword", "dcp", "secureConnection");
+    expectOnly(config, "bucket", "metadataBucket", "metadataCollection", "scope", "collections", "hosts", "network", "username", "pathToPassword", "dcp", "secureConnection", "hostnameVerification");
 
     final String sourceBucket = config.getString("bucket", () -> "default");
     final String networkName = config.getString("network", () -> "auto");
@@ -90,6 +92,7 @@ public interface CouchbaseConfig {
         .username(config.getString("username", () -> ""))
         .password(readPassword(config, "couchbase", "pathToPassword"))
         .secureConnection(config.getBoolean("secureConnection", () -> false))
+        .hostnameVerification(config.getBoolean("hostnameVerification", () -> true))
         .dcp(DcpConfig.from(config.getTableOrEmpty("dcp")))
         .build();
   }

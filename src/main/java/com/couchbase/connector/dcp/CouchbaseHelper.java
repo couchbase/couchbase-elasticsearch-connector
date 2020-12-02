@@ -70,6 +70,7 @@ public class CouchbaseHelper {
 
     if (config.secureConnection()) {
       envBuilder.securityConfig(enableTls(true)
+          .enableHostnameVerification(config.hostnameVerification())
           .trustStore(keystore.get()));
     }
 
