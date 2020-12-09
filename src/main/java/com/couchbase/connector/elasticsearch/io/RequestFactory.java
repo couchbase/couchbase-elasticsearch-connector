@@ -16,7 +16,6 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
-import com.codahale.metrics.Timer;
 import com.couchbase.connector.config.es.DocStructureConfig;
 import com.couchbase.connector.config.es.RejectLogConfig;
 import com.couchbase.connector.config.es.TypeConfig;
@@ -27,6 +26,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.core.filter.FilteringParserDelegate;
 import com.fasterxml.jackson.core.filter.JsonPointerBasedFilter;
+import io.micrometer.core.instrument.Timer;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.common.Nullable;
@@ -105,18 +105,18 @@ public class RequestFactory {
   @Nullable
   private EventIndexRequest newIndexRequest(final Event event, final MatchResult matchResult) {
     try {
-      final Timer.Context timerContext = newIndexRequestTimer.time();
+      final Timer.Sample timerContext = Timer.start();
       EventIndexRequest request = new EventIndexRequest(matchResult.index(), matchResult.typeConfig().type(), event);
       request.setPipeline(matchResult.typeConfig().pipeline());
       request.routing(getRouting(event, matchResult.typeConfig().routing()));
       documentTransformer.setSourceFromEventContent(request, event);
 
-      timerContext.stop();
+      timerContext.stop(newIndexRequestTimer);
       return request.source() == null ? null : request;
 
     } catch (Exception failure) {
       LOGGER.warn("Failed to create doc write request for {} ; adding an entry to the rejection log instead.", redactUser(event), failure);
-      Metrics.rejectionMeter().mark();
+      Metrics.rejectionCounter().increment();
       return newRejectionLogRequest(event, matchResult, failure);
     }
   }

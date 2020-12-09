@@ -291,13 +291,13 @@ public class ElasticsearchWriter implements Closeable {
             if (request instanceof EventRejectionIndexRequest) {
               // ES rejected the rejection log entry! Total fail.
               LOGGER.error("Failed to index rejection document for event {}; status code: {} {}", redactUser(e), failure.getStatus(), failure.getMessage());
-              Metrics.rejectionLogFailureMeter().mark();
+              Metrics.rejectionLogFailureCounter().increment();
               updateLatencyMetrics(e, nowNanos);
               e.release();
 
             } else {
               LOGGER.warn("Permanent failure to index event {}; status code: {} {}", redactUser(e), failure.getStatus(), failure.getMessage());
-              Metrics.rejectionMeter().mark();
+              Metrics.rejectionCounter().increment();
 
               // don't release event; the request factory assumes ownership
               final EventRejectionIndexRequest rejectionLogRequest = requestFactory.newRejectionLogRequest(request, failure);
@@ -309,7 +309,7 @@ public class ElasticsearchWriter implements Closeable {
             runQuietly("error listener", () -> errorListener.onFailedIndexResponse(e, response));
           }
 
-          Metrics.indexingRetryMeter().mark(requestsToRetry.size());
+          Metrics.indexingRetryCounter().increment(requestsToRetry.size());
 
           requests = requestsToRetry;
 
@@ -358,10 +358,10 @@ public class ElasticsearchWriter implements Closeable {
             checkpointService.set(entry.getKey(), entry.getValue());
           }
 
-          Metrics.bytesMeter().mark(totalEstimatedBytes);
-          Metrics.indexTimePerDocument().update(indexingTookNanos / totalActionCount, NANOSECONDS);
+          Metrics.bytesCounter().increment(totalEstimatedBytes);
+          Metrics.indexTimePerDocument().record(indexingTookNanos / totalActionCount, NANOSECONDS);
           if (totalRetryDelayMillis != 0) {
-            Metrics.retryDelayTimer().update(totalRetryDelayMillis, MILLISECONDS);
+            Metrics.retryDelayTimer().record(totalRetryDelayMillis, MILLISECONDS);
           }
 
           if (LOGGER.isInfoEnabled()) {
@@ -376,7 +376,7 @@ public class ElasticsearchWriter implements Closeable {
 
         // retry!
         retryReporter.report();
-        Metrics.bulkRetriesMeter().mark();
+        Metrics.bulkRetriesCounter().increment();
         final TimeValue retryDelay = waitIntervals.next(); // todo check for hasNext? bail out or continue?
         LOGGER.info("Retrying bulk request in {}", retryDelay);
         MILLISECONDS.sleep(retryDelay.millis());
@@ -395,7 +395,7 @@ public class ElasticsearchWriter implements Closeable {
 
   private static void updateLatencyMetrics(Event e, long nowNanos) {
     final long elapsedNanos = nowNanos - e.getReceivedNanos();
-    Metrics.latencyTimer().update(elapsedNanos, NANOSECONDS);
+    Metrics.latencyTimer().record(elapsedNanos, NANOSECONDS);
   }
 
   private void clearBuffer() {

@@ -16,12 +16,11 @@
 
 package com.couchbase.connector.dcp;
 
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Meter;
 import com.couchbase.connector.elasticsearch.Metrics;
 import com.google.common.base.Stopwatch;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
-import org.elasticsearch.common.unit.TimeValue;
+import io.micrometer.core.instrument.Counter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +36,7 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 public class CheckpointService {
@@ -45,7 +45,7 @@ public class CheckpointService {
   private volatile AtomicReferenceArray<Checkpoint> positions;
   private final CheckpointDao streamPositionDao;
   private final String bucketUuid;
-  private final Meter failures = Metrics.meter("saveStateFail");
+  private final Counter failures = Metrics.counter("saveStateFail");
   private volatile boolean dirty;
   private volatile ImmutableList<Long> backfillTargetSeqnos;
   private volatile long remainingBackfillItems = -1;
@@ -132,23 +132,25 @@ public class CheckpointService {
 
     } catch (Exception t) {
       LOGGER.warn("Failed to save connector state.", t);
-      failures.mark();
+      failures.increment();
     }
   }
 
   private void registerBackfillMetrics() {
-    Metrics.gauge("backfill", () -> () -> totalBackfillItems);
+    Metrics.gauge("backfill", this, me -> me.totalBackfillItems);
 
-    Gauge<Long> backfillRemainingGauge = Metrics.cachedGauge("backfillRemaining", () -> {
+    Metrics.cachedGauge("backlog", this, CheckpointService::getLocalBacklog);
+
+    Supplier<Long> backfillRemainingSupplier = Suppliers.memoizeWithExpiration(() -> {
       updateBackfillProgress();
       return remainingBackfillItems;
-    });
+    }, 1, TimeUnit.SECONDS);
+    Metrics.gauge("backfillRemaining", this, ignored -> backfillRemainingSupplier.get());
 
-    Metrics.cachedGauge("backlog", this::getLocalBacklog);
-
-    Metrics.cachedGauge("backfillEstTimeLeft", () -> {
-      final long remaining = backfillRemainingGauge.getValue();
-      return new TimeValue((long) (remaining * Metrics.indexTimePerDocument().getSnapshot().getMean()), TimeUnit.NANOSECONDS).toString();
+    Metrics.cachedGauge("backfillEstTimeLeft", this, value -> {
+      final long remainingItems = backfillRemainingSupplier.get();
+      final long remainingNanos = (long) (remainingItems * Metrics.indexTimePerDocument().mean(NANOSECONDS));
+      return NANOSECONDS.toSeconds(remainingNanos);
     });
   }
 

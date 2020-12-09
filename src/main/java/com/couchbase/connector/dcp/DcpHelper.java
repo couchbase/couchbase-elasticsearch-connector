@@ -40,6 +40,7 @@ import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.Coordinator;
 import com.couchbase.connector.config.ScopeAndCollection;
 import com.couchbase.connector.config.common.CouchbaseConfig;
+import com.couchbase.connector.elasticsearch.Metrics;
 import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,6 +103,7 @@ public class DcpHelper {
         .collect(toSet());
 
     final Client.Builder builder = Client.builder()
+        .meterRegistry(Metrics.registry())
         .userAgent("elasticsearch-connector", VersionHelper.getVersion(), groupName)
         .connectTimeout(config.dcp().connectTimeout().millis())
         .seedNodes(seedNodes)

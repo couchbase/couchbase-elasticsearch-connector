@@ -19,7 +19,6 @@ package com.couchbase.connector.elasticsearch;
 import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.http.AWSRequestSigningApacheInterceptor;
-import com.codahale.metrics.Gauge;
 import com.couchbase.client.dcp.util.Version;
 import com.couchbase.connector.config.common.TrustStoreConfig;
 import com.couchbase.connector.config.es.AwsConfig;
@@ -35,7 +34,6 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.action.bulk.BulkItemResponse;
-import org.elasticsearch.action.main.MainResponse;
 import org.elasticsearch.client.Node;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
@@ -45,21 +43,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
-import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.couchbase.client.core.logging.RedactableArgument.redactSystem;
 import static com.couchbase.connector.elasticsearch.io.MoreBackoffPolicies.truncatedExponentialBackoff;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -79,36 +73,6 @@ public class ElasticsearchHelper {
       return Optional.empty();
     }
     return Optional.of(m.group(1));
-  }
-
-  @SuppressWarnings("unchecked")
-  public static Gauge<String> registerElasticsearchVersionGauge(RestHighLevelClient esClient) {
-    return Metrics.gauge("elasticsearchVersion", () -> () -> {
-      final MainResponse info = getServerInfo(esClient);
-      if (LOGGER.isDebugEnabled()) {
-        LOGGER.debug("Elasticsearch info: {}", formatServerInfo(info));
-      }
-      return info.getVersion().toString();
-    });
-  }
-
-  private static MainResponse getServerInfo(RestHighLevelClient esClient) {
-    try {
-      return esClient.info();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private static String formatServerInfo(MainResponse r) {
-    Map<String, Object> esInfo = new LinkedHashMap<>();
-    esInfo.put("version", r.getVersion().toString());
-    esInfo.put("build", r.getBuild());
-    esInfo.put("available", r.isAvailable());
-    esInfo.put("clusterName", redactSystem(r.getClusterName()));
-    esInfo.put("clusterUuid", redactSystem(r.getClusterUuid()));
-    esInfo.put("nodeName", redactSystem(r.getNodeName()));
-    return esInfo.toString();
   }
 
   public static Version waitForElasticsearchAndRequireVersion(RestHighLevelClient esClient, Version required, Version recommended) throws InterruptedException {
@@ -182,7 +146,7 @@ public class ElasticsearchHelper {
         .setFailureListener(new RestClient.FailureListener() {
           @Override
           public void onFailure(Node host) {
-            Metrics.elasticsearchHostOffline().mark();
+            Metrics.elasticsearchHostOffline().increment();
           }
         });
 

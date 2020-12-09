@@ -49,16 +49,17 @@ This is a general indication of how well the connector is keeping up with change
 Note that the count only includes changes in the Couchbase partitions handled by this connector instance.
 Unlike `cbes.backfill`, this value is dynamic; it goes up when changes happen in Couchbase, and goes down as the changes are processed by the connector.
 
-`cbes.backfill`::
+`cbes.backfill` (DEPRECATED)::
 This is the number of Couchbase documents not yet replicated to Elasticsearch at the time the connector started.
 The value reported by this gauge never changes.
+_All the "backfill*" metrics are deprecated since they do not provide an accurate view of the connector's progress; please use the `cbes.backlog` metric instead._
 
-`cbes.backfillRemaining`::
+`cbes.backfillRemaining` (DEPRECATED)::
 Shows how many documents the connector still needs to process in order to catch up with the state of the bucket when the connector started.
 The value only decreases, and never goes below zero.
 
-`cbes.backfillEstTimeLeft`::
-A rough estimate of the time it will take for the connector to finish processing the remaining backfill.
+`cbes.backfillEstTimeLeft` (DEPRECATED)::
+A rough estimate of the time in seconds it will take for the connector to finish processing the remaining backfill.
 
 `cbes.writeQueue`::
 Reports the number of document events currently buffered in memory. (The write queue is implicitly bounded by the `flowControlBuffer` config property which determines the buffer size.)

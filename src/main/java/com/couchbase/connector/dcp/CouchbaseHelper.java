@@ -16,7 +16,6 @@
 
 package com.couchbase.connector.dcp;
 
-import com.codahale.metrics.Gauge;
 import com.couchbase.client.core.Core;
 import com.couchbase.client.core.config.BucketConfig;
 import com.couchbase.client.core.config.CouchbaseBucketConfig;
@@ -31,7 +30,6 @@ import com.couchbase.client.java.Collection;
 import com.couchbase.client.java.env.ClusterEnvironment;
 import com.couchbase.connector.config.ScopeAndCollection;
 import com.couchbase.connector.config.common.CouchbaseConfig;
-import com.couchbase.connector.elasticsearch.Metrics;
 import com.couchbase.connector.util.SeedNodeHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -257,16 +255,6 @@ public class CouchbaseHelper {
 
     LOGGER.warn("Failed to force partition for {} after {} iterations.", key, MAX_ITERATIONS);
     return Optional.empty();
-  }
-
-  @SuppressWarnings("unchecked")
-  public static Gauge<String> registerCouchbaseVersionGauge(Cluster cluster) {
-    return Metrics.gauge("couchbaseVersion", () -> () -> {
-      // this API was removed in SDK 3. Hmmm.....
-//      final ClusterInfo couchbaseClusterInfo = cluster.clusterManager().info(2, TimeUnit.SECONDS);
-//      return couchbaseClusterInfo.getMinVersion().toString();
-      return "0.0.0";
-    });
   }
 
   public static Version requireCouchbaseVersion(Cluster cluster, Version requiredVersion) {

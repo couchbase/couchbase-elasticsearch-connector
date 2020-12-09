@@ -26,7 +26,6 @@ import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.Collection;
 import com.couchbase.client.java.env.ClusterEnvironment;
-import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.Coordinator;
 import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.cluster.StaticCoordinator;
@@ -80,7 +79,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
   }
 
   private static Slf4jReporter newSlf4jReporter(TimeValue logInterval) {
-    Slf4jReporter reporter = Slf4jReporter.forRegistry(Metrics.registry())
+    Slf4jReporter reporter = Slf4jReporter.forRegistry(Metrics.dropwizardRegistry())
         .convertDurationsTo(MILLISECONDS)
         .convertRatesTo(SECONDS)
         .outputTo(LoggerFactory.getLogger("cbes.metrics"))
@@ -108,7 +107,6 @@ public class ElasticsearchConnector extends AbstractCliCommand {
     final Throwable fatalError;
 
     final Membership membership = config.group().staticMembership();
-    Metrics.gauge("groupMembership", () -> membership::toString);
 
     final Coordinator coordinator = new StaticCoordinator();
 
@@ -129,10 +127,6 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
       final ClusterEnvironment env = CouchbaseHelper.environmentBuilder(config.couchbase(), config.trustStore()).build();
       final Cluster cluster = CouchbaseHelper.createCluster(config.couchbase(), env);
-
-      Metrics.gauge("connectorVersion", () -> VersionHelper::getVersionString);
-      ElasticsearchHelper.registerElasticsearchVersionGauge(esClient);
-      CouchbaseHelper.registerCouchbaseVersionGauge(cluster);
 
       final Version elasticsearchVersion = waitForElasticsearchAndRequireVersion(
           esClient, new Version(2, 0, 0), new Version(5, 6, 16));
@@ -166,8 +160,8 @@ public class ElasticsearchConnector extends AbstractCliCommand {
           ErrorListener.NOOP,
           config.elasticsearch().bulkRequest());
 
-      Metrics.gauge("writeQueue", () -> workers::getQueueSize);
-      Metrics.gauge("esWaitMs", () -> workers::getCurrentRequestMillis); // High value indicates the connector has stalled
+      Metrics.gauge("writeQueue", workers, ElasticsearchWorkerGroup::getQueueSize);
+      Metrics.gauge("esWaitMs", workers, ElasticsearchWorkerGroup::getCurrentRequestMillis); // High value indicates the connector has stalled
 
       final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), kvNodes, config.trustStore());
 

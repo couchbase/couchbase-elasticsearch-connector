@@ -52,11 +52,11 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkState;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.DAYS;
 
 public class HttpServer implements Closeable {
@@ -169,25 +169,37 @@ public class HttpServer implements Closeable {
       final ByteBuf content;
       final String contentType;
 
-      if (decoder.path().equals("/")) {
-        contentType = "text/html;charset=UTF-8";
-        status = HttpResponseStatus.OK;
-        final String html = "<h2>Couchbase Elasticsearch Connector</h2>" +
-            "Version " + VersionHelper.getVersionString() +
-            "<p>" +
-            "<a href=\"metrics?pretty\">Metrics</a>";
-        content = Unpooled.wrappedBuffer(html.getBytes(StandardCharsets.UTF_8));
+      switch (decoder.path()) {
+        case "/":
+          contentType = "text/html;charset=UTF-8";
+          status = HttpResponseStatus.OK;
+          final String html = "<h2>Couchbase Elasticsearch Connector</h2>" +
+              "Version " + VersionHelper.getVersionString() +
+              "<p>" +
+              "<a href=\"metrics?pretty\">Metrics</a>";
+          content = Unpooled.wrappedBuffer(html.getBytes(UTF_8));
+          break;
 
-      } else if (decoder.path().equals("/metrics")) {
-        final boolean pretty = getBoolean(decoder, "pretty", false);
-        final ObjectWriter w = pretty ? mapper.writerWithDefaultPrettyPrinter() : mapper.writer();
-        content = Unpooled.wrappedBuffer(w.writeValueAsBytes(Metrics.toJsonNode()));
-        contentType = "application/json";
-        status = HttpResponseStatus.OK;
-      } else {
-        content = Unpooled.wrappedBuffer(mapper.writeValueAsBytes("path '" + decoder.path() + "' not found"));
-        contentType = "application/json";
-        status = HttpResponseStatus.NOT_FOUND;
+        case "/metrics": // default to dropwizard for now. Maybe add a switch for the default format?
+        case "/metrics/dropwizard":
+          final boolean pretty = getBoolean(decoder, "pretty", false);
+          final ObjectWriter w = pretty ? mapper.writerWithDefaultPrettyPrinter() : mapper.writer();
+          content = Unpooled.wrappedBuffer(w.writeValueAsBytes(Metrics.toJsonNode()));
+          contentType = "application/json";
+          status = HttpResponseStatus.OK;
+          break;
+
+        case "/metrics/prometheus":
+          content = Unpooled.wrappedBuffer(Metrics.toPrometheusExpositionFormat().getBytes(UTF_8));
+          contentType = "text/plain; version=0.0.4";
+          status = HttpResponseStatus.OK;
+          break;
+
+        default:
+          content = Unpooled.wrappedBuffer(mapper.writeValueAsBytes("path '" + decoder.path() + "' not found"));
+          contentType = "application/json";
+          status = HttpResponseStatus.NOT_FOUND;
+          break;
       }
 
       final FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, content);
