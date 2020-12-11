@@ -44,7 +44,7 @@ import static java.util.Objects.requireNonNull;
 public class RequestFactory {
   private static final Logger LOGGER = LoggerFactory.getLogger(RequestFactory.class);
 
-  private static final Timer newIndexRequestTimer = Metrics.timer("newIndexReq");
+  private static final Timer newIndexRequestTimer = Metrics.timer("new.index.req", "Time spent preparing an Elasticsearch indexing request.");
   private static final JsonFactory factory = new JsonFactory();
 
   private final DocumentTransformer documentTransformer;

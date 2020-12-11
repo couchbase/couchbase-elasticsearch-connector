@@ -26,6 +26,7 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Suppliers;
 import io.micrometer.core.instrument.Clock;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
@@ -36,6 +37,7 @@ import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
+import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.core.instrument.dropwizard.DropwizardMeterRegistry;
 import io.micrometer.core.instrument.util.HierarchicalNameMapper;
 import io.micrometer.prometheus.PrometheusConfig;
@@ -81,6 +83,13 @@ public class Metrics {
   };
 
   private static final PrometheusMeterRegistry prometheusRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+
+  static {
+    prometheusRegistry.config()
+        .meterFilter(MeterFilter.denyNameStartsWith("cbes.backfill")) // deprecated, no reason to expose
+        .meterFilter(MeterFilter.denyNameStartsWith("cbes.es.wait.ms")); // superseded by "cbes.es.wait.seconds"
+  }
+
   private static final MetricRegistry dropwizardBackingRegistry = new MetricRegistry();
   private static final DropwizardMeterRegistry dropwizardRegistry = new DropwizardMeterRegistry(new DefaultDropwizardConfig(), dropwizardBackingRegistry, PRETTY_TAGS, Clock.SYSTEM) {
     @Override
@@ -112,23 +121,34 @@ public class Metrics {
     throw new AssertionError("not instantiable");
   }
 
-  public static Counter counter(String name) {
-    return registry.counter(PREFIX + name);
+  public static Counter counter(String name, String description) {
+    return counter(name, description, null);
   }
 
-  public static Timer timer(String name) {
-    return registry.timer(PREFIX + name);
+  public static Counter counter(String name, String description, String unit) {
+    return Counter.builder(PREFIX + name)
+        .baseUnit(unit)
+        .description(description)
+        .register(registry);
   }
 
-  public static <T> T gauge(String name, T stateObject, ToDoubleFunction<T> valueFunction) {
+  public static Timer timer(String name, String description) {
+    return Timer.builder(PREFIX + name)
+        .description(description)
+        .register(registry);
+  }
+
+  public static <T> T gauge(String name, String description, T stateObject, ToDoubleFunction<T> valueFunction) {
     // Some of our gauges are backed by connections to Couchbase or other server.
     // These must be recreated for each connection, so remove first.
     synchronized (Metrics.class) {
       // The metrics registry is a singleton, but the integration tests run many connectors in the
       // same process and they all compete to register gauges. Synchronize to prevent rare race condition
       // that can cause exception to be thrown here when running integration tests.
-      registry.remove(new Meter.Id(PREFIX + name, Tags.empty(), null, null, Meter.Type.GAUGE));
-      registry.gauge(PREFIX + name, stateObject, valueFunction);
+      registry.remove(new Meter.Id(PREFIX + name, Tags.empty(), null, description, Meter.Type.GAUGE));
+      Gauge.builder(PREFIX + name, stateObject, valueFunction)
+          .description(description)
+          .register(registry);
       return stateObject;
     }
   }
@@ -137,29 +157,31 @@ public class Metrics {
    * For gauges whose values should be cached to prevent repeated calculation during reporting
    * when multiple reports are used.
    */
-  public static <T> T cachedGauge(String name, T stateObject, ToDoubleFunction<T> valueFunction, Duration expiration) {
+  public static <T> T cachedGauge(String name, String description, T stateObject, ToDoubleFunction<T> valueFunction, Duration expiration) {
     Supplier<Double> memoized = Suppliers.memoizeWithExpiration(() -> valueFunction.applyAsDouble(stateObject), expiration.toMillis(), MILLISECONDS);
-    return gauge(name, stateObject, value -> memoized.get());
+    return gauge(name, description, stateObject, value -> memoized.get());
   }
 
   /**
    * For gauges whose values should be cached to prevent repeated calculation during reporting
    * when multiple reports are used. Uses default expiry duration.
    */
-  public static <T> T cachedGauge(String name, T stateObject, ToDoubleFunction<T> valueFunction) {
+  public static <T> T cachedGauge(String name, String description, T stateObject, ToDoubleFunction<T> valueFunction) {
     final Duration DEFAULT_EXPIRY = Duration.ofSeconds(1);
-    return cachedGauge(name, stateObject, valueFunction, DEFAULT_EXPIRY);
+    return cachedGauge(name, description, stateObject, valueFunction, DEFAULT_EXPIRY);
   }
 
-  private static final Counter bytesMeter = Metrics.counter("throughputBytes");
-  private static final Counter rejectionCounter = Metrics.counter("docRejected"); // ES said "bad request"
-  private static final Counter rejectionLogFailureCounter = Metrics.counter("rejectionLogFail");
-  private static final Counter indexingRetryCounter = Metrics.counter("docWriteRetry");
-  private static final Timer bulkIndexingTimer = Metrics.timer("bulkIndexPerDoc");
-  private static final Timer retryDelayTimer = Metrics.timer("retryDelay");
-  private static final Counter bulkRetriesCounter = Metrics.counter("bulkRetry");
-  private static final Counter httpFailures = Metrics.counter("esConnFail");
-  private static final Timer latencyTimer = Metrics.timer("latency");
+  private static final String BYTES = "bytes";
+
+  private static final Counter bytesMeter = Metrics.counter("throughput.bytes", "An estimate of the number of bytes the connector has written to Elasticsearch.", BYTES);
+  private static final Counter rejectionCounter = Metrics.counter("doc.rejected", "Permanent indexing failure; usually result in an entry being added to the rejection log Elasticsearch index."); // ES said "bad request"
+  private static final Counter rejectionLogFailureCounter = Metrics.counter("rejection.log.fail", "Failure to add a record to the rejection log Elasticsearch index.");
+  private static final Counter indexingRetryCounter = Metrics.counter("doc.write.retry", "Failure to write an individual document. (For each `bulkRetry` event, one or more `docWriteRetry` events are recorded, indicating how many failures there were in the bulk request.)");
+  private static final Timer bulkIndexingTimer = Metrics.timer("bulk.index.per.doc", "Duration of an Elasticsearch bulk request (including retries), divided by the number of items in the bulk request.");
+  private static final Timer retryDelayTimer = Metrics.timer("retry.delay", "Time spent waiting after a temporary indexing failure before the request is retried.");
+  private static final Counter bulkRetriesCounter = Metrics.counter("bulk.retry", "Elasticsearch bulk request retry due to a temporary failure.");
+  private static final Counter httpFailures = Metrics.counter("es.conn.fail", "Failed Elasticsearch connection attempts.");
+  private static final Timer latencyTimer = Metrics.timer("latency", "The time between when the connector is notified of a database change and when the change is written to Elasticsearch.");
 
   public static Counter bytesCounter() {
     return bytesMeter;

@@ -5,12 +5,14 @@ The connector exposes several performance metrics.
 Here's a summary of the most important metrics and how to interpret them.
 
 In its default configuration, the connector runs an embedded web server.
-Metrics are exposed at `http://localhost:31415/metrics?pretty`.
+Metrics are exposed in Dropwizard JSON format at `http://localhost:31415/metrics?pretty`.
 
 TIP: Omit the `?pretty` for a more compact response.
 
 A simple health check might fetch that URL and assert the response has an HTTP status code of 200 (OK).
 A more sophisticated check should parse the JSON response and inspect the values of whichever metrics you consider important.
+
+Since 4.2.6, metrics are also exposed in Prometheus format at `http://localhost:31415/metrics/prometheus`.
 
 [#http-server-config]
 == HTTP Server Configuration
@@ -31,7 +33,6 @@ The location of the metrics log file is configurable in `$CBES_HOME/config/log4j
 [#metrics]
 == Metrics Reference
 
-The connector uses the Dropwizard Metrics library to capture and report performance information.
 This section describes the metrics exposed by the connector and how to interpret them.
 
 === Gauges

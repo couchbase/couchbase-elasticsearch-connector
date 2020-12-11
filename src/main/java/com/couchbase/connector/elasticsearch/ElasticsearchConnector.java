@@ -120,7 +120,8 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
       httpServer.start();
       if (config.metrics().httpPort() >= 0) {
-        LOGGER.info("Metrics available at http://localhost:{}/metrics?pretty", httpServer.getBoundPort());
+        LOGGER.info("Prometheus metrics available at http://localhost:{}/metrics/prometheus", httpServer.getBoundPort());
+        LOGGER.info("Dropwizard metrics available at http://localhost:{}/metrics/dropwizard?pretty", httpServer.getBoundPort());
       } else {
         LOGGER.info("Metrics HTTP server is disabled. Edit the [metrics] 'httpPort' config property to enable.");
       }
@@ -160,8 +161,16 @@ public class ElasticsearchConnector extends AbstractCliCommand {
           ErrorListener.NOOP,
           config.elasticsearch().bulkRequest());
 
-      Metrics.gauge("writeQueue", workers, ElasticsearchWorkerGroup::getQueueSize);
-      Metrics.gauge("esWaitMs", workers, ElasticsearchWorkerGroup::getCurrentRequestMillis); // High value indicates the connector has stalled
+      Metrics.gauge("write.queue",
+          "Document events currently buffered in memory.",
+          workers, ElasticsearchWorkerGroup::getQueueSize);
+
+      Metrics.gauge("es.wait.ms", null, workers, ElasticsearchWorkerGroup::getCurrentRequestMillis); // High value indicates the connector has stalled
+
+      // Same as "es.wait.ms" but normalized to seconds for Prometheus
+      Metrics.gauge("es.wait.seconds",
+          "Duration of in-flight Elasticsearch bulk request (including any retries). Long duration may indicate connector has stalled.",
+          workers, value -> value.getCurrentRequestMillis() / (double) SECONDS.toMillis(1));
 
       final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), kvNodes, config.trustStore());
 

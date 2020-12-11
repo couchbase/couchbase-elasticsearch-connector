@@ -45,7 +45,7 @@ public class CheckpointService {
   private volatile AtomicReferenceArray<Checkpoint> positions;
   private final CheckpointDao streamPositionDao;
   private final String bucketUuid;
-  private final Counter failures = Metrics.counter("saveStateFail");
+  private final Counter failures = Metrics.counter("save.state.fail", "Failed to save a replication checkpoint document to Couchbase.");
   private volatile boolean dirty;
   private volatile ImmutableList<Long> backfillTargetSeqnos;
   private volatile long remainingBackfillItems = -1;
@@ -137,17 +137,22 @@ public class CheckpointService {
   }
 
   private void registerBackfillMetrics() {
-    Metrics.gauge("backfill", this, me -> me.totalBackfillItems);
+    // deprecated
+    Metrics.gauge("backfill", null, this, me -> me.totalBackfillItems);
 
-    Metrics.cachedGauge("backlog", this, CheckpointService::getLocalBacklog);
+    Metrics.cachedGauge("backlog",
+        "Estimated Couchbase changes yet to be processed by this node.",
+        this, CheckpointService::getLocalBacklog);
 
     Supplier<Long> backfillRemainingSupplier = Suppliers.memoizeWithExpiration(() -> {
       updateBackfillProgress();
       return remainingBackfillItems;
     }, 1, TimeUnit.SECONDS);
-    Metrics.gauge("backfillRemaining", this, ignored -> backfillRemainingSupplier.get());
+    // deprecated
+    Metrics.gauge("backfill.remaining", null, this, ignored -> backfillRemainingSupplier.get());
 
-    Metrics.cachedGauge("backfillEstTimeLeft", this, value -> {
+    // deprecated
+    Metrics.cachedGauge("backfill.est.time.left", null, this, value -> {
       final long remainingItems = backfillRemainingSupplier.get();
       final long remainingNanos = (long) (remainingItems * Metrics.indexTimePerDocument().mean(NANOSECONDS));
       return NANOSECONDS.toSeconds(remainingNanos);

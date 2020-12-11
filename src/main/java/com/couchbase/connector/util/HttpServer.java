@@ -176,7 +176,9 @@ public class HttpServer implements Closeable {
           final String html = "<h2>Couchbase Elasticsearch Connector</h2>" +
               "Version " + VersionHelper.getVersionString() +
               "<p>" +
-              "<a href=\"metrics?pretty\">Metrics</a>";
+              "<a href=\"metrics/prometheus\">Metrics (Prometheus)</a>" +
+              "<p>" +
+              "<a href=\"metrics/dropwizard?pretty\">Metrics (Dropwizard)</a>";
           content = Unpooled.wrappedBuffer(html.getBytes(UTF_8));
           break;
 
