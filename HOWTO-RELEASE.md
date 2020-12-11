@@ -8,7 +8,7 @@ and publish it to S3.
 
 You will need:
 * AWS credentials with write access to the `packages.couchbase.com` S3 bucket.
-* The [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/), for uploading the distribution archive to S3. 
+* The [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/), for uploading the distribution archive to S3.
 * A local Docker installation, if you wish to run the integration tests.
 
 All set? In that case...
@@ -26,7 +26,8 @@ When you're satisfied with the test results, it's time to...
 1. Edit `build.gradle` and remove the `-SNAPSHOT` suffix from the version string.
 2. Edit `docs/modules/ROOT/pages/_attributes` and bump the `:version:` attribute.
 3. Edit `README.adoc` and bump the version numbers if appropriate.
-4. Commit these changes, with message "Prepare x.y.z release"
+4. Check whether `compatibility.adoc` needs to be updated to include the new version.
+5. Commit these changes, with message "Prepare x.y.z release"
 (where x.y.z is the version you're releasing).
 
 
