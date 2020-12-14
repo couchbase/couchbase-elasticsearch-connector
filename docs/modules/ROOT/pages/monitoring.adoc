@@ -13,6 +13,7 @@ A simple health check might fetch that URL and assert the response has an HTTP s
 A more sophisticated check should parse the JSON response and inspect the values of whichever metrics you consider important.
 
 Since 4.2.6, metrics are also exposed in Prometheus format at `http://localhost:31415/metrics/prometheus`.
+In connector version 4.2.x, all Prometheus metrics are "Uncommitted API" which means they may change between releases without notice.
 
 [#http-server-config]
 == HTTP Server Configuration

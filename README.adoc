@@ -52,7 +52,7 @@ Because the project uses annotation processors, some link:INTELLIJ-SETUP.md[fidd
 
 `Dockerfile.light` can be used to build a Docker image from released binaries hosted at packages.couchbase.com.
 
-    docker build -f Dockerfile.light -t imagename:tag --build-arg VERSION=4.2.5 .
+    docker build -f Dockerfile.light -t imagename:tag --build-arg VERSION=4.2.6 .
 
 === Running a Docker image
 
