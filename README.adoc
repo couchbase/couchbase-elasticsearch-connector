@@ -70,4 +70,4 @@ in `default-connector.toml`. Port 31415 can be accessed via HTTP to get metrics.
 === Running in Kubernetes
 
 The connector may also be run in Kubernetes. Due to the nature of the connector, it's usually best to simply deploy it as a
-bare Pod rather than a ReplicSet or Deployment. An example deployment can be found in the `examples/kubernetes` directory.
+bare Pod rather than a ReplicaSet or Deployment. An example deployment can be found in the `examples/kubernetes` directory.
