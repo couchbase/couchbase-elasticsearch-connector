@@ -25,11 +25,10 @@ package com.couchbase.connector.testcontainers;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
-import com.github.dockerjava.core.command.ExecStartResultCallback;
 import org.apache.commons.compress.utils.Sets;
 import org.apache.commons.io.IOUtils;
-import org.jetbrains.annotations.NotNull;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.SocatContainer;
@@ -132,7 +131,7 @@ public class SocatCouchbaseContainer extends GenericContainer<SocatCouchbaseCont
 
   private void exposePortThroughProxy(String networkAlias, int originalPort, int mappedPort) {
     ExecCreateCmdResponse createCmdResponse = dockerClient.execCreateCmd(proxy.getContainerId()).withCmd("/usr/bin/socat", "TCP-LISTEN:" + originalPort + ",fork,reuseaddr", "TCP:" + networkAlias + ":" + mappedPort).exec();
-    dockerClient.execStartCmd(createCmdResponse.getId()).exec(new ExecStartResultCallback());
+    dockerClient.execStartCmd(createCmdResponse.getId()).exec(new ResultCallback.Adapter<>());
   }
 
   @Override
@@ -196,7 +195,6 @@ public class SocatCouchbaseContainer extends GenericContainer<SocatCouchbaseCont
     }
   }
 
-  @NotNull
   private HttpWaitStrategy createNodeWaitStrategy() {
     return new HttpWaitStrategy().forPath("/pools/default/").withBasicCredentials(clusterUsername, clusterPassword).forStatusCode(HTTP_OK).forResponsePredicate(response -> {
       try {

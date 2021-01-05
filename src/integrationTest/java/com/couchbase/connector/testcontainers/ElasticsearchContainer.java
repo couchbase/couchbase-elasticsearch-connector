@@ -38,7 +38,7 @@ public class ElasticsearchContainer extends GenericContainer<ElasticsearchContai
     }
   }
 
-  public HttpHost getHost() {
+  public HttpHost getElasticsearchHost() {
     return new HttpHost("localhost", getMappedPort(9200));
   }
 }

@@ -179,13 +179,13 @@ public class BasicReplicationTest {
 
     if (elasticsearchVersion.equals(cachedElasticsearchContainerVersion)) {
       System.out.println("Using cached Elasticsearch container " + elasticsearch.getDockerImageName() +
-          " listening at " + elasticsearch.getHost());
+          " listening at " + elasticsearch.getElasticsearchHost());
     } else {
       close(elasticsearch);
       elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
           .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")));
       elasticsearch.start();
-      System.out.println("Elasticsearch listening at " + elasticsearch.getHost());
+      System.out.println("Elasticsearch listening at " + elasticsearch.getElasticsearchHost());
       cachedElasticsearchContainerVersion = elasticsearchVersion;
     }
 
