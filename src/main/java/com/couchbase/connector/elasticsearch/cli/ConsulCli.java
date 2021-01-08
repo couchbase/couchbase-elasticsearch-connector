@@ -19,6 +19,7 @@ package com.couchbase.connector.elasticsearch.cli;
 import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.consul.ConsulConnector;
 import com.couchbase.connector.cluster.consul.ConsulContext;
+import com.couchbase.connector.cluster.consul.ConsulClientWorkaround;
 import com.couchbase.connector.cluster.consul.DocumentKeys;
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.common.ConsulConfig;
@@ -99,6 +100,8 @@ public class ConsulCli implements IVersionProvider {
   }
 
   public static void main(String[] args) {
+    ConsulClientWorkaround.apply();
+
     CommandLine cmd = new CommandLine(new ConsulCli());
 
     //cmd.getHelpSectionMap().put(SECTION_KEY_COMMAND_LIST, new MyCommandListRenderer());
