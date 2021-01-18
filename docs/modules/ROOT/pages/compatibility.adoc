@@ -14,7 +14,7 @@ Elasticsearch version support is informed by https://www.elastic.co/support/eol[
 [%autowidth,cols="^,3*^"]
 |===
  |             3+h| Connector
-h| Elasticsearch↓ | 4.1 | 4.2.0 - 4.2.1 | 4.2.2 - 4.2.6
+h| Elasticsearch↓ | 4.1 | 4.2.0 - 4.2.1 | 4.2.2+
  | 7.6 - 7.7      | ✖   | ✖             | ✔
  | 7.4 - 7.5      | ✖   | ✔             | ✔
  | 7.0 - 7.3      | ✔   | ✔             | ✔
@@ -65,9 +65,10 @@ h| Java↓            | 4.1 - 4.2
 
 Only required for Autonomous Operations mode.
 
-[%autowidth,cols="^,1*^"]
+[%autowidth,cols="^,2*^"]
 |===
- |           h| Connector
-h| Consul↓    | 4.1 - 4.2
- | 1.5.3      | ✔
+ |         2+h| Connector
+h| Consul↓    | 4.1 - 4.2.6  | 4.2.7+
+ | 1.5.3      | ✔            | ✔
+ | 1.9.1      | ✖            | ✔
 |===

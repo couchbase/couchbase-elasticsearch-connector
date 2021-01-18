@@ -8,6 +8,19 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.2.7]]
+== Version 4.2.7 (2021-01-19)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.7/couchbase-elasticsearch-connector-4.2.7.zip[Download]
+
+For those running the connector in Autonomous Operations mode, this release improves compatibility with recent Consul versions.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-185[CBES-185]:
+The connector no longer fails to start when using Consul version 1.8.4 and later.
+The list of tested and supported Consul versions now includes Consul 1.9.1.
+
 [[v4.2.6]]
 == Version 4.2.6 (2020-12-15)
 
