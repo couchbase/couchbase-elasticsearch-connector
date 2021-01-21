@@ -211,12 +211,16 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         }
 
         fatalError = workers.awaitFatalError();
-        LOGGER.error("Terminating due to fatal error.", fatalError);
+        LOGGER.error("Terminating due to fatal error from worker", fatalError);
 
       } catch (InterruptedException shutdownRequest) {
         LOGGER.info("Graceful shutdown requested. Saving checkpoints and cleaning up.");
         checkpointService.save();
         throw shutdownRequest;
+
+      } catch (Throwable t) {
+        LOGGER.error("Terminating due to fatal error during setup", t);
+        throw t;
 
       } finally {
         // If we get here it means there was a fatal exception, or the connector is running in distributed
