@@ -17,6 +17,7 @@
 package com.couchbase.connector.config.es;
 
 import com.couchbase.connector.config.ConfigException;
+import com.couchbase.connector.config.common.ClientCertConfig;
 import com.google.common.collect.ImmutableList;
 import net.consensys.cava.toml.TomlArray;
 import net.consensys.cava.toml.TomlTable;
@@ -40,6 +41,8 @@ public interface ElasticsearchConfig {
 
   boolean secureConnection();
 
+  ClientCertConfig clientCert();
+
   BulkRequestConfig bulkRequest();
 
   DocStructureConfig docStructure();
@@ -58,11 +61,12 @@ public interface ElasticsearchConfig {
   }
 
   static ImmutableElasticsearchConfig from(TomlTable config) {
-    expectOnly(config, "hosts", "username", "pathToPassword", "secureConnection", "aws", "bulkRequestLimits", "docStructure", "typeDefaults", "type", "rejectionLog");
+    expectOnly(config, "hosts", "username", "pathToPassword", "secureConnection", "clientCertificate", "aws", "bulkRequestLimits", "docStructure", "typeDefaults", "type", "rejectionLog");
 
     final boolean secureConnection = config.getBoolean("secureConnection", () -> false);
 
     final AwsConfig aws = AwsConfig.from(config.getTableOrEmpty("aws"));
+    final ClientCertConfig clientCert = ClientCertConfig.from(config.getTableOrEmpty("clientCertificate"), "elasticsearch.clientCertificate");
 
     // Standard ES HTTP port is 9200. Amazon Elasticsearch Service listens on ports 80 & 443.
     final int defaultPort = aws.region().isEmpty() ? 9200 :
@@ -77,6 +81,7 @@ public interface ElasticsearchConfig {
         .password(readPassword(config, "elasticsearch", "pathToPassword"))
         .bulkRequest(BulkRequestConfig.from(config.getTableOrEmpty("bulkRequestLimits")))
         .aws(aws)
+        .clientCert(clientCert)
         .docStructure(DocStructureConfig.from(config.getTableOrEmpty("docStructure")));
 
     final TomlTable typeDefaults = config.getTableOrEmpty("typeDefaults");

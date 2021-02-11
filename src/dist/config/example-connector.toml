@@ -1,5 +1,8 @@
 # Introduction to TOML config file format:
 #   https://npf.io/2014/08/intro-to-toml/
+#
+# NOTE: Some properties in this file refer to filesystem paths.
+# The base for a relative path is the connector installation directory.
 
 # The work of replicating a Couchbase bucket may be distributed between
 # several connector worker processes, known collectively as a "group".
@@ -63,7 +66,6 @@
   username = 'Administrator'
 
   # Path to a separate TOML file with a single 'password' key.
-  # The base for a relative path is the connector installation directory.
   pathToPassword = 'secrets/couchbase-password.toml'
 
   # Optionally use SSL/TLS to encrypt the connection between Couchbase and
@@ -97,6 +99,21 @@
   scope = ''
   collections = []
 
+# When secure connections are enabled, you can optionally authenticate
+# using a client certificate instead of username & password.
+[couchbase.clientCertificate]
+  # Authenticate using client certificate? If true, the username
+  # and password configured in the [couchbase] section are ignored.
+  use = false
+
+  # Filesystem path to a Java keystore or PKCS12 bundle holding
+  # the private key and certificate chain.
+  path = 'path/to/couchbase-client-cert.p12'
+
+  # Filesystem path to a separate TOML file containing the password
+  # for the PKCS12 bundle.
+  pathToPassword = 'secrets/couchbase-client-cert-password.toml'
+
 # Options for the Couchbase Database Change Protocol (DCP).
 [couchbase.dcp]
   compression = true
@@ -108,13 +125,27 @@
   username = 'elastic'
 
   # Path to a separate TOML file with a single 'password' key.
-  # The base for a relative path is the connector installation directory.
   pathToPassword = 'secrets/elasticsearch-password.toml'
 
   # Optionally use SSL/TLS to encrypt the connection between Elasticsearch and
   # the connector. Requires the [truststore] section to be configured. See also:
   # https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html
   secureConnection = false
+
+# When secure connections are enabled, you can optionally authenticate
+# using a client certificate instead of username & password.
+[elasticsearch.clientCertificate]
+  # Authenticate using client certificate? If true, the username
+  # and password configured in the [elasticsearch] section are ignored.
+  use = false
+
+  # Filesystem path to a Java keystore or PKCS12 bundle holding
+  # the private key and certificate chain.
+  path = 'path/to/elasticsearch-client-cert.p12'
+
+  # Filesystem path to a separate TOML file containing the password
+  # for the PKCS12 bundle.
+  pathToPassword = 'secrets/elasticsearch-client-cert-password.toml'
 
 # If connecting directly to an Amazon Elasticsearch Service, specify the AWS region.
 # AWS credentials are obtained from the Default Credential Provider Chain.

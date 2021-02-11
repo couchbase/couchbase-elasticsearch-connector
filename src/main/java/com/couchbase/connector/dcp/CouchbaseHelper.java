@@ -19,6 +19,10 @@ package com.couchbase.connector.dcp;
 import com.couchbase.client.core.Core;
 import com.couchbase.client.core.config.BucketConfig;
 import com.couchbase.client.core.config.CouchbaseBucketConfig;
+import com.couchbase.client.core.env.Authenticator;
+import com.couchbase.client.core.env.CertificateAuthenticator;
+import com.couchbase.client.core.env.PasswordAuthenticator;
+import com.couchbase.client.core.env.SecurityConfig;
 import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.core.service.ServiceType;
 import com.couchbase.client.core.util.ConnectionString;
@@ -29,6 +33,7 @@ import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.Collection;
 import com.couchbase.client.java.env.ClusterEnvironment;
 import com.couchbase.connector.config.ScopeAndCollection;
+import com.couchbase.connector.config.common.ClientCertConfig;
 import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.couchbase.connector.util.SeedNodeHelper;
 import org.slf4j.Logger;
@@ -45,7 +50,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.couchbase.client.core.env.IoConfig.networkResolution;
-import static com.couchbase.client.core.env.SecurityConfig.enableTls;
 import static com.couchbase.client.core.env.TimeoutConfig.connectTimeout;
 import static com.couchbase.client.dcp.core.utils.CbCollections.setOf;
 import static com.couchbase.client.java.ClusterOptions.clusterOptions;
@@ -61,15 +65,17 @@ public class CouchbaseHelper {
     throw new AssertionError("not instantiable");
   }
 
-  public static ClusterEnvironment.Builder environmentBuilder(CouchbaseConfig config, Supplier<KeyStore> keystore) {
+  public static ClusterEnvironment.Builder environmentBuilder(CouchbaseConfig config, Supplier<KeyStore> trustStore) {
     final ClusterEnvironment.Builder envBuilder = ClusterEnvironment.builder()
         .ioConfig(networkResolution(config.network()))
         .timeoutConfig(connectTimeout(Duration.ofSeconds(10)));
 
     if (config.secureConnection()) {
-      envBuilder.securityConfig(enableTls(true)
+      envBuilder.securityConfig(SecurityConfig.builder()
+          .enableTls(true)
+          .trustStore(trustStore.get())
           .enableHostnameVerification(config.hostnameVerification())
-          .trustStore(keystore.get()));
+      );
     }
 
     return envBuilder;
@@ -112,8 +118,17 @@ public class CouchbaseHelper {
     hosts = qualifyPorts(hosts, ConnectionString.PortType.MANAGER);
 
     String connectionString = String.join(",", hosts);
-    return Cluster.connect(connectionString, clusterOptions(config.username(), config.password())
+    Authenticator authenticator = authenticator(config);
+
+    return Cluster.connect(connectionString, clusterOptions(authenticator)
         .environment(env));
+  }
+
+  private static Authenticator authenticator(CouchbaseConfig config) {
+    ClientCertConfig clientCert = config.clientCert();
+    return clientCert.use()
+        ? CertificateAuthenticator.fromKeyStore(clientCert.getKeyStore(), clientCert.password())
+        : PasswordAuthenticator.create(config.username(), config.password());
   }
 
   /**

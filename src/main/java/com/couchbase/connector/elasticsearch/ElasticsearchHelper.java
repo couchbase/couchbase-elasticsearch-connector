@@ -20,6 +20,7 @@ import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.http.AWSRequestSigningApacheInterceptor;
 import com.couchbase.client.dcp.util.Version;
+import com.couchbase.connector.config.common.ClientCertConfig;
 import com.couchbase.connector.config.common.TrustStoreConfig;
 import com.couchbase.connector.config.es.AwsConfig;
 import com.couchbase.connector.config.es.ElasticsearchConfig;
@@ -32,6 +33,7 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.client.Node;
@@ -43,10 +45,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
-import java.security.KeyManagementException;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -104,13 +104,14 @@ public class ElasticsearchHelper {
     }
   }
 
-  public static RestHighLevelClient newElasticsearchClient(ElasticsearchConfig elasticsearchConfig, TrustStoreConfig trustStoreConfig) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
+  public static RestHighLevelClient newElasticsearchClient(ElasticsearchConfig elasticsearchConfig, TrustStoreConfig trustStoreConfig) throws Exception {
     return newElasticsearchClient(
         elasticsearchConfig.hosts(),
         elasticsearchConfig.username(),
         elasticsearchConfig.password(),
         elasticsearchConfig.secureConnection(),
         trustStoreConfig,
+        elasticsearchConfig.clientCert(),
         elasticsearchConfig.aws(),
         elasticsearchConfig.bulkRequest().timeout());
   }
@@ -119,7 +120,7 @@ public class ElasticsearchHelper {
     return timeValue.timeUnit().toMillis(timeValue.duration());
   }
 
-  public static RestHighLevelClient newElasticsearchClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore, AwsConfig aws, TimeValue bulkRequestTimeout) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
+  public static RestHighLevelClient newElasticsearchClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore, ClientCertConfig clientCert, AwsConfig aws, TimeValue bulkRequestTimeout) throws Exception {
     final int connectTimeoutMillis = (int) SECONDS.toMillis(5);
     final int socketTimeoutMillis = (int) Math.max(SECONDS.toMillis(60), toMillis(bulkRequestTimeout) + SECONDS.toMillis(3));
     LOGGER.info("Elasticsearch client connect timeout = {}ms; socket timeout={}ms", connectTimeoutMillis, socketTimeoutMillis);
@@ -128,14 +129,14 @@ public class ElasticsearchHelper {
     credentialsProvider.setCredentials(AuthScope.ANY,
         new UsernamePasswordCredentials(username, password));
 
-    final SSLContext sslContext = !secureConnection ? null :
-        SSLContexts.custom().loadTrustMaterial(trustStore.get(), null).build();
+    final SSLContext sslContext = !secureConnection ? null : newSslContext(trustStore.get(), clientCert);
 
     final RestClientBuilder builder = RestClient.builder(Iterables.toArray(hosts, HttpHost.class))
         .setHttpClientConfigCallback(httpClientBuilder -> {
-          httpClientBuilder
-              .setSSLContext(sslContext)
-              .setDefaultCredentialsProvider(credentialsProvider);
+          httpClientBuilder.setSSLContext(sslContext);
+          if (!clientCert.use()) {
+            httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+          }
           awsSigner(aws).ifPresent(httpClientBuilder::addInterceptorLast);
           return httpClientBuilder;
         })
@@ -151,6 +152,25 @@ public class ElasticsearchHelper {
         });
 
     return new RestHighLevelClient(builder);
+  }
+
+  private static SSLContext newSslContext(KeyStore trustStore, ClientCertConfig clientCert) throws Exception {
+    SSLContextBuilder builder = SSLContexts.custom()
+        .loadTrustMaterial(trustStore, null);
+
+    if (clientCert.use()) {
+      String passwordString = clientCert.password();
+      char[] pw = passwordString == null ? null : passwordString.toCharArray();
+      try {
+        builder.loadKeyMaterial(clientCert.getKeyStore(), pw);
+      } finally {
+        if (pw != null) {
+          Arrays.fill(pw, '\0');
+        }
+      }
+    }
+
+    return builder.build();
   }
 
   private static Optional<HttpRequestInterceptor> awsSigner(AwsConfig config) {

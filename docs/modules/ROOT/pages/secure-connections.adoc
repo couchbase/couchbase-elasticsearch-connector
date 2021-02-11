@@ -88,7 +88,7 @@ Alternatively, the Amazon CA certificate may be downloaded from https://www.amaz
 [#trust-store]
 == Add Certificates to the Trust Store
 
-The connector's trust store is a Java keystore file containing the certificates the connector should trust.
+The connector's trust store is a Java keystore file or PKCS12 bundle containing the certificates the connector should trust.
 We'll use the Java `keytool` command to create a keystore and populate it with the root certificates for Couchbase and/or Elasticsearch.
 
 To add the Couchbase root certificate:

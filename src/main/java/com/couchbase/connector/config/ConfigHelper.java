@@ -139,6 +139,18 @@ public class ConfigHelper {
     }
   }
 
+  public static void require(TomlTable table, String parent, String... requiredKeys) {
+    final Set<String> required = new HashSet<>(Arrays.asList(requiredKeys));
+    final Set<String> present = table.keySet();
+    Set<String> missing = Sets.difference(required, present);
+    if (!missing.isEmpty()) {
+      final String key = missing.iterator().next();
+      throw new ConfigException("Missing config property '" + key + "' for " + parent +
+          "; required items in this context are: " + Arrays.toString(requiredKeys));
+    }
+  }
+
+
   public static String readPassword(TomlTable parent, String parentName, String keyName) {
     final String pathToPassword = parent.getString(keyName);
     if (pathToPassword == null) {

@@ -6,6 +6,9 @@ A description of the sections and properties defined in the sample connector con
 
 TIP: If this is your first time working with the TOML config file format, check out Nate Finch's excellent https://npf.io/2014/08/intro-to-toml/[Intro to TOML], or the https://github.com/toml-lang/toml[official specification].
 
+NOTE: Some configuration properties are filesystem paths.
+The base for a relative path is the connector installation directory.
+
 == Group Membership
 
 First, let's define some terminology:
@@ -72,21 +75,44 @@ The location and retention policy can be changed by editing `$CBES_HOME/config/l
 [#truststore]
 == Trust Store for Secure Connections
 
-This is where you tell the connector how to access the keystore containing the certificates to trust when establishing TLS/SSL connections.
+This is where you tell the connector which certificates to trust when establishing TLS/SSL connections.
 For more details, see xref:secure-connections.adoc[Setting Up Secure Connections].
 If you decide not to enable secure connections, you can ignore this section.
 
 [source,toml]
 ----
 [truststore]
-  path = 'path/to/truststore' <1>
-  pathToPassword = 'secrets/truststore-password.toml' <2>
+  path = 'path/to/truststore' # <1>
+  pathToPassword = 'secrets/truststore-password.toml' # <2>
 ----
-<1> The filesystem path to the keystore containing the CA certificates for the Couchbase and/or Elasticsearch clusters.
-The base for a relative path is the connector installation directory.
+<1> The filesystem path to the Java keystore containing the CA certificates for the Couchbase and/or Elasticsearch clusters.
 <2> Path to a separate TOML file with a single 'password' key.
-The base for a relative path is the connector installation directory.
 
+[#client-certificates]
+== Client Certificates
+
+WARNING: Support for client certificate authentication, also known as "mutual TLS authentication" (mTLS), was introduced in version 4.2.8 of the connector as an "uncommitted" feature; the configuration options described in this section may change without notice.
+
+If secure connections are enabled, you can optionally authenticate using a client certificate instead of a username and password.
+
+[source,toml]
+----
+[couchbase.clientCertificate]
+  use = false # <1>
+  path = 'path/to/couchbase-client-cert.p12' # <2>
+  pathToPassword = 'secrets/couchbase-client-cert-password.toml' # <3>
+
+[elasticsearch.clientCertificate] # <4>
+  use = false
+  path = 'path/to/elasticsearch-client-cert.p12'
+  pathToPassword = 'secrets/elasticsearch-client-cert-password.toml'
+
+----
+<1> Use a client certificate for authentication?
+If true, the username and password configured in the `[couchbase]` / `[elasticsearch]` section are ignored.
+<2> Filesystem path to a Java keystore or PKCS12 bundle holding the private key and certificate chain.
+<3> Filesystem path to a separate TOML file containing the password for the PKCS12 bundle.
+<4> The client certificates for Couchbase and Elasticsearch are configured separately.
 
 == Couchbase
 
@@ -123,7 +149,6 @@ This collection must already exist; it will not be created by the connector.
 Empty string means store metadata in the default collection: `_default._default`.
 <6> At a minimum, the Couchbase user must have the "Data DCP Reader" role for the source bucket, and "Data Reader" & "Data Writer" roles for the metadata bucket.
 <7> Path to a separate TOML file with a single 'password' key.
-The base for a relative path is the connector installation directory.
 <8> If you have configured the <<truststore,Trust Store>> section, set this to `true` to encrypt the Couchbase connections.
 <9> (Since 4.2.6; Uncommitted) Set this to `false` if you are using a secure connection to Couchbase but for whatever reason need to disable TLS hostname verification.
 Note that disabling hostname verification will cause the TLS connection to not verify that the hostname/ip is actually associated with the certificate and as a result not detect certain kinds of attacks.
@@ -181,7 +206,6 @@ Specify a custom port like `['host:19002']`.
 <2> Elasticsearch user to authenticate as.
 Username and password are only required if Elasticsearch is set up to require authentication.
 <3> Path to a separate TOML file with a single 'password' key.
-The base for a relative path is the connector installation directory.
 <4> If your Elasticsearch cluster requires secure connections, configure the <<truststore,Trust Store>> section and then set this to `true` to encrypt the Elasticsearch connections.
 
 === Amazon Elasticsearch Service

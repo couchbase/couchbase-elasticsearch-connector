@@ -17,7 +17,12 @@
 package com.couchbase.connector.dcp;
 
 import com.couchbase.client.core.env.SeedNode;
+import com.couchbase.client.dcp.Authenticator;
+import com.couchbase.client.dcp.CertificateAuthenticator;
 import com.couchbase.client.dcp.Client;
+import com.couchbase.client.dcp.PasswordAuthenticator;
+import com.couchbase.client.dcp.SecurityConfig;
+import com.couchbase.client.dcp.StaticCredentialsProvider;
 import com.couchbase.client.dcp.StreamFrom;
 import com.couchbase.client.dcp.StreamTo;
 import com.couchbase.client.dcp.config.DcpControl;
@@ -40,6 +45,7 @@ import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.Coordinator;
 import com.couchbase.connector.config.ScopeAndCollection;
 import com.couchbase.connector.config.common.CouchbaseConfig;
+import com.couchbase.connector.config.common.ClientCertConfig;
 import com.couchbase.connector.elasticsearch.Metrics;
 import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
@@ -89,7 +95,7 @@ public class DcpHelper {
     buffer.release();
   }
 
-  public static Client newClient(String groupName, CouchbaseConfig config, Set<SeedNode> kvNodes, Supplier<KeyStore> keystore) {
+  public static Client newClient(String groupName, CouchbaseConfig config, Set<SeedNode> kvNodes, Supplier<KeyStore> trustStore) {
 
     // ES connector bootstraps using Manager port, but the DCP client wants KV port.
     // Get the KV ports from the bucket config!
@@ -109,7 +115,7 @@ public class DcpHelper {
         .seedNodes(seedNodes)
         .networkResolution(NetworkResolution.valueOf(config.network().name()))
         .bucket(config.bucket())
-        .credentials(config.username(), config.password())
+        .authenticator(authenticator(config))
         .controlParam(DcpControl.Names.SET_NOOP_INTERVAL, 20)
         .compression(config.dcp().compression())
         .collectionsAware(true)
@@ -122,11 +128,21 @@ public class DcpHelper {
         .bufferAckWatermark(60);
 
     if (config.secureConnection()) {
-      builder.sslEnabled(true);
-      builder.sslKeystore(keystore.get());
+      builder.securityConfig(SecurityConfig.builder()
+          .enableTls(true)
+          .trustStore(trustStore.get())
+          .enableHostnameVerification(config.hostnameVerification())
+      );
     }
 
     return builder.build();
+  }
+
+  private static Authenticator authenticator(CouchbaseConfig config) {
+    ClientCertConfig clientCert = config.clientCert();
+    return clientCert.use()
+        ? CertificateAuthenticator.fromKeyStore(clientCert.getKeyStore(), clientCert.password())
+        : new PasswordAuthenticator(new StaticCredentialsProvider(config.username(), config.password()));
   }
 
   private static int toSaturatedInt(long value) {

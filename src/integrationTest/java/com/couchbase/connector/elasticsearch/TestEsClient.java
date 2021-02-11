@@ -39,9 +39,6 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -67,11 +64,11 @@ class TestEsClient implements AutoCloseable {
 
   private final RestHighLevelClient client;
 
-  public TestEsClient(ConnectorConfig config) throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
+  public TestEsClient(ConnectorConfig config) throws Exception {
     this.client = newElasticsearchClient(config.elasticsearch(), config.trustStore());
   }
 
-  public TestEsClient(String config) throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
+  public TestEsClient(String config) throws Exception {
     this(ConnectorConfig.from(config));
   }
 
