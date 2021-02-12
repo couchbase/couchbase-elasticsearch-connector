@@ -105,11 +105,11 @@ licenseReport {
 }
 
 // Prohibit snapshot dependencies unless we're building a snapshot
-build.doFirst {
-  if (!version.endsWith("SNAPSHOT")) {
-    project.configurations.compile.each {
-      if (it.toString().contains("SNAPSHOT")) {
-        throw new Exception("Can't release with SNAPSHOT dependency: " + it)
+if (!version.endsWith("SNAPSHOT")) {
+  configurations.all {
+    resolutionStrategy.eachDependency { details ->
+      if (details.requested.version.endsWith("-SNAPSHOT")) {
+        throw new GradleException("Can't release with SNAPSHOT dependency: $details.requested")
       }
     }
   }
