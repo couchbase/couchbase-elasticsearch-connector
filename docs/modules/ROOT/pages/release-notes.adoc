@@ -13,7 +13,7 @@ Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
 https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.8/couchbase-elasticsearch-connector-4.2.8.zip[Download]
 
-This release adds uncommitted support for certificate authentication (mTLS), and improves the stability of the connector.
+This release adds uncommitted support for certificate authentication (mTLS), adds hostname verification for secure DCP connections, and improves the stability of the connector.
 
 === Enhancements
 
@@ -31,6 +31,9 @@ Upgraded to Couchbase Java SDK from 3.1.0 to 3.1.2.
 
 * https://issues.couchbase.com/browse/CBES-188[CBES-188]:
 Upgraded the DCP client from 0.31.0 to 0.32.0.
+
+* https://issues.couchbase.com/browse/JDCP-188[JDCP-188]:
+Previously, TLS hostname verification was done only for the Couchbase Java client connection; now the DCP client connection is verified as well.
 
 === Bug Fixes
 
