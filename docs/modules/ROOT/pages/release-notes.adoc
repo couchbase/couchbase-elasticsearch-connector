@@ -8,6 +8,38 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.2.8]]
+== Version 4.2.8 (2021-02-16)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.8/couchbase-elasticsearch-connector-4.2.8.zip[Download]
+
+This release adds uncommitted support for certificate authentication (mTLS), and improves the stability of the connector.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-183[CBES-183]:
+When secure connections are enabled, it is now possible to authenticate with Couchbase and/or Elasticsearch using an X.509 certificate instead of a username & password.
+See the https://docs.couchbase.com/elasticsearch-connector/current/configuration.html#client-certificates[Client Certificates documentation] for details.
+(This feature is added as "uncommitted", meaning it may change without notice.)
+
+* https://issues.couchbase.com/browse/CBES-187[CBES-187]:
+Errors during an early phase of connector startup were written to the console instead of being logged.
+Now these errors will appear in the log as well.
+
+* https://issues.couchbase.com/browse/CBES-189[CBES-189]:
+Upgraded to Couchbase Java SDK from 3.1.0 to 3.1.2.
+
+* https://issues.couchbase.com/browse/CBES-188[CBES-188]:
+Upgraded the DCP client from 0.31.0 to 0.32.0.
+
+=== Bug Fixes
+
+** https://issues.couchbase.com/browse/JDCP-183[JDCP-183]:
+If an invalid stream offset is detected, the connector will now fail fast instead of potentially corrupting the saved checkpoint.
+
+** https://issues.couchbase.com/browse/JDCP-184[JDCP-184]:
+Resolved an issue that could cause a flow control deadlock when streaming from a subset of a bucket's collections or scopes.
+
 [[v4.2.7]]
 == Version 4.2.7 (2021-01-19)
 
