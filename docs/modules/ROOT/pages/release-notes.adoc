@@ -13,7 +13,7 @@ Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
 https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.8/couchbase-elasticsearch-connector-4.2.8.zip[Download]
 
-This release adds uncommitted support for certificate authentication (mTLS), adds hostname verification for secure DCP connections, and improves the stability of the connector.
+This release adds uncommitted support for client certificate authentication (mTLS), adds hostname verification for secure DCP connections, and improves the stability of the connector.
 
 === Enhancements
 
