@@ -117,17 +117,15 @@ public class BasicReplicationTest {
     // This list is informed by https://www.elastic.co/support/eol
     // If possible, we also want to support the last minor of every major (like 5.6.16).
     final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "7.7.0",
+        "7.11.1",
+        "7.10.1",
+        "7.9.3",
+        "7.8.1",
+        "7.7.1",
         "7.6.2",
         "7.5.2",
         "7.4.2",
-        "7.3.2",
-        "7.2.1",
-        "7.1.1",
-        "7.0.1",
-        "6.8.6",
-        "6.7.2",
-        "6.6.2",
+        "6.8.14",
         "5.6.16"
     ));
 
