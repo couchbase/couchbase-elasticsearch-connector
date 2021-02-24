@@ -25,10 +25,12 @@ import com.couchbase.connector.elasticsearch.io.EventRejectionIndexRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static java.time.temporal.ChronoUnit.MICROS;
 import static java.util.Collections.emptyMap;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -67,7 +69,7 @@ public class DocumentLifecycle {
       details.put("partition", event.getVbucket());
       details.put("sequenceNumber", event.getSeqno());
       details.put("assignedToWorker", worker);
-      details.put("millisSinceCouchbaseChange(might be inaccurate before Couchbase 7)", System.currentTimeMillis() - event.getChange().getTimestamp().toEpochMilli());
+      details.put("usSinceCouchbaseChange(might be inaccurate before Couchbase 7)", event.getChange().getTimestamp().until(Instant.now(), MICROS));
       logMilestone(event, Milestone.RECEIVED_FROM_COUCHBASE, details);
     }
   }
@@ -145,7 +147,7 @@ public class DocumentLifecycle {
       message.put("tracingToken", event.getTracingToken());
       message.put("documentId", event.getKey(true));
       message.putAll(milestoneDetails);
-      message.put("millisSinceReceipt", NANOSECONDS.toMillis(System.nanoTime() - event.getReceivedNanos()));
+      message.put("usSinceReceipt", NANOSECONDS.toMicros(System.nanoTime() - event.getReceivedNanos()));
       log.debug(Mapper.encodeAsString(message));
     }
   }
