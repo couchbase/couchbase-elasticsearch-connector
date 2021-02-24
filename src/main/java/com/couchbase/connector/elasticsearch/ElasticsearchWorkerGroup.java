@@ -61,6 +61,7 @@ public class ElasticsearchWorkerGroup implements Closeable {
   public void submit(Event e) {
     // Events for the same document ID must always be handled by the same worker.
     final int workerIndex = e.getVbucket() % workers.size();
+    DocumentLifecycle.logReceivedFromCouchbase(e, workerIndex);
     workers.get(workerIndex).submit(e);
   }
 

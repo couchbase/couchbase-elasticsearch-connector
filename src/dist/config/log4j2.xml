@@ -52,6 +52,9 @@
             <AppenderRef ref="Metrics"/>
         </Logger>
 
+        <!-- Change level to "debug" to follow each document's path through the connector -->
+        <Logger name="com.couchbase.connector.elasticsearch.DocumentLifecycle" level="info"/>
+
         <!-- Suppress document type deprecation warnings issued by Elasticsearch 7 -->
         <Logger name="org.elasticsearch.client.RestClient">
             <RegexFilter regex=".*\[types removal].*" onMatch="DENY" onMismatch="NEUTRAL"/>

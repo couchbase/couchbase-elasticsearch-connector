@@ -20,6 +20,7 @@ import com.couchbase.connector.config.es.BulkRequestConfig;
 import com.couchbase.connector.dcp.Checkpoint;
 import com.couchbase.connector.dcp.CheckpointService;
 import com.couchbase.connector.dcp.Event;
+import com.couchbase.connector.elasticsearch.DocumentLifecycle;
 import com.couchbase.connector.elasticsearch.ErrorListener;
 import com.couchbase.connector.elasticsearch.Metrics;
 import com.couchbase.connector.util.ThrowableHelper;
@@ -183,6 +184,7 @@ public class ElasticsearchWriter implements Closeable {
     bufferBytes += request.estimatedSizeInBytes();
     final EventDocWriteRequest evicted = buffer.put(event.getKey(), request);
     if (evicted != null) {
+      DocumentLifecycle.logSkippedBecauseNewerVersionReceived(evicted.getEvent());
       bufferBytes -= evicted.estimatedSizeInBytes();
       evicted.getEvent().release();
     }
@@ -250,6 +252,8 @@ public class ElasticsearchWriter implements Closeable {
           return;
         }
 
+        DocumentLifecycle.logEsWriteStarted(requests, attemptCounter);
+
         if (attemptCounter == 1) {
           LOGGER.debug("Bulk request attempt #{}", attemptCounter++);
         } else {
@@ -278,6 +282,7 @@ public class ElasticsearchWriter implements Closeable {
 
             if (failure == null) {
               updateLatencyMetrics(e, nowNanos);
+              DocumentLifecycle.logEsWriteSucceeded(request);
               e.release();
               continue;
             }
@@ -285,6 +290,7 @@ public class ElasticsearchWriter implements Closeable {
             if (isRetryable(failure)) {
               retryReporter.add(e, failure);
               requestsToRetry.add(request);
+              DocumentLifecycle.logEsWriteFailedWillRetry(request);
               continue;
             }
 
@@ -298,6 +304,7 @@ public class ElasticsearchWriter implements Closeable {
             } else {
               LOGGER.warn("Permanent failure to index event {}; status code: {} {}", redactUser(e), failure.getStatus(), failure.getMessage());
               Metrics.rejectionCounter().increment();
+              DocumentLifecycle.logEsWriteRejected(request, failure.getStatus().getStatus(), failure.getMessage());
 
               // don't release event; the request factory assumes ownership
               final EventRejectionIndexRequest rejectionLogRequest = requestFactory.newRejectionLogRequest(request, failure);

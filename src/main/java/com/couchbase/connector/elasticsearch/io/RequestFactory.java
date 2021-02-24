@@ -20,6 +20,7 @@ import com.couchbase.connector.config.es.DocStructureConfig;
 import com.couchbase.connector.config.es.RejectLogConfig;
 import com.couchbase.connector.config.es.TypeConfig;
 import com.couchbase.connector.dcp.Event;
+import com.couchbase.connector.elasticsearch.DocumentLifecycle;
 import com.couchbase.connector.elasticsearch.Metrics;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
@@ -88,13 +89,27 @@ public class RequestFactory {
     // but Couchbase IDs are never longer than 250 bytes.
 
     final MatchResult matchResult = match(e);
-    if (matchResult == null || matchResult.typeConfig().ignore()) {
+    if (matchResult == null) {
+      DocumentLifecycle.logSkippedBecauseMatchedNoRules(e);
       return null; // skip it!
     }
+    if (matchResult.typeConfig().ignore()) {
+      DocumentLifecycle.logSkippedBecauseMatchedIgnoredType(e, matchResult.typeConfig());
+      return null; // skip it!
+    }
+
+    DocumentLifecycle.logMatchedTypeRule(e, matchResult.index(), matchResult.typeConfig());
+
     if (e.isMutation()) {
       return newIndexRequest(e, matchResult);
     }
-    return matchResult.typeConfig().ignoreDeletes() ? null : newDeleteRequest(e, matchResult);
+
+    if (matchResult.typeConfig().ignoreDeletes()) {
+      DocumentLifecycle.logSkippedBecauseRuleSaysIgnoreDeletes(e);
+      return null; // skip it!
+    }
+
+    return newDeleteRequest(e, matchResult);
   }
 
   @Nullable

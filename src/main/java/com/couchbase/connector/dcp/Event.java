@@ -20,12 +20,17 @@ import com.couchbase.client.dcp.highlevel.DocumentChange;
 import com.couchbase.client.dcp.highlevel.Mutation;
 import com.couchbase.client.dcp.highlevel.StreamOffset;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import static java.util.Objects.requireNonNull;
 
 public class Event {
+  private static final AtomicLong nextTracingToken = new AtomicLong();
+
   private final DocumentChange change;
   private final boolean mutation;
   private final long receivedNanos = System.nanoTime();
+  private final long tracingToken = nextTracingToken.getAndIncrement();
 
   public Event(DocumentChange change) {
     this.change = requireNonNull(change);
@@ -57,6 +62,13 @@ public class Event {
 
   public long getReceivedNanos() {
     return receivedNanos;
+  }
+
+  /**
+   * Returns a tracing token for correlating lifecycle log messages.
+   */
+  public long getTracingToken() {
+    return tracingToken;
   }
 
   /**

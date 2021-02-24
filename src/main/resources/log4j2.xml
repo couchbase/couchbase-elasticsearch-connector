@@ -13,6 +13,10 @@
         <Root level="info">
             <AppenderRef ref="Console"/>
         </Root>
+
+        <!-- Change level to "debug" to follow each document's path through the connector -->
+        <Logger name="com.couchbase.connector.elasticsearch.DocumentLifecycle" level="info"/>
+
         <!--<Logger name="org.testcontainers" level="trace"/>-->
     </Loggers>
 </Configuration>
