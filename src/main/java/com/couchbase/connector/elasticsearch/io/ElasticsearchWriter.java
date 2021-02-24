@@ -179,11 +179,22 @@ public class ElasticsearchWriter implements Closeable {
       }
     }
 
+    bufferBytes += request.estimatedSizeInBytes();
+
+    // Ensure every (documentID, dest index) pair is unique within a batch.
     // Do this *after* skipping unrecognized / ignored events, so that
     // an ignored deletion does not evict a previously buffered mutation.
-    bufferBytes += request.estimatedSizeInBytes();
-    final EventDocWriteRequest evicted = buffer.put(event.getKey(), request);
+    final EventDocWriteRequest evicted = buffer.put(event.getKey() + '\0' + request.index(), request);
     if (evicted != null) {
+      String qualifiedDocId = event.getKey(true);
+      String evictedQualifiedDocId = evicted.getEvent().getKey(true);
+      if (!qualifiedDocId.equals(evictedQualifiedDocId)) {
+        LOGGER.warn("DOCUMENT ID COLLISION DETECTED:" +
+                " Documents '{}' and '{}' are from different collections" +
+                " but have the same destination index '{}'.",
+            qualifiedDocId, evictedQualifiedDocId, request.index());
+      }
+
       DocumentLifecycle.logSkippedBecauseNewerVersionReceived(evicted.getEvent(), event.getTracingToken());
       bufferBytes -= evicted.estimatedSizeInBytes();
       evicted.getEvent().release();
