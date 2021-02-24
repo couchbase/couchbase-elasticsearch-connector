@@ -101,8 +101,12 @@ public class DocumentLifecycle {
     logMilestone(event, Milestone.SKIPPED_BECAUSE_RULE_SAYS_IGNORE_DELETES);
   }
 
-  public static void logSkippedBecauseNewerVersionReceived(Event event) {
-    logMilestone(event, Milestone.SKIPPED_BECAUSE_NEWER_VERSION_RECEIVED);
+  public static void logSkippedBecauseNewerVersionReceived(Event event, long newerVersionTracingToken) {
+    if (log.isDebugEnabled()) {
+      LinkedHashMap<String, Object> details = new LinkedHashMap<>();
+      details.put("newerVersionTracingToken", newerVersionTracingToken);
+      logMilestone(event, Milestone.SKIPPED_BECAUSE_NEWER_VERSION_RECEIVED, details);
+    }
   }
 
   public static void logEsWriteStarted(List<EventDocWriteRequest> requests, int attemptCounter) {
@@ -110,7 +114,9 @@ public class DocumentLifecycle {
       LinkedHashMap<String, Object> details = new LinkedHashMap<>();
       details.put("attempt", attemptCounter);
       for (EventDocWriteRequest request : requests) {
-        logMilestone(request.getEvent(), Milestone.ELASTICSEARCH_WRITE_STARTED, details);
+        if (shouldLog(request)) { // filter out EventRejectionIndexRequest
+          logMilestone(request.getEvent(), Milestone.ELASTICSEARCH_WRITE_STARTED, details);
+        }
       }
     }
   }

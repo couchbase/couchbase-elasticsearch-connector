@@ -184,7 +184,7 @@ public class ElasticsearchWriter implements Closeable {
     bufferBytes += request.estimatedSizeInBytes();
     final EventDocWriteRequest evicted = buffer.put(event.getKey(), request);
     if (evicted != null) {
-      DocumentLifecycle.logSkippedBecauseNewerVersionReceived(evicted.getEvent());
+      DocumentLifecycle.logSkippedBecauseNewerVersionReceived(evicted.getEvent(), event.getTracingToken());
       bufferBytes -= evicted.estimatedSizeInBytes();
       evicted.getEvent().release();
     }
