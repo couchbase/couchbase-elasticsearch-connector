@@ -17,6 +17,7 @@
 package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.client.core.json.Mapper;
+import com.couchbase.client.dcp.metrics.LogLevel;
 import com.couchbase.connector.config.es.TypeConfig;
 import com.couchbase.connector.dcp.DcpHelper;
 import com.couchbase.connector.dcp.Event;
@@ -56,6 +57,12 @@ public class DocumentLifecycle {
   }
 
   private static final Logger log = LoggerFactory.getLogger(DocumentLifecycle.class);
+  private static volatile LogLevel logLevel = LogLevel.DEBUG;
+
+  public static void setLogLevel(LogLevel level) {
+    logLevel = level;
+    log.info("Document lifecycle milestones will be logged to this category at {} level.", level);
+  }
 
   private DocumentLifecycle() {
     throw new AssertionError("not instantiable");
@@ -102,7 +109,7 @@ public class DocumentLifecycle {
   }
 
   public static void logSkippedBecauseNewerVersionReceived(Event event, long newerVersionTracingToken) {
-    if (log.isDebugEnabled()) {
+    if (logLevel.isEnabled(log)) {
       LinkedHashMap<String, Object> details = new LinkedHashMap<>();
       details.put("newerVersionTracingToken", newerVersionTracingToken);
       logMilestone(event, Milestone.SKIPPED_BECAUSE_NEWER_VERSION_RECEIVED, details);
@@ -110,7 +117,7 @@ public class DocumentLifecycle {
   }
 
   public static void logEsWriteStarted(List<EventDocWriteRequest> requests, int attemptCounter) {
-    if (log.isDebugEnabled()) {
+    if (logLevel.isEnabled(log)) {
       LinkedHashMap<String, Object> details = new LinkedHashMap<>();
       details.put("attempt", attemptCounter);
       for (EventDocWriteRequest request : requests) {
@@ -154,12 +161,12 @@ public class DocumentLifecycle {
       message.put("documentId", event.getKey(true));
       message.putAll(milestoneDetails);
       message.put("usSinceReceipt", NANOSECONDS.toMicros(System.nanoTime() - event.getReceivedNanos()));
-      log.debug(Mapper.encodeAsString(message));
+      logLevel.log(log, Mapper.encodeAsString(message));
     }
   }
 
   private static boolean shouldLog(Event event) {
-    return log.isDebugEnabled() && !DcpHelper.isMetadata(event);
+    return logLevel.isEnabled(log) && !DcpHelper.isMetadata(event);
   }
 
   private static boolean shouldLog(EventDocWriteRequest request) {

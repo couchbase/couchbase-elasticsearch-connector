@@ -19,6 +19,7 @@ package com.couchbase.connector.config.es;
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.couchbase.connector.config.common.GroupConfig;
+import com.couchbase.connector.config.common.LoggingConfig;
 import com.couchbase.connector.config.common.MetricsConfig;
 import com.couchbase.connector.config.common.TrustStoreConfig;
 import net.consensys.cava.toml.Toml;
@@ -40,6 +41,8 @@ public interface ConnectorConfig {
 
   ElasticsearchConfig elasticsearch();
 
+  LoggingConfig logging();
+
   MetricsConfig metrics();
 
   GroupConfig group();
@@ -51,11 +54,12 @@ public interface ConnectorConfig {
       throw new ConfigException("Config syntax error: " + config.errors());
     }
 
-    expectOnly(config, "couchbase", "elasticsearch", "metrics", "group", "truststore");
+    expectOnly(config, "couchbase", "elasticsearch", "logging", "metrics", "group", "truststore");
 
     return ImmutableConnectorConfig.builder()
         .couchbase(CouchbaseConfig.from(config.getTableOrEmpty("couchbase")))
         .elasticsearch(ElasticsearchConfig.from(config.getTableOrEmpty("elasticsearch")))
+        .logging(LoggingConfig.from(config.getTableOrEmpty("logging")))
         .metrics(MetricsConfig.from(config.getTableOrEmpty("metrics")))
         .group(GroupConfig.from(config.getTableOrEmpty("group")))
         .trustStore(TrustStoreConfig.from(config.getTableOrEmpty("truststore")))

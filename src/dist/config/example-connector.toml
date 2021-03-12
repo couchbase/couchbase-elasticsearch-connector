@@ -31,6 +31,19 @@
   # and finally start all the workers again.
   totalMembers = 1
 
+[logging]
+  # If true, document lifecycle milestones will be logged at INFO level
+  # instead of DEBUG. Enabling this feature lets you watch documents
+  # flow through the connector without having to edit the Log4j config file.
+  # Disabled by default because it generates many log messages.
+  logDocumentLifecycle = false
+
+  # Determines which kinds of sensitive log messages from the Couchbase connector
+  # will be tagged for later redaction by the Couchbase log redaction tool.
+  # NONE = no tagging; PARTIAL = user data is tagged; FULL = user, meta, and system data is tagged.
+  # Defaults to NONE.
+  redactionLevel = 'NONE'
+
 # Performance metrics may be written to a log file and/or exposed via HTTP.
 [metrics]
   httpPort = 31415 # Positive = fixed, 0 = ephemeral, -1 = disable HTTP server

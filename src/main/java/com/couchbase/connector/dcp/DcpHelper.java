@@ -17,6 +17,7 @@
 package com.couchbase.connector.dcp;
 
 import com.couchbase.client.core.env.SeedNode;
+import com.couchbase.client.core.logging.RedactionLevel;
 import com.couchbase.client.dcp.Authenticator;
 import com.couchbase.client.dcp.CertificateAuthenticator;
 import com.couchbase.client.dcp.Client;
@@ -243,5 +244,21 @@ public class DcpHelper {
       allPartitions.add(i);
     }
     return allPartitions;
+  }
+
+  public static void setRedactionLevel(RedactionLevel redactionLevel) {
+    switch (redactionLevel) {
+      case NONE:
+        com.couchbase.client.dcp.core.logging.RedactionLevel.set(com.couchbase.client.dcp.core.logging.RedactionLevel.NONE);
+        break;
+      case PARTIAL:
+        com.couchbase.client.dcp.core.logging.RedactionLevel.set(com.couchbase.client.dcp.core.logging.RedactionLevel.PARTIAL);
+        break;
+      case FULL:
+        com.couchbase.client.dcp.core.logging.RedactionLevel.set(com.couchbase.client.dcp.core.logging.RedactionLevel.FULL);
+        break;
+      default:
+        throw new IllegalArgumentException("Don't know how to map redaction level '" + redactionLevel + "' to DCP redaction level.");
+    }
   }
 }

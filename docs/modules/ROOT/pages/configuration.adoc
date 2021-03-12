@@ -56,6 +56,27 @@ Each member in the group must be assigned a unique member number.
 
 TIP: To safely add or remove workers from a static group, first stop all running workers, then reconfigure them with the new 'totalMembers' value, and finally start all the workers again.
 
+== Logging
+
+The connector's log output is controlled by the `log4j2.xml` file in the `config` directory.
+Please see the https://logging.apache.org/log4j/2.x/manual/configuration.html[Log4j 2 configuration reference] for more information, including how to activate https://logging.apache.org/log4j/2.x/manual/configuration.html#AutomaticReconfiguration[Automatic Reconfiguration].
+
+The connector config file has additional options for controlling higher-level logging features:
+
+[source,toml]
+----
+[logging]
+  logDocumentLifecycle = false <1>
+  redactionLevel = 'NONE' <2>
+----
+<1> If true, document lifecycle milestones will be logged at INFO level instead of DEBUG.
+Enabling this feature lets you watch documents flow through the connector without having to edit the Log4j config file.
+Disabled by default because it generates many log messages.
+<2> Determines which kinds of sensitive log messages will be tagged for later redaction by the Couchbase log redaction tool.
+`NONE` = no tagging; `PARTIAL` = user data is tagged; `FULL` = user, meta, and system data is tagged.
+Defaults to `NONE`.
+
+
 == Metrics
 
 Performance metrics may be written to a log file and/or exposed via HTTP to enable external monitoring.

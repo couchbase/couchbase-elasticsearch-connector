@@ -195,4 +195,18 @@ public class ConfigHelper {
   public static String resolveVariables(InputStream is) throws IOException {
     return resolveVariables(new String(ByteStreams.toByteArray(is), UTF_8));
   }
+
+  public static <T extends Enum<T>> Optional<T> getEnum(TomlTable table, String keyName, Class<T> enumClass) {
+    String s = table.getString(keyName);
+    if (s == null || s.isEmpty()) {
+      return Optional.empty();
+    }
+    try {
+      return Optional.of((T) Enum.valueOf((Class) enumClass, s));
+    } catch (IllegalArgumentException e) {
+      throw new ConfigException("Unrecognized value '" + s + "' for '" + keyName + "' at " + table.inputPositionOf(keyName)
+          + "; expected one of " + Arrays.toString(enumClass.getEnumConstants()));
+    }
+  }
+
 }

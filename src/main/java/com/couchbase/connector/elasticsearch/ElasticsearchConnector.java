@@ -18,9 +18,11 @@ package com.couchbase.connector.elasticsearch;
 
 import com.codahale.metrics.Slf4jReporter;
 import com.couchbase.client.core.env.SeedNode;
+import com.couchbase.client.core.logging.LogRedaction;
 import com.couchbase.client.dcp.Client;
 import com.couchbase.client.dcp.StreamFrom;
 import com.couchbase.client.dcp.StreamTo;
+import com.couchbase.client.dcp.metrics.LogLevel;
 import com.couchbase.client.dcp.util.Version;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
@@ -125,6 +127,10 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       } else {
         LOGGER.info("Metrics HTTP server is disabled. Edit the [metrics] 'httpPort' config property to enable.");
       }
+
+      DocumentLifecycle.setLogLevel(config.logging().logDocumentLifecycle() ? LogLevel.INFO : LogLevel.DEBUG);
+      LogRedaction.setRedactionLevel(config.logging().redactionLevel());
+      DcpHelper.setRedactionLevel(config.logging().redactionLevel());
 
       final ClusterEnvironment env = CouchbaseHelper.environmentBuilder(config.couchbase(), config.trustStore()).build();
       final Cluster cluster = CouchbaseHelper.createCluster(config.couchbase(), env);
