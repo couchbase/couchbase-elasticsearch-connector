@@ -69,10 +69,10 @@ The connector config file has additional options for controlling higher-level lo
   logDocumentLifecycle = false <1>
   redactionLevel = 'NONE' <2>
 ----
-<1> If true, document lifecycle milestones will be logged at INFO level instead of DEBUG.
+<1> (Since 4.2.9; Uncommitted) If true, document lifecycle milestones will be logged at INFO level instead of DEBUG.
 Enabling this feature lets you watch documents flow through the connector without having to edit the Log4j config file.
 Disabled by default because it generates many log messages.
-<2> Determines which kinds of sensitive log messages will be tagged for later redaction by the Couchbase log redaction tool.
+<2> (Since 4.2.9; Uncommitted) Determines which kinds of sensitive log messages will be tagged for later redaction by the Couchbase log redaction tool.
 `NONE` = no tagging; `PARTIAL` = user data is tagged; `FULL` = user, meta, and system data is tagged.
 Defaults to `NONE`.
 
