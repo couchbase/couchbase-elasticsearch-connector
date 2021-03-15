@@ -12,14 +12,12 @@ apply plugin: 'application'
 repositories {
   mavenCentral()
   maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
-  //jcenter() // for testcontainers release candidate
-  //maven { url 'https://jitpack.io' } // for testcontainers snapshot
 }
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-version = "4.2.9-SNAPSHOT"
+version = "4.2.9"
 
 // https://github.com/unbroken-dome/gradle-testsets-plugin
 testSets {

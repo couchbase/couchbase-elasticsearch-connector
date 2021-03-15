@@ -8,6 +8,31 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.2.9]]
+== Version 4.2.9 (2021-03-16)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.9/couchbase-elasticsearch-connector-4.2.9.zip[Download]
+
+This release improves diagnostic logging and fixes an issue with scopes & collections.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-192[CBES-192]:
+When the new `logDocumentLifecycle` config property is set to true in the https://docs.couchbase.com/elasticsearch-connector/4.2/configuration.html#logging[logging] section, the connector writes detailed log entries as each document flows through the connector.
+
+* https://issues.couchbase.com/browse/CBES-198[CBES-198]:
+Log redaction is now configurable via the new `redactionLevel` config property in the https://docs.couchbase.com/elasticsearch-connector/4.2/configuration.html#logging[logging] section.
+
+* https://issues.couchbase.com/browse/CBES-199[CBES-199]:
+Upgraded the DCP client from 0.32.0 to 0.33.0.
+
+=== Bug Fixes
+
+* https://issues.couchbase.com/browse/CBES-193[CBES-193]:
+If two documents in different collections had the same ID, and both were processed by the connector in the same batch, one would be incorrectly flagged as a duplicate and dropped, even if it had a different destination index.
+With this fix, documents are never considered duplicates if they have different destination indexes.
+_This issue only affected users experimenting with the Scopes & Collections feature._
+
 [[v4.2.8]]
 == Version 4.2.8 (2021-02-16)
 
