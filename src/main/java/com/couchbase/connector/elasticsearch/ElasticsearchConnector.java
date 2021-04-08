@@ -120,14 +120,6 @@ public class ElasticsearchConnector extends AbstractCliCommand {
          HttpServer httpServer = new HttpServer(config.metrics().httpPort());
          RestHighLevelClient esClient = newElasticsearchClient(config.elasticsearch(), config.trustStore())) {
 
-      httpServer.start();
-      if (config.metrics().httpPort() >= 0) {
-        LOGGER.info("Prometheus metrics available at http://localhost:{}/metrics/prometheus", httpServer.getBoundPort());
-        LOGGER.info("Dropwizard metrics available at http://localhost:{}/metrics/dropwizard?pretty", httpServer.getBoundPort());
-      } else {
-        LOGGER.info("Metrics HTTP server is disabled. Edit the [metrics] 'httpPort' config property to enable.");
-      }
-
       DocumentLifecycle.setLogLevel(config.logging().logDocumentLifecycle() ? LogLevel.INFO : LogLevel.DEBUG);
       LogRedaction.setRedactionLevel(config.logging().redactionLevel());
       DcpHelper.setRedactionLevel(config.logging().redactionLevel());
@@ -215,6 +207,18 @@ public class ElasticsearchConnector extends AbstractCliCommand {
           ThrowableHelper.propagateCauseIfPossible(e, InterruptedException.class);
           throw e;
         }
+
+        // Start HTTP server *after* other setup is complete, so the metrics endpoint
+        // can be used as a "successful startup" probe.
+        httpServer.start();
+        if (config.metrics().httpPort() >= 0) {
+          LOGGER.info("Prometheus metrics available at http://localhost:{}/metrics/prometheus", httpServer.getBoundPort());
+          LOGGER.info("Dropwizard metrics available at http://localhost:{}/metrics/dropwizard?pretty", httpServer.getBoundPort());
+        } else {
+          LOGGER.info("Metrics HTTP server is disabled. Edit the [metrics] 'httpPort' config property to enable.");
+        }
+
+        LOGGER.info("Elasticsearch connector startup complete.");
 
         fatalError = workers.awaitFatalError();
         LOGGER.error("Terminating due to fatal error from worker", fatalError);
