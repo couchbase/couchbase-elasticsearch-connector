@@ -112,7 +112,7 @@ public class DcpHelper {
     final Client.Builder builder = Client.builder()
         .meterRegistry(Metrics.registry())
         .userAgent("elasticsearch-connector", VersionHelper.getVersion(), groupName)
-        .connectTimeout(config.dcp().connectTimeout().millis())
+        .bootstrapTimeout(Duration.ofMillis(config.dcp().connectTimeout().millis()))
         .seedNodes(seedNodes)
         .networkResolution(NetworkResolution.valueOf(config.network().name()))
         .bucket(config.bucket())
