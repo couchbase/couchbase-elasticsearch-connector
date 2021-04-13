@@ -133,6 +133,14 @@
   flowControlBuffer = '128mb'
   persistencePollingInterval = '100ms'
 
+# Custom environment settings for the Couchbase client.
+# Property name reference:
+#   https://docs.couchbase.com/java-sdk/current/ref/client-settings.html#configuration-options
+[couchbase.env]
+  # Omit the "com.couchbase.env." prefix when specifying a property here.
+  # For example, to set the "com.couchbase.env.timeout.kvTimeout" property:
+  #   timeout.kvTimeout = '2.5s'
+
 [elasticsearch]
   hosts = ['localhost']
   username = 'elastic'

@@ -19,8 +19,11 @@ package com.couchbase.connector.dcp;
 import com.couchbase.client.core.Core;
 import com.couchbase.client.core.config.BucketConfig;
 import com.couchbase.client.core.config.CouchbaseBucketConfig;
+import com.couchbase.client.core.env.AbstractMapPropertyLoader;
 import com.couchbase.client.core.env.Authenticator;
 import com.couchbase.client.core.env.CertificateAuthenticator;
+import com.couchbase.client.core.env.CoreEnvironment;
+import com.couchbase.client.core.env.IoEnvironment;
 import com.couchbase.client.core.env.PasswordAuthenticator;
 import com.couchbase.client.core.env.SecurityConfig;
 import com.couchbase.client.core.env.SeedNode;
@@ -32,6 +35,7 @@ import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.Collection;
 import com.couchbase.client.java.env.ClusterEnvironment;
+import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.ScopeAndCollection;
 import com.couchbase.connector.config.common.ClientCertConfig;
 import com.couchbase.connector.config.common.CouchbaseConfig;
@@ -42,8 +46,10 @@ import reactor.core.publisher.Mono;
 
 import java.security.KeyStore;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -78,7 +84,38 @@ public class CouchbaseHelper {
       );
     }
 
+    applyCustomEnvironmentProperties(envBuilder, config);
+
     return envBuilder;
+  }
+
+  private static void applyCustomEnvironmentProperties(ClusterEnvironment.Builder envBuilder, CouchbaseConfig config) {
+    // Begin workaround for IoEnvironment config.
+    // Prior to Java client 3.1.5, IoEnvironment isn't configurable
+    // via system properties. Until then, handle it manually.
+    Map<String, String> envProps = new HashMap<>(config.env());
+    IoEnvironment.Builder ioEnvBuilder = IoEnvironment.builder();
+    String nativeIoEnabled = envProps.remove("ioEnvironment.enableNativeIo");
+    if (nativeIoEnabled != null) {
+      ioEnvBuilder.enableNativeIo(Boolean.parseBoolean(nativeIoEnabled));
+    }
+    String eventLoopThreadCount = envProps.remove("ioEnvironment.eventLoopThreadCount");
+    if (eventLoopThreadCount != null) {
+      ioEnvBuilder.eventLoopThreadCount(Integer.parseInt(eventLoopThreadCount));
+    }
+    envBuilder.ioEnvironment(ioEnvBuilder);
+    // End workaround for IoEnvironment config.
+
+    try {
+      envBuilder.load(new AbstractMapPropertyLoader<CoreEnvironment.Builder>() {
+        @Override
+        protected Map<String, String> propertyMap() {
+          return envProps;
+        }
+      });
+    } catch (Exception e) {
+      throw new ConfigException("Failed to apply Couchbase environment properties; " + e.getMessage());
+    }
   }
 
   /**

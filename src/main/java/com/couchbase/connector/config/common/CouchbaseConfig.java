@@ -20,18 +20,18 @@ import com.couchbase.client.core.env.NetworkResolution;
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.ScopeAndCollection;
 import com.google.common.collect.ImmutableList;
-import net.consensys.cava.toml.TomlPosition;
 import net.consensys.cava.toml.TomlTable;
 import org.immutables.value.Value;
 
 import javax.annotation.Nullable;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.couchbase.connector.config.ConfigHelper.expectOnly;
 import static com.couchbase.connector.config.ConfigHelper.getOptionalList;
 import static com.couchbase.connector.config.ConfigHelper.getStrings;
 import static com.couchbase.connector.config.ConfigHelper.readPassword;
-import static com.google.common.base.Strings.emptyToNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 @Value.Immutable
@@ -70,6 +70,8 @@ public interface CouchbaseConfig {
 
   ClientCertConfig clientCert();
 
+  Map<String, String> env();
+
   @Value.Check
   default void check() {
     if (!isNullOrEmpty(scope()) && !collections().isEmpty()) {
@@ -78,7 +80,7 @@ public interface CouchbaseConfig {
   }
 
   static ImmutableCouchbaseConfig from(TomlTable config) {
-    expectOnly(config, "bucket", "metadataBucket", "metadataCollection", "scope", "collections", "hosts", "network", "username", "pathToPassword", "clientCertificate", "dcp", "secureConnection", "hostnameVerification");
+    expectOnly(config, "bucket", "metadataBucket", "metadataCollection", "scope", "collections", "hosts", "network", "username", "pathToPassword", "clientCertificate", "dcp", "secureConnection", "hostnameVerification", "env");
 
     final String sourceBucket = config.getString("bucket", () -> "default");
     final String networkName = config.getString("network", () -> "auto");
@@ -99,6 +101,15 @@ public interface CouchbaseConfig {
         .hostnameVerification(config.getBoolean("hostnameVerification", () -> true))
         .dcp(DcpConfig.from(config.getTableOrEmpty("dcp")))
         .clientCert(ClientCertConfig.from(config.getTableOrEmpty("clientCertificate"), "couchbase.clientCertificate"))
+        .env(parseEnv(config.getTableOrEmpty("env")))
         .build();
+  }
+
+  static Map<String, String> parseEnv(TomlTable env) {
+    Map<String, String> result = new HashMap<>();
+    for (String key : env.dottedKeySet()) {
+      result.put(key, String.valueOf(env.get(key)));
+    }
+    return result;
   }
 }

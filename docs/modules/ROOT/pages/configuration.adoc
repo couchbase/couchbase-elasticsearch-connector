@@ -184,6 +184,26 @@ If you specify neither, the connector will examine every document in the bucket.
 
 TIP: If you want to replicate from multiple buckets, you can run a separate connector group for each bucket.
 
+[#couchbase-env]
+=== Custom Couchbase settings
+
+The connector uses the Couchbase Java SDK to save checkpoint documents in Couchbase.
+The SDK's "cluster environment" settings may be specified in the connector config file.
+
+Here's an example that tunes the checkpoint I/O timeout settings and disables native libraries:
+
+[source,toml]
+----
+[couchbase.env] <1>
+  timeout.kvTimeout = '2.5s'
+  security.enableNativeTls = false
+  ioEnvironment.enableNativeIo = false
+----
+<1> (Since 4.2.10; Uncommitted) Any property name recognized by the Couchbase Java SDK may be specified in this section.
+
+Each property name in this section must be one of the system properties recognized by the Couchbase Java SDK, but without the `com.couchbase.env.` prefix.
+For a list of system properties, see xref:java-sdk:ref:client-settings.adoc[Java SDK Client Settings].
+
 === DCP
 [abstract]
 Options for the Couchbase Database Change Protocol (DCP).
