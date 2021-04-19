@@ -8,6 +8,28 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.2.10]]
+== Version 4.2.10 (2021-04-20)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.10/couchbase-elasticsearch-connector-4.2.10.zip[Download]
+
+This release brings minor improvements to monitoring and configurability.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-202[CBES-202]:
+The connector now waits until it has connected to both Couchbase and Elasticsearch before starting the HTTP server for the `/metrics` endpoint.
+This makes it more useful as a "readiness" probe.
+
+* https://issues.couchbase.com/browse/CBES-204[CBES-204]:
+Added a new `[couchbase.env]` xref:configuration.adoc#couchbase-env[config section] for tuning Couchbase Java SDK settings.
+
+* https://issues.couchbase.com/browse/CBES-203[CBES-203]:
+Upgraded the Couchbase Java SDK from 3.1.2 to https://docs.couchbase.com/java-sdk/3.1/project-docs/sdk-release-notes.html#version-3-1-3-2-march-2021[3.1.3].
+
+* https://issues.couchbase.com/browse/CBES-205[CBES-205]:
+Upgraded the DCP client from 0.33.0 to 0.34.0.
+
 [[v4.2.9]]
 == Version 4.2.9 (2021-03-16)
 
@@ -52,7 +74,7 @@ Errors during an early phase of connector startup were written to the console in
 Now these errors will appear in the log as well.
 
 * https://issues.couchbase.com/browse/CBES-189[CBES-189]:
-Upgraded to Couchbase Java SDK from 3.1.0 to 3.1.2.
+Upgraded the Couchbase Java SDK from 3.1.0 to 3.1.2.
 
 * https://issues.couchbase.com/browse/CBES-188[CBES-188]:
 Upgraded the DCP client from 0.31.0 to 0.32.0.
