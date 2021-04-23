@@ -19,8 +19,8 @@ package com.couchbase.connector.config.common;
 import com.couchbase.client.core.env.NetworkResolution;
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.ScopeAndCollection;
+import com.couchbase.connector.config.toml.ConfigTable;
 import com.google.common.collect.ImmutableList;
-import net.consensys.cava.toml.TomlTable;
 import org.immutables.value.Value;
 
 import javax.annotation.Nullable;
@@ -28,9 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.couchbase.connector.config.ConfigHelper.expectOnly;
-import static com.couchbase.connector.config.ConfigHelper.getOptionalList;
-import static com.couchbase.connector.config.ConfigHelper.getStrings;
 import static com.couchbase.connector.config.ConfigHelper.readPassword;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
@@ -79,36 +76,37 @@ public interface CouchbaseConfig {
     }
   }
 
-  static ImmutableCouchbaseConfig from(TomlTable config) {
-    expectOnly(config, "bucket", "metadataBucket", "metadataCollection", "scope", "collections", "hosts", "network", "username", "pathToPassword", "clientCertificate", "dcp", "secureConnection", "hostnameVerification", "env");
+  static ImmutableCouchbaseConfig from(ConfigTable config) {
+    config.expectOnly("bucket", "metadataBucket", "metadataCollection", "scope", "collections", "hosts", "network", "username", "pathToPassword", "clientCertificate", "dcp", "secureConnection", "hostnameVerification", "env");
 
-    final String sourceBucket = config.getString("bucket", () -> "default");
-    final String networkName = config.getString("network", () -> "auto");
-    final String metadataBucket = config.getString("metadataBucket", () -> "");
-    final String metadataCollection = config.getString("metadataCollection", () -> "_default._default");
+    final String sourceBucket = config.getString("bucket").orElse("default");
+    final String networkName = config.getString("network").orElse("auto");
+    final String metadataBucket = config.getString("metadataBucket").orElse("");
+    final String metadataCollection = config.getString("metadataCollection").orElse("_default._default");
 
     return ImmutableCouchbaseConfig.builder()
         .bucket(sourceBucket)
-        .scope(config.getString("scope"))
-        .collections(getOptionalList(config, "collections", ScopeAndCollection::parse))
+        .scope(config.getString("scope").orElse(null))
+        .collections(config.getOptionalList("collections", ScopeAndCollection::parse))
         .metadataBucket(isNullOrEmpty(metadataBucket) ? sourceBucket : metadataBucket)
         .metadataCollection(isNullOrEmpty(metadataCollection) ? ScopeAndCollection.DEFAULT : ScopeAndCollection.parse(metadataCollection))
-        .hosts(getStrings(config, "hosts"))
+        .hosts(config.getRequiredStrings("hosts"))
         .network(networkName.isEmpty() ? NetworkResolution.AUTO : NetworkResolution.valueOf(networkName))
-        .username(config.getString("username", () -> ""))
+        .username(config.getString("username").orElse(""))
         .password(readPassword(config, "couchbase", "pathToPassword"))
-        .secureConnection(config.getBoolean("secureConnection", () -> false))
-        .hostnameVerification(config.getBoolean("hostnameVerification", () -> true))
+        .secureConnection(config.getBoolean("secureConnection").orElse(false))
+        .hostnameVerification(config.getBoolean("hostnameVerification").orElse(true))
         .dcp(DcpConfig.from(config.getTableOrEmpty("dcp")))
         .clientCert(ClientCertConfig.from(config.getTableOrEmpty("clientCertificate"), "couchbase.clientCertificate"))
         .env(parseEnv(config.getTableOrEmpty("env")))
         .build();
   }
 
-  static Map<String, String> parseEnv(TomlTable env) {
+  static Map<String, String> parseEnv(ConfigTable env) {
     Map<String, String> result = new HashMap<>();
     for (String key : env.dottedKeySet()) {
-      result.put(key, String.valueOf(env.get(key)));
+      Object value = env.get(key).orElseThrow(() -> new AssertionError("Where did the key '" + key + "' go?"));
+      result.put(key, String.valueOf(value));
     }
     return result;
   }

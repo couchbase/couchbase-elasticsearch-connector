@@ -17,11 +17,11 @@
 package com.couchbase.connector.config.es;
 
 import com.couchbase.connector.config.ConfigException;
+import com.couchbase.connector.config.toml.ConfigPosition;
+import com.couchbase.connector.config.toml.ConfigTable;
 import com.couchbase.connector.dcp.Event;
 import com.fasterxml.jackson.core.JsonPointer;
 import com.google.common.base.Strings;
-import net.consensys.cava.toml.TomlPosition;
-import net.consensys.cava.toml.TomlTable;
 import org.immutables.value.Value;
 
 import javax.annotation.Nullable;
@@ -30,7 +30,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-import static com.couchbase.connector.config.ConfigHelper.expectOnly;
 import static java.util.Objects.requireNonNull;
 
 @Value.Immutable
@@ -56,7 +55,7 @@ public interface TypeConfig {
 
   @Value.Auxiliary
   @Nullable
-  TomlPosition position();
+  ConfigPosition position();
 
   @Value.Check
   default void check() {
@@ -65,25 +64,25 @@ public interface TypeConfig {
     }
   }
 
-  static ImmutableTypeConfig from(TomlTable config, TomlPosition position, TypeConfig defaults) {
-    expectOnly(config, "typeName", "index", "pipeline", "routing", "ignore", "ignoreDeletes", "prefix", "regex", "matchOnQualifiedKey");
+  static ImmutableTypeConfig from(ConfigTable config, ConfigPosition position, TypeConfig defaults) {
+    config.expectOnly("typeName", "index", "pipeline", "routing", "ignore", "ignoreDeletes", "prefix", "regex", "matchOnQualifiedKey");
 
-    final String index = Strings.emptyToNull(config.getString("index", defaults::index));
-    final String routing = Strings.emptyToNull(config.getString("routing"));
-    final boolean qualifiedKey = config.getBoolean("matchOnQualifiedKey", defaults::matchOnQualifiedKey);
+    final String index = Strings.emptyToNull(config.getString("index").orElseGet(defaults::index));
+    final String routing = Strings.emptyToNull(config.getString("routing").orElse(null));
+    final boolean qualifiedKey = config.getBoolean("matchOnQualifiedKey").orElseGet(defaults::matchOnQualifiedKey);
 
     ImmutableTypeConfig.Builder builder = ImmutableTypeConfig.builder()
         .position(position)
-        .type(config.getString("typeName", defaults::type))
+        .type(config.getString("typeName").orElseGet(defaults::type))
         .index(index)
         .matchOnQualifiedKey(qualifiedKey)
         .routing(parseRouting(routing, config.inputPositionOf("routing")))
-        .pipeline(Strings.emptyToNull(config.getString("pipeline", defaults::pipeline)))
-        .ignoreDeletes(config.getBoolean("ignoreDeletes", defaults::ignoreDeletes))
-        .ignore(config.getBoolean("ignore", defaults::ignore));
+        .pipeline(Strings.emptyToNull(config.getString("pipeline").orElseGet(defaults::pipeline)))
+        .ignoreDeletes(config.getBoolean("ignoreDeletes").orElseGet(defaults::ignoreDeletes))
+        .ignore(config.getBoolean("ignore").orElseGet(defaults::ignore));
 
-    final String idPrefix = config.getString("prefix");
-    final String idRegex = config.getString("regex");
+    final String idPrefix = config.getString("prefix").orElse(null);
+    final String idRegex = config.getString("regex").orElse(null);
     if (idPrefix != null && idRegex != null) {
       throw new ConfigException("Type at " + position + " can have 'prefix' or 'regex', but not both.");
     }
@@ -95,7 +94,7 @@ public interface TypeConfig {
     } else {
       try {
         if (idRegex.contains("(?<index>")) {
-          if (config.getString("index") != null) {
+          if (config.getString("index").isPresent()) {
             throw new ConfigException("Type at " + position + " must not have 'index' because it's inferred from named capturing group in 'regex'.");
           }
           builder.matcher(new IdRegexInferredIndexMatcher(idRegex, qualifiedKey));
@@ -117,7 +116,7 @@ public interface TypeConfig {
     return type;
   }
 
-  static JsonPointer parseRouting(String routing, TomlPosition position) {
+  static JsonPointer parseRouting(String routing, ConfigPosition position) {
     try {
       return routing == null ? null : JsonPointer.compile(routing);
     } catch (IllegalArgumentException e) {

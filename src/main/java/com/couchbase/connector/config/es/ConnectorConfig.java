@@ -16,14 +16,13 @@
 
 package com.couchbase.connector.config.es;
 
-import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.couchbase.connector.config.common.GroupConfig;
 import com.couchbase.connector.config.common.LoggingConfig;
 import com.couchbase.connector.config.common.MetricsConfig;
 import com.couchbase.connector.config.common.TrustStoreConfig;
-import net.consensys.cava.toml.Toml;
-import net.consensys.cava.toml.TomlParseResult;
+import com.couchbase.connector.config.toml.ConfigTable;
+import com.couchbase.connector.config.toml.Toml;
 import org.immutables.value.Value;
 
 import java.io.File;
@@ -31,7 +30,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import static com.couchbase.connector.config.ConfigHelper.expectOnly;
 import static com.couchbase.connector.config.ConfigHelper.resolveVariables;
 
 @Value.Immutable
@@ -49,12 +47,8 @@ public interface ConnectorConfig {
 
   TrustStoreConfig trustStore();
 
-  static ImmutableConnectorConfig from(TomlParseResult config) {
-    if (config.hasErrors()) {
-      throw new ConfigException("Config syntax error: " + config.errors());
-    }
-
-    expectOnly(config, "couchbase", "elasticsearch", "logging", "metrics", "group", "truststore");
+  static ImmutableConnectorConfig from(ConfigTable config) {
+    config.expectOnly("couchbase", "elasticsearch", "logging", "metrics", "group", "truststore");
 
     return ImmutableConnectorConfig.builder()
         .couchbase(CouchbaseConfig.from(config.getTableOrEmpty("couchbase")))

@@ -16,13 +16,11 @@
 
 package com.couchbase.connector.config.es;
 
+import com.couchbase.connector.config.toml.ConfigTable;
 import com.google.common.base.Strings;
-import net.consensys.cava.toml.TomlTable;
 import org.immutables.value.Value;
 
 import javax.annotation.Nullable;
-
-import static com.couchbase.connector.config.ConfigHelper.expectOnly;
 
 @Value.Immutable
 public interface RejectLogConfig {
@@ -31,11 +29,11 @@ public interface RejectLogConfig {
 
   String typeName();
 
-  static ImmutableRejectLogConfig from(TomlTable config, String defaultTypeName) {
-    expectOnly(config, "index", "typeName");
+  static ImmutableRejectLogConfig from(ConfigTable config, String defaultTypeName) {
+    config.expectOnly("index", "typeName");
     return ImmutableRejectLogConfig.builder()
-        .index(Strings.emptyToNull(config.getString("index")))
-        .typeName(config.getString("typeName", () -> defaultTypeName))
+        .index(Strings.emptyToNull(config.getString("index").orElse(null)))
+        .typeName(config.getString("typeName").orElse(defaultTypeName))
         .build();
   }
 }

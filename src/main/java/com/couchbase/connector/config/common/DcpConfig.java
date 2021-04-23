@@ -17,7 +17,7 @@
 package com.couchbase.connector.config.common;
 
 import com.couchbase.client.dcp.config.CompressionMode;
-import net.consensys.cava.toml.TomlTable;
+import com.couchbase.connector.config.toml.ConfigTable;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.immutables.value.Value;
@@ -40,9 +40,9 @@ public interface DcpConfig {
     return new TimeValue(10, TimeUnit.SECONDS);
   }
 
-  static ImmutableDcpConfig from(TomlTable config) {
+  static ImmutableDcpConfig from(ConfigTable config) {
     return ImmutableDcpConfig.builder()
-        .compression(config.getBoolean("compression", () -> true) ? CompressionMode.ENABLED : CompressionMode.DISABLED)
+        .compression(config.getBoolean("compression").orElse(true) ? CompressionMode.ENABLED : CompressionMode.DISABLED)
         .persistencePollingInterval(getTime(config, "persistencePollingInterval").orElse(new TimeValue(100, TimeUnit.MILLISECONDS)))
         .flowControlBuffer(getSize(config, "flowControlBuffer").orElse(new ByteSizeValue(128, MB)))
         .build();

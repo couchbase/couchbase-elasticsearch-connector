@@ -16,16 +16,13 @@
 
 package com.couchbase.connector.config.es;
 
-import net.consensys.cava.toml.TomlTable;
+import com.couchbase.connector.config.toml.ConfigTable;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.immutables.value.Value;
 
 import java.util.concurrent.TimeUnit;
 
-import static com.couchbase.connector.config.ConfigHelper.expectOnly;
-import static com.couchbase.connector.config.ConfigHelper.getInt;
-import static com.couchbase.connector.config.ConfigHelper.getIntInRange;
 import static com.couchbase.connector.config.ConfigHelper.getSize;
 import static com.couchbase.connector.config.ConfigHelper.getTime;
 import static org.elasticsearch.common.unit.ByteSizeUnit.MB;
@@ -47,13 +44,13 @@ public interface BulkRequestConfig {
     }
   }
 
-  static ImmutableBulkRequestConfig from(TomlTable config) {
-    expectOnly(config, "actions", "bytes", "timeout", "concurrentRequests");
+  static ImmutableBulkRequestConfig from(ConfigTable config) {
+    config.expectOnly("actions", "bytes", "timeout", "concurrentRequests");
     return ImmutableBulkRequestConfig.builder()
-        .maxActions(getInt(config, "actions").orElse(1000))
+        .maxActions(config.getInt("actions").orElse(1000))
         .maxBytes(getSize(config, "bytes").orElse(new ByteSizeValue(10, MB)))
         .timeout(getTime(config, "timeout").orElse(new TimeValue(1, TimeUnit.MINUTES)))
-        .concurrentRequests(getIntInRange(config, "concurrentRequests", 1, 16).orElse(2))
+        .concurrentRequests(config.getIntInRange("concurrentRequests", 1, 16).orElse(2))
         .build();
   }
 }

@@ -18,12 +18,8 @@ package com.couchbase.connector.config.common;
 
 import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.config.ConfigException;
-import net.consensys.cava.toml.TomlTable;
+import com.couchbase.connector.config.toml.ConfigTable;
 import org.immutables.value.Value;
-
-import static com.couchbase.connector.config.ConfigHelper.expectOnly;
-import static com.couchbase.connector.config.ConfigHelper.getInt;
-import static com.couchbase.connector.config.ConfigHelper.getIntInRange;
 
 @Value.Immutable
 public interface GroupConfig {
@@ -31,21 +27,21 @@ public interface GroupConfig {
 
   Membership staticMembership();
 
-  static ImmutableGroupConfig from(TomlTable config) {
-    expectOnly(config, "name", "static");
+  static ImmutableGroupConfig from(ConfigTable config) {
+    config.expectOnly("name", "static");
 
-    final TomlTable staticGroup = config.getTableOrEmpty("static");
-    expectOnly(staticGroup, "memberNumber", "totalMembers");
+    final ConfigTable staticGroup = config.getTableOrEmpty("static");
+    staticGroup.expectOnly("memberNumber", "totalMembers");
 
-    final int totalMembers = getIntInRange(staticGroup, "totalMembers", 1, 1024).orElseThrow((() ->
+    final int totalMembers = staticGroup.getIntInRange("totalMembers", 1, 1024).orElseThrow((() ->
         new ConfigException("missing 'static.totalMembers' property")));
 
-    final int memberNumber = getInt(staticGroup, "memberNumber").orElseThrow(() ->
+    final int memberNumber = staticGroup.getInt("memberNumber").orElseThrow(() ->
         new ConfigException("missing 'static.memberNumber' property"));
 
     try {
       return ImmutableGroupConfig.builder()
-          .name(config.getString("name"))
+          .name(config.getString("name").orElseThrow(() -> new ConfigException("missing 'name' property")))
           .staticMembership(Membership.of(memberNumber, totalMembers))
           .build();
     } catch (IllegalArgumentException e) {

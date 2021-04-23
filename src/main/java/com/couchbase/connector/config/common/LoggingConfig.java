@@ -18,11 +18,8 @@ package com.couchbase.connector.config.common;
 
 import com.couchbase.client.core.logging.RedactionLevel;
 import com.couchbase.connector.config.ConfigException;
-import com.couchbase.connector.config.ConfigHelper;
-import net.consensys.cava.toml.TomlTable;
+import com.couchbase.connector.config.toml.ConfigTable;
 import org.immutables.value.Value;
-
-import static com.couchbase.connector.config.ConfigHelper.expectOnly;
 
 @Value.Immutable
 public interface LoggingConfig {
@@ -31,13 +28,13 @@ public interface LoggingConfig {
 
   RedactionLevel redactionLevel();
 
-  static ImmutableLoggingConfig from(TomlTable config) {
-    expectOnly(config, "logDocumentLifecycle", "redactionLevel");
+  static ImmutableLoggingConfig from(ConfigTable config) {
+    config.expectOnly("logDocumentLifecycle", "redactionLevel");
 
     try {
       return ImmutableLoggingConfig.builder()
-          .logDocumentLifecycle(config.getBoolean("logDocumentLifecycle", () -> false))
-          .redactionLevel(ConfigHelper.getEnum(config, "redactionLevel", RedactionLevel.class).orElse(RedactionLevel.NONE))
+          .logDocumentLifecycle(config.getBoolean("logDocumentLifecycle").orElse(false))
+          .redactionLevel(config.getEnum("redactionLevel", RedactionLevel.class).orElse(RedactionLevel.NONE))
           .build();
     } catch (IllegalArgumentException e) {
       throw new ConfigException(e.getMessage());

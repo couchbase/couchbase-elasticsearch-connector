@@ -18,15 +18,13 @@ package com.couchbase.connector.config.es;
 
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.common.ClientCertConfig;
+import com.couchbase.connector.config.toml.ConfigArray;
+import com.couchbase.connector.config.toml.ConfigTable;
 import com.google.common.collect.ImmutableList;
-import net.consensys.cava.toml.TomlArray;
-import net.consensys.cava.toml.TomlTable;
 import org.apache.http.HttpHost;
 import org.immutables.value.Value;
 
 import static com.couchbase.connector.config.ConfigHelper.createHttpHost;
-import static com.couchbase.connector.config.ConfigHelper.expectOnly;
-import static com.couchbase.connector.config.ConfigHelper.getStrings;
 import static com.couchbase.connector.config.ConfigHelper.readPassword;
 import static java.util.stream.Collectors.toList;
 
@@ -60,10 +58,10 @@ public interface ElasticsearchConfig {
     }
   }
 
-  static ImmutableElasticsearchConfig from(TomlTable config) {
-    expectOnly(config, "hosts", "username", "pathToPassword", "secureConnection", "clientCertificate", "aws", "bulkRequestLimits", "docStructure", "typeDefaults", "type", "rejectionLog");
+  static ImmutableElasticsearchConfig from(ConfigTable config) {
+    config.expectOnly("hosts", "username", "pathToPassword", "secureConnection", "clientCertificate", "aws", "bulkRequestLimits", "docStructure", "typeDefaults", "type", "rejectionLog");
 
-    final boolean secureConnection = config.getBoolean("secureConnection", () -> false);
+    final boolean secureConnection = config.getBoolean("secureConnection").orElse(false);
 
     final AwsConfig aws = AwsConfig.from(config.getTableOrEmpty("aws"));
     final ClientCertConfig clientCert = ClientCertConfig.from(config.getTableOrEmpty("clientCertificate"), "elasticsearch.clientCertificate");
@@ -74,31 +72,31 @@ public interface ElasticsearchConfig {
 
     final ImmutableElasticsearchConfig.Builder builder = ImmutableElasticsearchConfig.builder()
         .secureConnection(secureConnection)
-        .hosts(getStrings(config, "hosts").stream()
+        .hosts(config.getRequiredStrings("hosts").stream()
             .map(h -> createHttpHost(h, defaultPort, secureConnection))
             .collect(toList()))
-        .username(config.getString("username", () -> ""))
+        .username(config.getString("username").orElse(""))
         .password(readPassword(config, "elasticsearch", "pathToPassword"))
         .bulkRequest(BulkRequestConfig.from(config.getTableOrEmpty("bulkRequestLimits")))
         .aws(aws)
         .clientCert(clientCert)
         .docStructure(DocStructureConfig.from(config.getTableOrEmpty("docStructure")));
 
-    final TomlTable typeDefaults = config.getTableOrEmpty("typeDefaults");
-    expectOnly(typeDefaults, "typeName", "index", "pipeline", "ignore", "ignoreDeletes", "matchOnQualifiedKey");
+    final ConfigTable typeDefaults = config.getTableOrEmpty("typeDefaults");
+    typeDefaults.expectOnly("typeName", "index", "pipeline", "ignore", "ignoreDeletes", "matchOnQualifiedKey");
 
     final TypeConfig defaultTypeConfig = ImmutableTypeConfig.builder()
-        .index(typeDefaults.getString("index"))
-        .type(typeDefaults.getString("typeName", () -> "_doc"))
-        .pipeline(typeDefaults.getString("pipeline"))
-        .ignore(typeDefaults.getBoolean("ignore", () -> false))
-        .ignoreDeletes(typeDefaults.getBoolean("ignoreDeletes", () -> false))
-        .matchOnQualifiedKey(typeDefaults.getBoolean("matchOnQualifiedKey", () -> false))
+        .index(typeDefaults.getString("index").orElse(null))
+        .type(typeDefaults.getString("typeName").orElse("_doc"))
+        .pipeline(typeDefaults.getString("pipeline").orElse(null))
+        .ignore(typeDefaults.getBoolean("ignore").orElse(false))
+        .ignoreDeletes(typeDefaults.getBoolean("ignoreDeletes").orElse(false))
+        .matchOnQualifiedKey(typeDefaults.getBoolean("matchOnQualifiedKey").orElse(false))
         .matcher(s -> null)
         .build();
 
     ImmutableList.Builder<TypeConfig> typeConfigs = ImmutableList.builder();
-    TomlArray types = config.getArrayOrEmpty("type");
+    ConfigArray types = config.getArrayOrEmpty("type");
     for (int i = 0; i < types.size(); i++) {
       typeConfigs.add(TypeConfig.from(types.getTable(i), types.inputPositionOf(i), defaultTypeConfig));
     }

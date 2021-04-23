@@ -16,12 +16,10 @@
 
 package com.couchbase.connector.config.common;
 
-import net.consensys.cava.toml.TomlTable;
+import com.couchbase.connector.config.toml.ConfigTable;
 import org.elasticsearch.common.unit.TimeValue;
 import org.immutables.value.Value;
 
-import static com.couchbase.connector.config.ConfigHelper.expectOnly;
-import static com.couchbase.connector.config.ConfigHelper.getIntInRange;
 import static com.couchbase.connector.config.ConfigHelper.getTime;
 
 @Value.Immutable
@@ -30,12 +28,12 @@ public interface MetricsConfig {
 
   int httpPort();
 
-  static ImmutableMetricsConfig from(TomlTable config) {
-    expectOnly(config, "logInterval", "httpPort");
+  static ImmutableMetricsConfig from(ConfigTable config) {
+    config.expectOnly("logInterval", "httpPort");
 
     return ImmutableMetricsConfig.builder()
         .logInterval(getTime(config, "logInterval").orElse(TimeValue.timeValueMinutes(1)))
-        .httpPort(getIntInRange(config, "httpPort", -1, 65535).orElse(-1))
+        .httpPort(config.getIntInRange("httpPort", -1, 65535).orElse(-1))
         .build();
   }
 }

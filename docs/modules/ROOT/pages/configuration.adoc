@@ -530,10 +530,16 @@ name = '${NAME}' <1>
 age = ${AGE}
 favoriteColor = '${FAVORITE_COLOR:blue}' <2>
 ----
-<1> Alternatively, you could write `name = ${NAME}` and include the quotes in value of the environment variable.
+<1> Alternatively, you could write `name = $\{NAME}` and include the quotes in value of the environment variable.
 <2> A colon in the placeholder separates the environment variable name from the default value to use if the variable is not set.
 If the `FAVORITE_COLOR` environment variable is set, its value will be used.
 Otherwise, the specified default value `blue` will be used.
+
+TIP: As you may have noticed, `age = $\{AGE}` is not valid TOML syntax.
+This is fine if the connector is the only program that reads the config file, but other TOML processing tools might complain.
+Since version 4.2.11, integer and boolean values may be specified as strings.
+For example: `age = '$\{AGE}'`.
+This lets you use placeholders for integers and booleans without invalidating the TOML syntax.
 
 [#consul]
 == Consul

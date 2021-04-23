@@ -16,13 +16,11 @@
 
 package com.couchbase.connector.config.es;
 
+import com.couchbase.connector.config.toml.ConfigTable;
 import com.google.common.base.Strings;
-import net.consensys.cava.toml.TomlTable;
 import org.immutables.value.Value;
 
 import javax.annotation.Nullable;
-
-import static com.couchbase.connector.config.ConfigHelper.expectOnly;
 
 @Value.Immutable
 public interface DocStructureConfig {
@@ -34,13 +32,13 @@ public interface DocStructureConfig {
 
   boolean wrapCounters();
 
-  static ImmutableDocStructureConfig from(TomlTable config) {
-    expectOnly(config, "metadataFieldName", "documentContentAtTopLevel", "wrapCounters");
+  static ImmutableDocStructureConfig from(ConfigTable config) {
+    config.expectOnly("metadataFieldName", "documentContentAtTopLevel", "wrapCounters");
 
     return ImmutableDocStructureConfig.builder()
-        .metadataFieldName(Strings.emptyToNull(config.getString("metadataFieldName")))
-        .documentContentAtTopLevel(config.getBoolean("documentContentAtTopLevel", () -> false))
-        .wrapCounters(config.getBoolean("wrapCounters", () -> false))
+        .metadataFieldName(Strings.emptyToNull(config.getString("metadataFieldName").orElse(null)))
+        .documentContentAtTopLevel(config.getBoolean("documentContentAtTopLevel").orElse(false))
+        .wrapCounters(config.getBoolean("wrapCounters").orElse(false))
         .build();
   }
 }

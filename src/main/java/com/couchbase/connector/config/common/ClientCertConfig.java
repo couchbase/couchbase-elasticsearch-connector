@@ -16,17 +16,15 @@
 
 package com.couchbase.connector.config.common;
 
+import com.couchbase.connector.config.toml.ConfigPosition;
+import com.couchbase.connector.config.toml.ConfigTable;
 import com.couchbase.connector.util.KeyStoreHelper;
-import net.consensys.cava.toml.TomlPosition;
-import net.consensys.cava.toml.TomlTable;
 import org.immutables.value.Value;
 
 import javax.annotation.Nullable;
 import java.security.KeyStore;
 
-import static com.couchbase.connector.config.ConfigHelper.expectOnly;
 import static com.couchbase.connector.config.ConfigHelper.readPassword;
-import static com.couchbase.connector.config.ConfigHelper.require;
 import static com.google.common.base.Strings.emptyToNull;
 
 @Value.Immutable
@@ -42,30 +40,29 @@ public interface ClientCertConfig {
 
   @Nullable
   @Value.Auxiliary
-  TomlPosition position();
+  ConfigPosition position();
 
   @Value.Lazy
   default KeyStore getKeyStore() {
     return KeyStoreHelper.get(path(), position(), password());
   }
 
-  @SuppressWarnings("ConstantConditions")
-  static ImmutableClientCertConfig from(TomlTable config, String parent) {
+  static ImmutableClientCertConfig from(ConfigTable config, String parent) {
     if (config.isEmpty()) {
       return ClientCertConfig.disabled();
     }
 
     String[] configProps = {"use", "path", "pathToPassword"};
-    expectOnly(config, configProps);
-    require(config, parent, configProps);
+    config.expectOnly(configProps);
+    config.require(parent, configProps);
 
-    if (!config.getBoolean("use")) {
+    if (!config.getRequiredBoolean("use")) {
       return ClientCertConfig.disabled();
     }
 
     return ImmutableClientCertConfig.builder()
         .use(true)
-        .path(config.getString("path"))
+        .path(config.getRequiredString("path"))
         .password(emptyToNull(readPassword(config, parent, "pathToPassword")))
         .position(config.inputPositionOf("path"))
         .build();

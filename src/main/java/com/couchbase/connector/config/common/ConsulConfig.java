@@ -16,8 +16,8 @@
 
 package com.couchbase.connector.config.common;
 
-import net.consensys.cava.toml.Toml;
-import net.consensys.cava.toml.TomlTable;
+import com.couchbase.connector.config.toml.ConfigTable;
+import com.couchbase.connector.config.toml.Toml;
 import org.immutables.value.Value;
 
 import java.io.File;
@@ -25,23 +25,22 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import static com.couchbase.connector.config.ConfigHelper.expectOnly;
 import static com.couchbase.connector.config.ConfigHelper.resolveVariables;
-import static com.google.common.base.Strings.nullToEmpty;
 
 @Value.Immutable
 public interface ConsulConfig {
   String aclToken();
 
-  static ImmutableConsulConfig from(TomlTable root) {
-    expectOnly(root, "consul");
-    TomlTable config = root.getTableOrEmpty("consul");
+  static ImmutableConsulConfig from(ConfigTable root) {
+    root.expectOnly("consul");
+    ConfigTable config = root.getTableOrEmpty("consul");
 
-    expectOnly(config, "aclToken");
+    config.expectOnly("aclToken");
     return ImmutableConsulConfig.builder()
-        .aclToken(nullToEmpty(config.getString("aclToken")))
+        .aclToken(config.getString("aclToken").orElse(""))
         .build();
   }
+
   static ImmutableConsulConfig from(String toml) {
     return ConsulConfig.from(Toml.parse(resolveVariables(toml)));
   }

@@ -16,16 +16,15 @@
 
 package com.couchbase.connector.config.common;
 
+import com.couchbase.connector.config.toml.ConfigPosition;
+import com.couchbase.connector.config.toml.ConfigTable;
 import com.couchbase.connector.util.KeyStoreHelper;
 import com.google.common.base.Supplier;
-import net.consensys.cava.toml.TomlPosition;
-import net.consensys.cava.toml.TomlTable;
 import org.immutables.value.Value;
 
 import javax.annotation.Nullable;
 import java.security.KeyStore;
 
-import static com.couchbase.connector.config.ConfigHelper.expectOnly;
 import static com.couchbase.connector.config.ConfigHelper.readPassword;
 import static com.google.common.base.Strings.emptyToNull;
 
@@ -39,7 +38,7 @@ public interface TrustStoreConfig extends Supplier<KeyStore> {
 
   @Nullable
   @Value.Auxiliary
-  TomlPosition position();
+  ConfigPosition position();
 
   @Value.Lazy
   @Override
@@ -47,13 +46,13 @@ public interface TrustStoreConfig extends Supplier<KeyStore> {
     return KeyStoreHelper.get(path(), position(), password());
   }
 
-  static ImmutableTrustStoreConfig from(TomlTable config) {
-    expectOnly(config, "path", "pathToPassword");
+  static ImmutableTrustStoreConfig from(ConfigTable config) {
+    config.expectOnly("path", "pathToPassword");
 
     final String password = readPassword(config, "truststore", "pathToPassword");
 
     return ImmutableTrustStoreConfig.builder()
-        .path(config.getString("path"))
+        .path(config.getRequiredString("path"))
         .password(emptyToNull(password))
         .position(config.inputPositionOf("path"))
         .build();
