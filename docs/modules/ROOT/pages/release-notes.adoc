@@ -8,6 +8,21 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.2.11]]
+== Version 4.2.11 (2021-05-18)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.11/couchbase-elasticsearch-connector-4.2.11.zip[Download]
+
+This release makes it easier for custom tools to parse config files that have environment variable placeholders.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-206[CBES-206]:
+Integer and boolean config properties can now be specified as strings.
+For example: `7` and `'7'` are now both valid for an integer property, and `true` and `'true'` are now both valid for a boolean property.
+This lets you use environment variable placeholders for integer and boolean properties without invalidating the TOML syntax -- just enclose them in quotes, like: `'${SOME_INTEGER}'`.
+The connector resolves placeholders before parsing the TOML, so it doesn't care about the invalid syntax; this change just makes it easier for other tools to parse the connector config file.
+
 [[v4.2.10]]
 == Version 4.2.10 (2021-04-20)
 
