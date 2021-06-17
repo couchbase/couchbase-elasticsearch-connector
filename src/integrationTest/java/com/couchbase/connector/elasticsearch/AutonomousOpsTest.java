@@ -20,9 +20,7 @@ import com.couchbase.client.dcp.deps.io.netty.util.ResourceLeakDetector;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.connector.cluster.consul.ConsulClientWorkaround;
 import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
-import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.google.common.collect.ImmutableMap;
-import org.elasticsearch.Version;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -30,6 +28,7 @@ import org.junit.Test;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -65,7 +64,7 @@ public class AutonomousOpsTest {
   public static void startReusableContainers() {
     consulCluster = new ConsulCluster(CONSUL_DOCKER_IMAGE, 3, Network.newNetwork()).start();
 
-    elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
+    elasticsearch = new ElasticsearchContainer("docker.elastic.co/elasticsearch/elasticsearch:" + elasticsearchVersion)
         .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")));
     elasticsearch.start();
 

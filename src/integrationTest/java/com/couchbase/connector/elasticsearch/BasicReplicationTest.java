@@ -32,12 +32,10 @@ import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.elasticsearch.cli.CheckpointClear;
 import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
-import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import org.elasticsearch.Version;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,6 +43,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
 import java.math.BigInteger;
 import java.time.Duration;
@@ -96,9 +95,7 @@ public class BasicReplicationTest {
 
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
         "enterprise-6.5.1",
-        "community-6.5.1",
-        "enterprise-6.5.0",
-        "community-6.5.0");
+        "community-6.5.1");
 
     // Need to figure out how to run the following in Docker with Testcontainers 1.14.1.
     // They don't support alternate addresses, so we can't use CouchbaseContainer anymore.
@@ -117,14 +114,14 @@ public class BasicReplicationTest {
     // This list is informed by https://www.elastic.co/support/eol
     // If possible, we also want to support the last minor of every major (like 5.6.16).
     final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "7.11.1",
+        "7.13.2",
+        "7.12.1",
+        "7.11.2",
         "7.10.1",
         "7.9.3",
         "7.8.1",
         "7.7.1",
         "7.6.2",
-        "7.5.2",
-        "7.4.2",
         "6.8.14",
         "5.6.16"
     ));
@@ -177,13 +174,13 @@ public class BasicReplicationTest {
 
     if (elasticsearchVersion.equals(cachedElasticsearchContainerVersion)) {
       System.out.println("Using cached Elasticsearch container " + elasticsearch.getDockerImageName() +
-          " listening at " + elasticsearch.getElasticsearchHost());
+          " listening at http://" + elasticsearch.getHttpHostAddress());
     } else {
       close(elasticsearch);
-      elasticsearch = new ElasticsearchContainer(Version.fromString(elasticsearchVersion))
+      elasticsearch = new ElasticsearchContainer("docker.elastic.co/elasticsearch/elasticsearch:" + elasticsearchVersion)
           .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")));
       elasticsearch.start();
-      System.out.println("Elasticsearch listening at " + elasticsearch.getElasticsearchHost());
+      System.out.println("Elasticsearch listening at http://" + elasticsearch.getHttpHostAddress());
       cachedElasticsearchContainerVersion = elasticsearchVersion;
     }
 
@@ -308,143 +305,6 @@ public class BasicReplicationTest {
     try (TestEsClient es = new TestEsClient(commonConfig);
          AsyncTask connector = AsyncTask.run(() -> ElasticsearchConnector.run(commonConfig))) {
       waitForTravelSampleReplication(es);
-    }
-  }
-
-  @Test
-  public void collectionUpsertOp() throws Throwable {
-    try (TestCouchbaseClient cb = new TestCouchbaseClient(commonConfig)) {
-      assumeSupportsCollections(cb);
-
-      final Bucket bucket = cb.createTempBucket(couchbase);
-
-      bucket.collections().createScope("scopex1");
-      CollectionSpec collectionSpec1 = CollectionSpec.create("collectionx1", "scopex1");
-      bucket.collections().createCollection(collectionSpec1);
-      bucket.collections().createScope("scopex2");
-      CollectionSpec collectionSpec2 = CollectionSpec.create("collectionx2", "scopex2");
-      bucket.collections().createCollection(collectionSpec2);
-      final Collection collection1 = bucket.scope("scopex1").collection("collectionx1");
-      final Collection collection2 = bucket.scope("scopex2").collection("collectionx2");
-      ImmutableConnectorConfig tempConfig = withBucketName(commonConfig, bucket.name());
-      ImmutableConnectorConfig finalConfig = tempConfig.withCouchbase(
-          ImmutableCouchbaseConfig.copyOf(tempConfig.couchbase())
-              .withCollections(
-                  new ScopeAndCollection("scopex1", "collectionx1"),
-                  new ScopeAndCollection("scopex2", "collectionx2")));
-      try (TestEsClient es = new TestEsClient(finalConfig);
-           AsyncTask connector = AsyncTask.run(() -> ElasticsearchConnector.run(finalConfig))) {
-
-        collection1.upsert("myDocumentx1", 3);
-        collection2.upsert("myDocumentx2", "content1");
-        es.waitForDocument("scopex1.collectionx1", "myDocumentx1");
-        es.waitForDeletion("scopex2.collectionx2", "myDocumentx2");
-      }
-    }
-  }
-
-  @Test
-  public void collectionInsertOp() throws Throwable {
-    try (TestCouchbaseClient cb = new TestCouchbaseClient(commonConfig)) {
-      assumeSupportsCollections(cb);
-
-      final Bucket bucket = cb.createTempBucket(couchbase);
-
-      bucket.collections().createScope("scopey1");
-      CollectionSpec collectionSpec1 = CollectionSpec.create("collectiony1", "scopey1");
-      bucket.collections().createCollection(collectionSpec1);
-      bucket.collections().createScope("scopey2");
-      CollectionSpec collectionSpec2 = CollectionSpec.create("collectiony2", "scopey2");
-      bucket.collections().createCollection(collectionSpec2);
-      final Collection collection1 = bucket.scope("scopey1").collection("collectiony1");
-      final Collection collection2 = bucket.scope("scopey2").collection("collectiony2");
-      ImmutableConnectorConfig tempConfig = withBucketName(commonConfig, bucket.name());
-      ImmutableConnectorConfig finalConfig = tempConfig.withCouchbase(
-          ImmutableCouchbaseConfig.copyOf(tempConfig.couchbase())
-              .withCollections(
-                  new ScopeAndCollection("scopey1", "collectiony1"),
-                  new ScopeAndCollection("scopey2", "collectiony2")));
-
-      try (TestEsClient es = new TestEsClient(finalConfig);
-           AsyncTask connector = AsyncTask.run(() -> ElasticsearchConnector.run(finalConfig))) {
-
-        collection1.insert("myDocumenty1", 3);
-        collection2.insert("myDocumenty2", "content2");
-        es.waitForDocument("scopey1.collectiony1", "myDocumenty1");
-        es.waitForDeletion("scopey2.collectiony2", "myDocumenty2");
-      }
-    }
-  }
-
-  @Test
-  public void collectionReplaceOp() throws Throwable {
-    try (TestCouchbaseClient cb = new TestCouchbaseClient(commonConfig)) {
-      assumeSupportsCollections(cb);
-
-      final Bucket bucket = cb.createTempBucket(couchbase);
-
-      bucket.collections().createScope("scopez1");
-      CollectionSpec collectionSpec1 = CollectionSpec.create("collectionz1", "scopez1");
-      bucket.collections().createCollection(collectionSpec1);
-      bucket.collections().createScope("scopez2");
-      CollectionSpec collectionSpec2 = CollectionSpec.create("collectionz2", "scopez2");
-      bucket.collections().createCollection(collectionSpec2);
-      final Collection collection1 = bucket.scope("scopez1").collection("collectionz1");
-      final Collection collection2 = bucket.scope("scopez2").collection("collectionz2");
-      ImmutableConnectorConfig tempConfig = withBucketName(commonConfig, bucket.name());
-      ImmutableConnectorConfig finalConfig = tempConfig.withCouchbase(
-          ImmutableCouchbaseConfig.copyOf(tempConfig.couchbase())
-              .withCollections(
-                  new ScopeAndCollection("scopez1", "collectionz1"),
-                  new ScopeAndCollection("scopez2", "collectionz2")));
-
-      try (TestEsClient es = new TestEsClient(finalConfig);
-           AsyncTask connector = AsyncTask.run(() -> ElasticsearchConnector.run(finalConfig))) {
-
-        collection1.insert("myDocumentz1", 3);
-        collection2.insert("myDocumentz2", "content2");
-        collection1.replace("myDocumentz1", "replaced content");
-        collection1.replace("myDocumentz2", "replaced content");
-        es.waitForDocument("scopez1.collection-one", "myDocumentz1");
-        es.waitForDeletion("scopez2.collectionz2", "myDocumentz2");
-      }
-    }
-  }
-
-  @Test
-  public void collectionRemoveOp() throws Throwable {
-    try (TestCouchbaseClient cb = new TestCouchbaseClient(commonConfig)) {
-      assumeSupportsCollections(cb);
-
-      final Bucket bucket = cb.createTempBucket(couchbase);
-
-      bucket.collections().createScope("scoper1");
-      CollectionSpec collectionSpec1 = CollectionSpec.create("collectionr1", "scoper1");
-      bucket.collections().createCollection(collectionSpec1);
-      bucket.collections().createScope("scoper2");
-      CollectionSpec collectionSpec2 = CollectionSpec.create("collectionr2", "scoper2");
-      bucket.collections().createCollection(collectionSpec2);
-      final Collection collection1 = bucket.scope("scoper1").collection("collectionr1");
-      final Collection collection2 = bucket.scope("scoper2").collection("collectionr2");
-
-      ImmutableConnectorConfig tempConfig = withBucketName(commonConfig, bucket.name());
-
-      ImmutableConnectorConfig finalConfig = tempConfig.withCouchbase(
-          ImmutableCouchbaseConfig.copyOf(tempConfig.couchbase())
-              .withCollections(
-                  new ScopeAndCollection("scoper1", "collectionr1"),
-                  new ScopeAndCollection("scoper2", "collectionr2")));
-
-      try (TestEsClient es = new TestEsClient(finalConfig);
-           AsyncTask connector = AsyncTask.run(() -> ElasticsearchConnector.run(finalConfig))) {
-
-        collection1.insert("myDocumentr1", 3);
-        collection2.insert("myDocumentr2", "content2");
-        collection1.remove("myDocumentr1");
-        collection1.remove("myDocumentr2");
-        es.waitForDocument("scopez1.collection-one", "myDocumentz1");
-        es.waitForDeletion("scopez2.collectionz2", "myDocumentz2");
-      }
     }
   }
 

@@ -19,34 +19,28 @@ package com.couchbase.connector.testcontainers;
 import com.couchbase.client.dcp.util.Version;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.couchbase.CouchbaseContainer;
+import org.testcontainers.couchbase.CouchbaseService;
+import org.testcontainers.utility.DockerImageName;
 
 import java.util.Optional;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-
-public class CustomCouchbaseContainer extends SocatCouchbaseContainer {
+public class CustomCouchbaseContainer extends CouchbaseContainer {
   private static final Logger log = LoggerFactory.getLogger(CustomCouchbaseContainer.class);
 
   private final CouchbaseOps ops;
 
   public CustomCouchbaseContainer(String containerName) {
-    super(containerName);
+    super(DockerImageName.parse(containerName).asCompatibleSubstituteFor("couchbase/server"));
     this.ops = new CouchbaseOps(this, "localhost");
   }
 
   public static CustomCouchbaseContainer newCouchbaseCluster(String dockerImageName) {
-    CustomCouchbaseContainer couchbase = new CustomCouchbaseContainer(dockerImageName);
+    CouchbaseContainer couchbase = new CustomCouchbaseContainer(dockerImageName)
+        .withEnabledServices(CouchbaseService.KV, CouchbaseService.QUERY, CouchbaseService.INDEX);
     couchbase.start();
-    couchbase.initCluster();
 
-    try {
-      // Not the most sophisticated wait strategy, but we can refine it later
-      SECONDS.sleep(10);
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    }
-
-    return couchbase;
+    return (CustomCouchbaseContainer) couchbase;
   }
 
   public void loadSampleBucket(String bucketName, int bucketQuotaMb) {

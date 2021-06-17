@@ -39,21 +39,21 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class CouchbaseOps {
   private static final Logger log = LoggerFactory.getLogger(CouchbaseOps.class);
 
-  private final GenericContainer container;
+  private final GenericContainer<?> container;
   private final String username;
   private final String password;
   private final String hostname;
 
   private final OkHttpClient httpClient = new OkHttpClient();
 
-  public CouchbaseOps(GenericContainer container, String hostname) {
+  public CouchbaseOps(GenericContainer<?> container, String hostname) {
     this.container = requireNonNull(container);
     this.username = "Administrator";
     this.password = "password";
     this.hostname = requireNonNull(hostname);
   }
 
-  private void serverAdd(GenericContainer newNode, String newNodeHostname) {
+  private void serverAdd(GenericContainer<?> newNode, String newNodeHostname) {
     execOrDie("couchbase-cli", "server-add",
         "--cluster", hostname,
         "--username=" + username,
@@ -139,33 +139,33 @@ public class CouchbaseOps {
 
     log.info("Loading sample bucket '" + bucketName + "'...");
 
-    Container.ExecResult result = execInContainerUnchecked(container,
-        "cbdocloader",
-        "--cluster", "localhost", // + ":8091" +
-        "--username", username,
-        "--password", password,
-        "--bucket", bucketName,
-        "--bucket-quota", String.valueOf(bucketQuotaMb),
-        "--dataset", "./opt/couchbase/samples/" + bucketName + ".zip");
-
-    // Query and index services must be present to avoid this warning. We don't need those services.
-    if (result.getExitCode() != 0 && !result.getStdout().contains("Errors occurred during the index creation phase")) {
-      throw new UncheckedIOException(new IOException("Failed to load sample bucket: " + result));
-    }
-    log.info("Importing sample bucket with cbdocloader took {}", timer);
-
-    // cbimport is faster, but isn't always available, and fails when query & index services are absent
-//    createBucket(bucketName, bucketQuotaMb, 0);
-//    execOrDie("cbimport", "json",
-//        "--threads", "2",
-//        "--cluster", "localhost",
+//    Container.ExecResult result = execInContainerUnchecked(container,
+//        "cbdocloader",
+//        "--cluster", "localhost", // + ":8091" +
 //        "--username", username,
 //        "--password", password,
 //        "--bucket", bucketName,
-//        "--format", "sample",
-//        "--dataset", "file://opt/couchbase/samples/" + bucketName + ".zip");
+//        "--bucket-quota", String.valueOf(bucketQuotaMb),
+//        "--dataset", "./opt/couchbase/samples/" + bucketName + ".zip");
 //
-//    log.info("Importing sample bucket with cbimport took " + timer);
+//    // Query and index services must be present to avoid this warning. We don't need those services.
+//    if (result.getExitCode() != 0 && !result.getStdout().contains("Errors occurred during the index creation phase")) {
+//      throw new UncheckedIOException(new IOException("Failed to load sample bucket: " + result));
+//    }
+//    log.info("Importing sample bucket with cbdocloader took {}", timer);
+
+    // cbimport is faster, but isn't always available, and fails when query & index services are absent
+    createBucket(bucketName, bucketQuotaMb, 0);
+    execOrDie("cbimport", "json",
+        "--threads", "2",
+        "--cluster", "localhost",
+        "--username", username,
+        "--password", password,
+        "--bucket", bucketName,
+        "--format", "sample",
+        "--dataset", "file://opt/couchbase/samples/" + bucketName + ".zip");
+
+    log.info("Importing sample bucket with cbimport took {} (including bucket creation)", timer);
   }
 
   public Optional<Version> getVersion() {
@@ -177,7 +177,7 @@ public class CouchbaseOps {
     return result.isPresent() ? result : getVersionFromDockerImageName(container);
   }
 
-  private static Optional<Version> getVersionFromDockerImageName(GenericContainer couchbase) {
+  private static Optional<Version> getVersionFromDockerImageName(GenericContainer<?> couchbase) {
     final String imageName = couchbase.getDockerImageName();
     final int tagDelimiterIndex = imageName.indexOf(':');
     return tagDelimiterIndex == -1 ? Optional.empty() : tryParseVersion(imageName.substring(tagDelimiterIndex + 1));
@@ -209,38 +209,6 @@ public class CouchbaseOps {
     }
     return -1;
   }
-
-//  public static void main(String[] args) {
-//    Stopwatch timer = Stopwatch.createStarted();
-//
-//    String hostname = "node1.couchbase.host";
-//    CouchbaseContainer couchbase = new CouchbaseContainer()
-//        .withNetworkAliases(hostname)
-//        .withEnabledServices(CouchbaseService.KV, CouchbaseService.QUERY, CouchbaseService.INDEX);
-//    CouchbaseOps ops = new CouchbaseOps(couchbase, hostname);
-//
-//    couchbase.start();
-//    //ops.assignHostname(hostname);
-//
-//    System.out.println("*** VERSION: " + ops.getVersion());
-//
-//    ops.loadSampleBucket("travel-sample", 100);
-//
-//    Cluster cluster = Cluster.connect(
-//        couchbase.getConnectionString(),
-//        couchbase.getUsername(),
-//        couchbase.getPassword());
-//
-//
-////    ops.createBucket("default", 128, 0);
-////    cluster.bucket("default").waitUntilReady(Duration.ofMinutes(1));
-//
-//
-//    System.out.println("done, finished in " + timer);
-//
-//    // 33.79 s
-//  }
-//
 
   /**
    * Helper method to perform a request against a couchbase server HTTP endpoint.
