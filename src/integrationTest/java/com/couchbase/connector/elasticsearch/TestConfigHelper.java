@@ -20,10 +20,10 @@ import com.couchbase.connector.config.common.ImmutableCouchbaseConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
-import com.couchbase.connector.testcontainers.ElasticsearchContainer;
 import com.github.therapi.core.internal.LangHelper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
 import java.io.File;
 import java.io.IOException;
@@ -56,13 +56,12 @@ public class TestConfigHelper {
   public static String readConfig(CustomCouchbaseContainer couchbase, ElasticsearchContainer elasticsearch,
                                   Map<String, Object> propertyOverrides) throws IOException {
 
-    final String dockerHost = couchbase.getContainerIpAddress();
 
     final Map<String, Object> defaultOverrides = ImmutableMap.of(
         "metrics.httpPort", -1,
         "metrics.logInterval", "0",
-        "elasticsearch.hosts", singletonList(dockerHost + ":" + elasticsearch.getElasticsearchHost().getPort()),
-        "couchbase.hosts", singletonList(dockerHost + ":" + couchbase.getMappedPort(11210) + "=kv")
+        "elasticsearch.hosts", singletonList(elasticsearch.getHttpHostAddress()),
+        "couchbase.hosts", singletonList(couchbase.getHost() + ":" + couchbase.getMappedPort(11210) + "=kv")
 //        ,"couchbase.network", "external"
     );
 
