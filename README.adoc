@@ -1,7 +1,7 @@
 = Couchbase Elasticsearch Connector
 
-https://docs.couchbase.com/elasticsearch-connector/4.2/release-notes.html[*Download*]
-| https://docs.couchbase.com/elasticsearch-connector/4.2/index.html[*Documentation*]
+https://docs.couchbase.com/elasticsearch-connector/4.3/release-notes.html[*Download*]
+| https://docs.couchbase.com/elasticsearch-connector/4.3/index.html[*Documentation*]
 | https://issues.couchbase.com/projects/CBES[*Issues*]
 | https://forums.couchbase.com/c/elasticsearch-connector[*Discussion*]
 

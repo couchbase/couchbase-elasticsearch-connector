@@ -12,8 +12,7 @@ TIP: Omit the `?pretty` for a more compact response.
 A simple health check might fetch that URL and assert the response has an HTTP status code of 200 (OK).
 A more sophisticated check should parse the JSON response and inspect the values of whichever metrics you consider important.
 
-Since 4.2.6, metrics are also exposed in Prometheus format at `http://localhost:31415/metrics/prometheus`.
-In connector version 4.2.x, all Prometheus metrics are "Uncommitted API" which means they may change between releases without notice.
+Metrics are also exposed in Prometheus format at `http://localhost:31415/metrics/prometheus`.
 
 [#http-server-config]
 == HTTP Server Configuration
@@ -45,23 +44,11 @@ Perhaps the most important metric for implementing a health check, this gauge re
 This includes the time it takes to retry the request, if necessary.
 An exceptionally long duration might indicate the connector is stalled in a retry loop.
 
-`cbes.backlog` (Since 4.2.5; uncommitted)::
+`cbes.backlog`::
 An estimate of the number of Couchbase document changes yet to be processed.
 This is a general indication of how well the connector is keeping up with changes in Couchbase.
 Note that the count only includes changes in the Couchbase partitions handled by this connector instance.
-Unlike `cbes.backfill`, this value is dynamic; it goes up when changes happen in Couchbase, and goes down as the changes are processed by the connector.
-
-`cbes.backfill` (DEPRECATED)::
-This is the number of Couchbase documents not yet replicated to Elasticsearch at the time the connector started.
-The value reported by this gauge never changes.
-_All the "backfill*" metrics are deprecated since they do not provide an accurate view of the connector's progress; please use the `cbes.backlog` metric instead._
-
-`cbes.backfillRemaining` (DEPRECATED)::
-Shows how many documents the connector still needs to process in order to catch up with the state of the bucket when the connector started.
-The value only decreases, and never goes below zero.
-
-`cbes.backfillEstTimeLeft` (DEPRECATED)::
-A rough estimate of the time in seconds it will take for the connector to finish processing the remaining backfill.
+This value is dynamic; it goes up when changes happen in Couchbase, and goes down as the changes are processed by the connector.
 
 `cbes.writeQueue`::
 Reports the number of document events currently buffered in memory. (The write queue is implicitly bounded by the `flowControlBuffer` config property which determines the buffer size.)

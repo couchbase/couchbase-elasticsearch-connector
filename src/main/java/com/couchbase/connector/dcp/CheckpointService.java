@@ -18,26 +18,19 @@ package com.couchbase.connector.dcp;
 
 import com.couchbase.connector.elasticsearch.Metrics;
 import com.google.common.base.Stopwatch;
-import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableList;
 import io.micrometer.core.instrument.Counter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 public class CheckpointService {
   private static final Logger LOGGER = LoggerFactory.getLogger(CheckpointService.class);
@@ -47,9 +40,6 @@ public class CheckpointService {
   private final String bucketUuid;
   private final Counter failures = Metrics.counter("save.state.fail", "Failed to save a replication checkpoint document to Couchbase.");
   private volatile boolean dirty;
-  private volatile ImmutableList<Long> backfillTargetSeqnos;
-  private volatile long remainingBackfillItems = -1;
-  private volatile long totalBackfillItems = -1;
 
   // Supplies a map from partition to sequence number for all partitions this
   // connector instance is responsible for.
@@ -64,12 +54,8 @@ public class CheckpointService {
    * @param highSeqnoProvider a supplier to invoke to get the current sequence numbers
    * in all partitions this connector instance is responsible for.
    */
-  public void init(List<Long> backfillTargetSeqnos, Supplier<Map<Integer, Long>> highSeqnoProvider) {
-    final int numPartitions = backfillTargetSeqnos.size();
-    this.backfillTargetSeqnos = ImmutableList.copyOf(backfillTargetSeqnos);
+  public void init(int numPartitions, Supplier<Map<Integer, Long>> highSeqnoProvider) {
     this.highSeqnoProvider = requireNonNull(highSeqnoProvider);
-
-    LOGGER.info("Initializing checkpoint service with backfill target seqnos: {}", backfillTargetSeqnos);
     this.positions = new AtomicReferenceArray<>(numPartitions);
   }
 
@@ -92,27 +78,9 @@ public class CheckpointService {
       setWithoutMarkingDirty(partition, entry.getValue());
     }
 
-    this.totalBackfillItems = remainingBackfillItems();
-    registerBackfillMetrics();
+    registerBacklogMetrics();
 
     return result;
-  }
-
-  private long remainingBackfillItems() {
-    final List<Long> remainingByPartition = new ArrayList<>(backfillTargetSeqnos.size());
-
-    for (int vbucket = 0, max = backfillTargetSeqnos.size(); vbucket < max; vbucket++) {
-      final long backfillTarget = backfillTargetSeqnos.get(vbucket);
-      final Checkpoint current = defaultIfNull(positions.get(vbucket), Checkpoint.ZERO);
-
-      // seqno values are unsigned, but subtraction is safe on unsigned values
-      final long remainingForPartition = Math.max(0, backfillTarget - current.getSeqno());
-      remainingByPartition.add(remainingForPartition);
-    }
-
-    LOGGER.info("Remaining backfill by vbucket: {}", remainingByPartition);
-    return remainingByPartition.stream()
-        .mapToLong(s -> s).sum();
   }
 
   public synchronized void save() {
@@ -136,27 +104,10 @@ public class CheckpointService {
     }
   }
 
-  private void registerBackfillMetrics() {
-    // deprecated
-    Metrics.gauge("backfill", null, this, me -> me.totalBackfillItems);
-
+  private void registerBacklogMetrics() {
     Metrics.cachedGauge("backlog",
         "Estimated Couchbase changes yet to be processed by this node.",
         this, CheckpointService::getLocalBacklog);
-
-    Supplier<Long> backfillRemainingSupplier = Suppliers.memoizeWithExpiration(() -> {
-      updateBackfillProgress();
-      return remainingBackfillItems;
-    }, 1, TimeUnit.SECONDS);
-    // deprecated
-    Metrics.gauge("backfill.remaining", null, this, ignored -> backfillRemainingSupplier.get());
-
-    // deprecated
-    Metrics.cachedGauge("backfill.est.time.left", null, this, value -> {
-      final long remainingItems = backfillRemainingSupplier.get();
-      final long remainingNanos = (long) (remainingItems * Metrics.indexTimePerDocument().mean(NANOSECONDS));
-      return NANOSECONDS.toSeconds(remainingNanos);
-    });
   }
 
   /**
@@ -190,18 +141,5 @@ public class CheckpointService {
 
     }
     return result;
-  }
-
-  private void updateBackfillProgress() {
-    if (LOGGER.isDebugEnabled()) {
-      final List<Long> currentSeqnos = new ArrayList<>();
-      for (int i = 0; i < positions.length(); i++) {
-        final Checkpoint checkpoint = defaultIfNull(positions.get(i), Checkpoint.ZERO);
-        currentSeqnos.add(checkpoint.getSeqno());
-      }
-      LOGGER.debug("current seqnos: {}", currentSeqnos);
-    }
-
-    remainingBackfillItems = remainingBackfillItems();
   }
 }

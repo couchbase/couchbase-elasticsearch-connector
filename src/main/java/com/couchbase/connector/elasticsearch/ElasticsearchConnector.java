@@ -60,7 +60,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import static com.couchbase.client.core.logging.RedactableArgument.redactSystem;
 import static com.couchbase.connector.VersionHelper.getVersionString;
 import static com.couchbase.connector.dcp.CouchbaseHelper.requireCouchbaseVersion;
-import static com.couchbase.connector.dcp.DcpHelper.getCurrentSeqnos;
 import static com.couchbase.connector.dcp.DcpHelper.initEventListener;
 import static com.couchbase.connector.dcp.DcpHelper.initSessionState;
 import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
@@ -191,8 +190,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
           // need to do this check, because if we started streaming with an empty list, the DCP client would open streams for *all* partitions
           throw new IllegalArgumentException("There are more workers than Couchbase vbuckets; this worker doesn't have any work to do.");
         }
-        checkpointService.init(getCurrentSeqnos(dcpClient, partitions),
-            () -> DcpHelper.getCurrentSeqnosAsMap(dcpClient, partitions, Duration.ofSeconds(5)));
+        checkpointService.init(numPartitions, () -> DcpHelper.getCurrentSeqnosAsMap(dcpClient, partitions, Duration.ofSeconds(5)));
 
         dcpClient.initializeState(StreamFrom.BEGINNING, StreamTo.INFINITY).block();
         initSessionState(dcpClient, checkpointService, partitions);

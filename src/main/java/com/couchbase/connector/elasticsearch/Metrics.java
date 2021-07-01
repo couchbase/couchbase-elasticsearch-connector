@@ -86,7 +86,6 @@ public class Metrics {
 
   static {
     prometheusRegistry.config()
-        .meterFilter(MeterFilter.denyNameStartsWith("cbes.backfill")) // deprecated, no reason to expose
         .meterFilter(MeterFilter.denyNameStartsWith("cbes.es.wait.ms")); // superseded by "cbes.es.wait.seconds"
   }
 

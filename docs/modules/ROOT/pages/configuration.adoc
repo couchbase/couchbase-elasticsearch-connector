@@ -69,10 +69,10 @@ The connector config file has additional options for controlling higher-level lo
   logDocumentLifecycle = false <1>
   redactionLevel = 'NONE' <2>
 ----
-<1> (Since 4.2.9; Uncommitted) If true, document lifecycle milestones will be logged at INFO level instead of DEBUG.
+<1> If true, document lifecycle milestones will be logged at INFO level instead of DEBUG.
 Enabling this feature lets you watch documents flow through the connector without having to edit the Log4j config file.
 Disabled by default because it generates many log messages.
-<2> (Since 4.2.9; Uncommitted) Determines which kinds of sensitive log messages will be tagged for later redaction by the Couchbase log redaction tool.
+<2> Determines which kinds of sensitive log messages will be tagged for later redaction by the Couchbase log redaction tool.
 `NONE` = no tagging; `PARTIAL` = user data is tagged; `FULL` = user, meta, and system data is tagged.
 Defaults to `NONE`.
 
@@ -111,8 +111,6 @@ If you decide not to enable secure connections, you can ignore this section.
 
 [#client-certificates]
 == Client Certificates
-
-WARNING: Support for client certificate authentication, also known as "mutual TLS authentication" (mTLS), was introduced in version 4.2.8 of the connector as an "uncommitted" feature; the configuration options described in this section may change without notice.
 
 If secure connections are enabled, you can optionally authenticate using a client certificate instead of a username and password.
 
@@ -163,7 +161,7 @@ Setting the value to `auto` tells the connector to select whichever network cont
 <3> The source bucket to replicate from.
 <4> The bucket for storing metadata like replication checkpoint documents.
 Empty string means store metadata in the source bucket.
-<5> (Since 4.2.3; Uncommitted) The name of the collection for storing metadata like replication checkpoint documents.
+<5> The name of the collection for storing metadata like replication checkpoint documents.
 Must be qualified by a scope name.
 For example: `myScope.cbesCheckpoints`.
 This collection must already exist; it will not be created by the connector.
@@ -171,11 +169,11 @@ Empty string means store metadata in the default collection: `_default._default`
 <6> At a minimum, the Couchbase user must have the "Data DCP Reader" role for the source bucket, and "Data Reader" & "Data Writer" roles for the metadata bucket.
 <7> Path to a separate TOML file with a single 'password' key.
 <8> If you have configured the <<truststore,Trust Store>> section, set this to `true` to encrypt the Couchbase connections.
-<9> (Since 4.2.6; Uncommitted) Set this to `false` if you are using a secure connection to Couchbase but for whatever reason need to disable TLS hostname verification.
+<9> Set this to `false` if you are using a secure connection to Couchbase but for whatever reason need to disable TLS hostname verification.
 Note that disabling hostname verification will cause the TLS connection to not verify that the hostname/ip is actually associated with the certificate and as a result not detect certain kinds of attacks.
 Only disable if you understand the impact and can accept the risks.
-<10> (Since 4.2.3; Uncommitted) If you want to replicate from only one scope, name it here.
-<11> (Since 4.2.3; Uncommitted) If you want to replicate from a subset of collections within a scope, or collections in different scopes, name the collections here.
+<10> If you want to replicate from only one scope, name it here.
+<11> If you want to replicate from a subset of collections within a scope, or collections in different scopes, name the collections here.
 Qualify each collection name with its parent scope, like `'scope.collection'`.
 
 NOTE: The `scope` and `collections` properties are mutually exclusive.
@@ -199,7 +197,7 @@ Here's an example that tunes the checkpoint I/O timeout settings and disables na
   security.enableNativeTls = false
   ioEnvironment.enableNativeIo = false
 ----
-<1> (Since 4.2.10; Uncommitted) Any property name recognized by the Couchbase Java SDK may be specified in this section.
+<1> Any property name recognized by the Couchbase Java SDK may be specified in this section.
 
 Each property name in this section must be one of the system properties recognized by the Couchbase Java SDK, but without the `com.couchbase.env.` prefix.
 For a list of system properties, see xref:java-sdk:ref:client-settings.adoc[Java SDK Client Settings].
@@ -350,7 +348,7 @@ Empty string (`''`) means "no pipeline".
 <3> Assign this Elasticsearch type to matching documents.
 <4> If `true`, ignore matching documents entirely.
 <5> If `true`, never delete matching documents from Elasticsearch.
-<6> (Since 4.2.3; Uncommitted) If `true`, the `prefix` and `regex` properties described in the next section match against the qualified document ID, which includes the document's scope and collection.
+<6> If `true`, the `prefix` and `regex` properties described in the next section match against the qualified document ID, which includes the document's scope and collection.
 Otherwise, they match against just the document ID.
 For example, "scope.collection.documentId" versus just "documentId".
 
@@ -537,7 +535,7 @@ Otherwise, the specified default value `blue` will be used.
 
 TIP: As you may have noticed, `age = $\{AGE}` is not valid TOML syntax.
 This is fine if the connector is the only program that reads the config file, but other TOML processing tools might complain.
-Since version 4.2.11, integer and boolean values may be specified as strings.
+To accommodate other tools, integer and boolean values may be specified as strings.
 For example: `age = '$\{AGE}'`.
 This lets you use placeholders for integers and booleans without invalidating the TOML syntax.
 
