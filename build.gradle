@@ -1,6 +1,6 @@
 plugins {
-  id "com.github.jk1.dependency-license-report" version "1.11"
-  id 'org.unbroken-dome.test-sets' version '1.5.1'
+  id "com.github.jk1.dependency-license-report" version "1.16"
+  id 'org.unbroken-dome.test-sets' version '4.0.0'
 }
 
 import org.apache.tools.ant.filters.ReplaceTokens
@@ -55,6 +55,10 @@ dependencies {
   implementation 'com.couchbase.client:java-client:3.1.6'
   implementation 'com.couchbase.client:dcp-client:0.34.0'
   implementation 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.7.1'
+
+  // Elasticsearch client brings in older version of Jackson.
+  // Force newer version to ward off vulnerability reports.
+  implementation platform("com.fasterxml.jackson:jackson-bom:2.12.3")
 
   implementation 'io.projectreactor:reactor-core:3.4.6'
 
@@ -155,7 +159,7 @@ def extraStartScripts = [
 
 extraStartScripts.each { scriptName, driverClass ->
   Task t = task(scriptName + "-script", group: 'CLI Script Generation', type: CreateStartScripts) {
-    mainClassName = driverClass
+    mainClass = driverClass
     applicationName = scriptName
     outputDir = startScripts.outputDir
     classpath = startScripts.classpath
