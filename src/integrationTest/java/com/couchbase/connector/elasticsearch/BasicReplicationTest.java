@@ -23,10 +23,7 @@ import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Collection;
 import com.couchbase.client.java.json.JsonObject;
 import com.couchbase.client.java.kv.MutationResult;
-import com.couchbase.client.java.manager.collection.CollectionSpec;
 import com.couchbase.connector.cluster.consul.AsyncTask;
-import com.couchbase.connector.config.ScopeAndCollection;
-import com.couchbase.connector.config.common.ImmutableCouchbaseConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import com.couchbase.connector.dcp.CouchbaseHelper;
@@ -91,11 +88,12 @@ public class BasicReplicationTest {
   @Parameterized.Parameters(name = "cb={0}, es={1}")
   public static Iterable<Object[]> versionsToTest() {
     // Only the first version in each list will be tested, unless this condition is `true`
-    final boolean exhaustive = Boolean.valueOf(System.getProperty("com.couchbase.integrationTest.exhaustive"));
+    final boolean exhaustive = Boolean.parseBoolean(System.getProperty("com.couchbase.integrationTest.exhaustive"));
 
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
-        "enterprise-6.5.1",
-        "community-6.5.1");
+        "enterprise-6.5.1"
+//        "community-6.5.1", // depends on https://github.com/testcontainers/testcontainers-java/pull/4221
+        );
 
     // Need to figure out how to run the following in Docker with Testcontainers 1.14.1.
     // They don't support alternate addresses, so we can't use CouchbaseContainer anymore.
@@ -114,7 +112,7 @@ public class BasicReplicationTest {
     // This list is informed by https://www.elastic.co/support/eol
     // If possible, we also want to support the last minor of every major (like 5.6.16).
     final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "7.13.2",
+        "7.13.3",
         "7.12.1",
         "7.11.2",
         "7.10.1",
@@ -122,7 +120,7 @@ public class BasicReplicationTest {
         "7.8.1",
         "7.7.1",
         "7.6.2",
-        "6.8.14",
+        "6.8.17",
         "5.6.16"
     ));
 
