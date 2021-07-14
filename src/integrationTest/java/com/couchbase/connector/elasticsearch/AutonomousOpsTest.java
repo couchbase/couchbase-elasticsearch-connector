@@ -53,8 +53,8 @@ public class AutonomousOpsTest {
     ConsulClientWorkaround.apply();
   }
 
-  private static final String couchbaseVersion = "enterprise-6.0.1";
-  private static final String elasticsearchVersion = "6.6.0";
+  private static final String couchbaseVersion = "enterprise-6.5.1";
+  private static final String elasticsearchVersion = "6.8.17";
 
   private static CustomCouchbaseContainer couchbase;
   private static ElasticsearchContainer elasticsearch;
