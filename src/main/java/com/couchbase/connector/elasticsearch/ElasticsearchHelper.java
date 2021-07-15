@@ -57,6 +57,7 @@ import java.util.regex.Pattern;
 import static com.couchbase.connector.elasticsearch.io.MoreBackoffPolicies.truncatedExponentialBackoff;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.commons.lang3.StringUtils.substringBefore;
 
 public class ElasticsearchHelper {
   private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchHelper.class);
@@ -188,4 +189,27 @@ public class ElasticsearchHelper {
         serviceName, signer, new DefaultAWSCredentialsProviderChain()));
   }
 
+  /**
+   * Wrapper around {@link BulkItemResponse#getFailure()} that sanitizes
+   * the failure message to prevent sensitive info from leaking into log messages.
+   */
+  public static BulkItemResponse.Failure getFailure(BulkItemResponse response) {
+    BulkItemResponse.Failure orig = response.getFailure();
+    if (orig == null) {
+      return null;
+    }
+
+    return new BulkItemResponse.Failure(orig.getIndex(), orig.getType(), orig.getId(), orig.getCause(), orig.getStatus(), orig.getSeqNo(), orig.isAborted()) {
+      @Override
+      public String getMessage() {
+        // Sanitize the message, otherwise the message of certain failures
+        // can include the document content or even HTTP requests with
+        // sensitive headers.
+        String message = super.getMessage();
+        return message.contains("[Source:")
+            ? substringBefore(message, "[Source:") + "<REDACTED>"
+            : message;
+      }
+    };
+  }
 }

@@ -48,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
@@ -279,6 +280,9 @@ public class BasicReplicationTest {
 
     final JsonNode content = es.waitForDocument("cbes-rejects", id);
     System.out.println(content);
+
+    assertFalse("Rejection log message contains sensitive HTTP header",
+        content.toString().toLowerCase(Locale.ROOT).contains("authorization"));
 
     assertEquals(index, content.path("index").textValue());
     assertEquals("doc", content.path("type").textValue());
