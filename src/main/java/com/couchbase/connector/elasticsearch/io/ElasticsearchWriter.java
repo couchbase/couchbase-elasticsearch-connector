@@ -21,6 +21,7 @@ import com.couchbase.connector.dcp.Checkpoint;
 import com.couchbase.connector.dcp.CheckpointService;
 import com.couchbase.connector.dcp.Event;
 import com.couchbase.connector.elasticsearch.DocumentLifecycle;
+import com.couchbase.connector.elasticsearch.ElasticsearchHelper;
 import com.couchbase.connector.elasticsearch.ErrorListener;
 import com.couchbase.connector.elasticsearch.Metrics;
 import com.couchbase.connector.util.ThrowableHelper;
@@ -287,7 +288,7 @@ public class ElasticsearchWriter implements Closeable {
 
           for (int i = 0; i < responses.length; i++) {
             final BulkItemResponse response = responses[i];
-            final BulkItemResponse.Failure failure = response.getFailure();
+            final BulkItemResponse.Failure failure = ElasticsearchHelper.getFailure(response);
             final EventDocWriteRequest request = requests.get(i);
             final Event e = request.getEvent();
 
