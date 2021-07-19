@@ -3,8 +3,8 @@ plugins {
   id 'org.unbroken-dome.test-sets' version '4.0.0'
 }
 
-import org.apache.tools.ant.filters.ReplaceTokens
 import com.github.jk1.license.importer.XmlReportImporter
+import org.apache.tools.ant.filters.ReplaceTokens
 
 apply plugin: 'java'
 apply plugin: 'application'
@@ -14,10 +14,19 @@ repositories {
   maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
 }
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
-
 version = "4.3.0-SNAPSHOT"
+
+def compileJavaVersion = "8"
+def testJavaVersion = project.findProperty("testJavaVersion") ?: compileJavaVersion
+def jvmVendor = JvmVendorSpec.ADOPTOPENJDK
+println "Compiling for Java ${compileJavaVersion}, testing against Java ${testJavaVersion} (${jvmVendor})"
+
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(compileJavaVersion)
+    vendor = jvmVendor
+  }
+}
 
 // https://github.com/unbroken-dome/gradle-testsets-plugin
 testSets {
@@ -32,6 +41,10 @@ integrationTest {
 
 tasks.withType(Test) {
   testLogging.showStandardStreams = true
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(testJavaVersion)
+    vendor = jvmVendor
+  }
 }
 
 integrationTest.dependsOn(test)
