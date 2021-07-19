@@ -54,7 +54,7 @@ Because the project uses annotation processors, some link:INTELLIJ-SETUP.md[fidd
 
     docker build -f Dockerfile.light -t imagename:tag --build-arg VERSION=<version> .
 
-where `<version>` is the latest [tag](https://github.com/couchbase/couchbase-elasticsearch-connector/tags) from the connector's GitHub repo.
+where `<version>` is the latest https://github.com/couchbase/couchbase-elasticsearch-connector/tags[tag] from the connector's GitHub repo.
 
 === Running a Docker image
 
