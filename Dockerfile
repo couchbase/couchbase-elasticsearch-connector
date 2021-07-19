@@ -7,7 +7,7 @@ USER gradle
 
 COPY --chown=gradle:gradle ./ /home/gradle/src
 WORKDIR /home/gradle/src
-RUN gradle build --no-daemon && \
+RUN ./gradlew build --no-daemon && \
     mkdir -p /home/gradle/app && \
     cat build/distributions/couchbase-elasticsearch-connector*.tgz | tar -xzf - -C /home/gradle/app --strip 1
 
