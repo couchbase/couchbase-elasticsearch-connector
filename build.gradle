@@ -65,8 +65,8 @@ dependencies {
   // Route that through SLF4J instead.
   implementation 'org.slf4j:jcl-over-slf4j:1.7.31'
 
-  implementation 'com.couchbase.client:java-client:3.1.6'
-  implementation 'com.couchbase.client:dcp-client:0.34.0'
+  implementation 'com.couchbase.client:java-client:3.2.0'
+  implementation 'com.couchbase.client:dcp-client:0.35.0'
 
   // Can't upgrade ES client to 7.x until we drop support for ES 6
   //   because the 7.x client omits the document type field required by 6.
