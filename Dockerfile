@@ -1,11 +1,8 @@
-FROM gradle:4.9.0-jdk8-alpine AS build
+FROM adoptopenjdk:11-hotspot AS build
 
-# Switch back to root long enough to install Git
-USER root
-RUN apk add --no-cache git
-USER gradle
+RUN apt-get update && apt-get install git -y
 
-COPY --chown=gradle:gradle ./ /home/gradle/src
+COPY ./ /home/gradle/src
 WORKDIR /home/gradle/src
 RUN ./gradlew build --no-daemon && \
     mkdir -p /home/gradle/app && \
@@ -13,7 +10,7 @@ RUN ./gradlew build --no-daemon && \
 
 
 
-FROM adoptopenjdk:8-hotspot
+FROM adoptopenjdk:11-hotspot
 COPY --from=build /home/gradle/app /opt/couchbase-elasticsearch-connector
 
 ENV PATH="/opt/couchbase-elasticsearch-connector/bin:${PATH}"

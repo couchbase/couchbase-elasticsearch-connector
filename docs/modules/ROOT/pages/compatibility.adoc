@@ -49,13 +49,13 @@ To take advantage of the Scopes and Collections introduced in Couchbase 7, pleas
 
 == Java
 
-[%autowidth,cols="^,1*^"]
+[%autowidth,cols="^,2*^"]
 |===
- |                 1+h| Connector
-h| Java↓            | 4.1 - 4.3
- | AdoptOpenJDK 11  | ✔
- | AdoptOpenJDK 8   | ✔
- | Oracle JDK 8     | ✔
+ |                 2+h| Connector
+h| Java↓            | 4.1 - 4.2 | 4.3
+ | AdoptOpenJDK 11  | ✔         | ✔
+ | AdoptOpenJDK 8   | ✔         | ✖
+ | Oracle JDK 8     | ✔         | ✖
 |===
 
 

@@ -1,4 +1,4 @@
-FROM adoptopenjdk:8-hotspot AS build
+FROM adoptopenjdk:11-hotspot AS build
 ARG VERSION
 
 RUN apt-get update \
@@ -11,7 +11,7 @@ RUN curl -s https://packages.couchbase.com/clients/connectors/elasticsearch/${VE
 
 
 
-FROM adoptopenjdk:8-hotspot
+FROM adoptopenjdk:11-hotspot
 COPY --from=build /opt/couchbase-elasticsearch-connector /opt/couchbase-elasticsearch-connector
 
 ENV PATH="/opt/couchbase-elasticsearch-connector/bin:${PATH}"

@@ -16,7 +16,7 @@ repositories {
 
 version = "4.3.0-SNAPSHOT"
 
-def compileJavaVersion = "8"
+def compileJavaVersion = "11"
 def testJavaVersion = project.findProperty("testJavaVersion") ?: compileJavaVersion
 def jvmVendor = JvmVendorSpec.ADOPTOPENJDK
 println "Compiling for Java ${compileJavaVersion}, testing against Java ${testJavaVersion} (${jvmVendor})"
