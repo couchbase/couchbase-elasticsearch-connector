@@ -121,8 +121,7 @@ public class BasicReplicationTest {
         "7.8.1",
         "7.7.1",
         "7.6.2",
-        "6.8.17",
-        "5.6.16"
+        "6.8.17"
     ));
 
     if (!exhaustive) {

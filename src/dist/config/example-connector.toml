@@ -217,7 +217,6 @@
   pipeline = ''
 
   # Assign this type to matching documents.
-  # For ES 5.x remove leading underscore!
   typeName = '_doc'
 
   # If true, ignore matching documents entirely (implies 'ignoreDeletes').
@@ -302,4 +301,4 @@
 #   "error"  - (string) error message received from Elasticsearch
 [elasticsearch.rejectionLog]
   index = 'cbes-rejects'
-  typeName = '_doc' # For ES 5.x remove leading underscore!
+  typeName = '_doc'
