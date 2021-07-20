@@ -8,6 +8,27 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.2.12]]
+== Version 4.2.12 (2021-07-20)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.12/couchbase-elasticsearch-connector-4.2.12.zip[Download]
+
+This release upgrades various dependencies to the latest versions and improves how permanent indexing failures are logged.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-213[CBES-213]:
+When logging permanent indexing failures, the connector now sanitizes the contents of the failure message to ensure sensitive information is redacted.
+
+* https://issues.couchbase.com/browse/CBES-209[CBES-209]:
+Upgraded the Couchbase Java SDK from 3.1.3 to 3.2.0.
+
+* https://issues.couchbase.com/browse/CBES-217[CBES-217]:
+Upgraded the DCP client from 0.34.0 to 0.35.0.
+
+* https://issues.couchbase.com/browse/CBES-211[CBES-211]:
+Upgraded various dependencies to the latest versions.
+
 [[v4.2.11]]
 == Version 4.2.11 (2021-05-18)
 
