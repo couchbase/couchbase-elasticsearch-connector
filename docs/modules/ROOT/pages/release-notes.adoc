@@ -8,6 +8,33 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.3.0]]
+== Version 4.3.0 (2021-07-20)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.3.0/couchbase-elasticsearch-connector-4.3.0.zip[Download]
+
+This release stabilizes the configuration options for working with Couchbase 7 Scopes and Collections.
+All previously "uncommitted" options are promoted to "committed" status.
+
+=== Enhancements
+
+* The config options for working with Couchbase 7 Scopes and Collections are now part of the "committed" API.
+
+* All other "uncommitted" config options are promoted to "committed" status as well.
+
+=== Breaking Changes
+
+* https://issues.couchbase.com/browse/CBES-215[CBES-215]:
+**The connector now requires Java 11 (or later).**
+
+* https://issues.couchbase.com/browse/CBES-212[CBES-212]:
+**Elasticsearch 5 is no longer supported.**
+It still works (at least for now), but we're no longer testing it.
+Please upgrade to a more recent version of Elasticsearch.
+
+* The deprecated `cbes.backfill*` metrics have been removed.
+As a replacement, please use the `cbes.backlog` metric which gives ongoing insight into the connector's performance.
+
 [[v4.2.12]]
 == Version 4.2.12 (2021-07-20)
 
