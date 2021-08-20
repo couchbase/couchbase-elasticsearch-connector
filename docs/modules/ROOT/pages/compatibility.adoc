@@ -35,14 +35,15 @@ Connector versions 4.2.4 and later are compatible with Couchbase Cloud.
 
 == Couchbase Server
 
-[%autowidth,cols="^,2*^"]
+[%autowidth,cols="^,3*^"]
 |===
- |           2+h| Connector
-h| Couchbase↓ | 4.1 - 4.2 | 4.3
- | 7.x        | ◎ *       | ✔
- | 6.x        | ✔         | ✔
- | 5.x        | ✔         | ◎
- | < 5.0      | ✖         | ✖
+ |                   3+h| Connector
+h| Couchbase↓           | 4.1.0 - 4.2.1 | 4.2.2 - 4.3.0 | 4.3.1+
+ | 7.0.2+               | ◎ *           | ✖             | ✔
+ | 7.0.0 - 7.0.1        | ◎ *           | ✔             | ✔
+ | 6.x                  | ✔             | ✔             | ✔
+ | 5.x                  | ✔             | ◎             | ◎
+ | < 5.0                | ✖             | ✖             | ✖
 |===
 +++*+++ If you've been using an earlier version of Couchbase, you can upgrade to Couchbase 7 and everything will continue working as before.
 To take advantage of the Scopes and Collections introduced in Couchbase 7, please upgrade the connector to version 4.3.

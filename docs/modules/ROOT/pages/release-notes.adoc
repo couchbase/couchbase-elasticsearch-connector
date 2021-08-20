@@ -8,6 +8,20 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.3.1]]
+== Version 4.3.1 (2021-08-20)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.3.1/couchbase-elasticsearch-connector-4.3.1.zip[Download]
+
+This release restores compatibility with Couchbase Server 7.0.2.
+
+If you are currently using a connector version between 4.2.2 and 4.3.0 inclusive, please upgrade to 4.3.1 or later before upgrading Couchbase Server beyond 7.0.1.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-221[CBES-221]:
+Upgraded the DCP client from 0.35.0 to 0.36.0 for compatibility with Couchbase Server 7.0.2.
+
 [[v4.3.0]]
 == Version 4.3.0 (2021-07-20)
 
