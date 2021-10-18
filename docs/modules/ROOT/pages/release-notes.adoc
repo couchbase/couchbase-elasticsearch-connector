@@ -8,6 +8,28 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.3.2]]
+== Version 4.3.2 (2021-09-19)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.3.2/couchbase-elasticsearch-connector-4.3.2.zip[Download]
+
+This version reduces the default flow control buffer size to a more reasonable value and improves DCP diagnostics.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-224[CBES-224]:
+The default flow control buffer size is now 16 MB instead of 128 MB.
+This makes it less likely the connector will run out of memory under heavy load with the default heap size.
+The documentation now describes how the DCP https://docs.couchbase.com/elasticsearch-connector/current/configuration.html#dcp[flowControlBuffer] config property affects the connector's memory requirements.
+
+* https://issues.couchbase.com/browse/CBES-223[CBES-223]:
+Upgraded DCP client from 0.36.0 to 0.37.0.
+This upgrade adds a workaround for https://issues.couchbase.com/browse/MB-48655[MB-48655] so all versions of Couchbase now correctly log DCP diagnostic messages from the connector.
+
+* https://issues.couchbase.com/browse/CBES-222[CBES-222]:
+The connector no longer logs the Couchbase Server version.
+Prior to this change the log message always had a placeholder version of `9999.0.0` which was misleading.
+
 [[v4.3.1]]
 == Version 4.3.1 (2021-08-20)
 
