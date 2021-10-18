@@ -51,7 +51,8 @@ Note that the count only includes changes in the Couchbase partitions handled by
 This value is dynamic; it goes up when changes happen in Couchbase, and goes down as the changes are processed by the connector.
 
 `cbes.writeQueue`::
-Reports the number of document events currently buffered in memory. (The write queue is implicitly bounded by the `flowControlBuffer` config property which determines the buffer size.)
+Reports the number of document events currently buffered in memory.
+(The write queue is implicitly bounded by the `flowControlBuffer` config property which determines the buffer size.)
 
 === Meters
 

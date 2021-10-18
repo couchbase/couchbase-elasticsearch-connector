@@ -215,18 +215,25 @@ Immediate propagation gives the lowest possible latency, but increases the likel
 ----
 [couchbase.dcp]
   compression = true <1>
-  flowControlBuffer = '128mb' <2>
+  flowControlBuffer = '16mb' <2>
   persistencePollingInterval = '100ms' <3>
 ----
 <1> Disabling compression uses more network bandwidth and increases Couchbase Server's CPU usage.
 Enabling compression increases the connector's CPU usage.
-<2> Couchbase will only send this much data until the connector acknowledges it has been written to Elasticsearch.
+<2> The flow control buffer limits how much data Couchbase will send before waiting for the connector to acknowledge the data has been processed.
+The recommended size is between 10 MiB ("10m") and 50 MiB ("50m").
 <3> To propagate changes immediately, disable persistence polling by setting this to `'0ms'`.
 A non-zero duration tells the connector to defer propagation until the change is persisted on all Couchbase replicas.
 Longer intervals reduce network traffic at the cost of increased end-to-end latency.
 
 CAUTION: When replicating from an ephemeral bucket, always set `persistencePollingInterval = '0s'` to disable persistence polling, since documents are never persisted.
 
+CAUTION: Make sure to allocate enough memory to the Elasticsearch connector process to accommodate the flow control buffer, otherwise the connector might run out of memory under heavy load.
+Read on for details.
+
+There's a separate flow control buffer for each node in the Couchbase cluster.
+When calculating how much memory to allocate to the Elasticsearch connector, multiply the flow control buffer size by the number of Couchbase nodes, then multiply by 2.
+This is the amount of memory required for the flow control buffer (not counting the connector's baseline memory usage).
 
 == Elasticsearch
 

@@ -130,7 +130,7 @@
 # Options for the Couchbase Database Change Protocol (DCP).
 [couchbase.dcp]
   compression = true
-  flowControlBuffer = '128mb'
+  flowControlBuffer = '16mb'
   persistencePollingInterval = '100ms'
 
 # Custom environment settings for the Couchbase client.
