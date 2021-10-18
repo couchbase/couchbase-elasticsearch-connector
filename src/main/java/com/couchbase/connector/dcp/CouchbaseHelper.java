@@ -308,14 +308,4 @@ public class CouchbaseHelper {
     LOGGER.warn("Failed to force partition for {} after {} iterations.", key, MAX_ITERATIONS);
     return Optional.empty();
   }
-
-  public static Version requireCouchbaseVersion(Cluster cluster, Version requiredVersion) {
-    return Version.parseVersion("0.0.0");
-    // this API was removed in SDK 3. Hmmm.....
-//    final Version actualVersion = cluster.clusterManager().info().getMinVersion();
-//    if (actualVersion.compareTo(requiredVersion) < 0) {
-//      throw new RuntimeException("Couchbase Server version " + requiredVersion + " or later required; actual version is " + actualVersion);
-//    }
-//    return actualVersion;
-  }
 }

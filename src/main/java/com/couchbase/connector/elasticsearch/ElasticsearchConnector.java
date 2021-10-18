@@ -59,7 +59,6 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static com.couchbase.client.core.logging.RedactableArgument.redactSystem;
 import static com.couchbase.connector.VersionHelper.getVersionString;
-import static com.couchbase.connector.dcp.CouchbaseHelper.requireCouchbaseVersion;
 import static com.couchbase.connector.dcp.DcpHelper.initEventListener;
 import static com.couchbase.connector.dcp.DcpHelper.initSessionState;
 import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
@@ -139,10 +138,6 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       final boolean storeMetadataInSourceBucket = config.couchbase().metadataBucket().equals(config.couchbase().bucket());
       final Bucket metadataBucket = storeMetadataInSourceBucket ? bucket : CouchbaseHelper.waitForBucket(cluster, config.couchbase().metadataBucket());
       final Collection metadataCollection = CouchbaseHelper.getMetadataCollection(metadataBucket, config.couchbase());
-
-      // Do this after waiting for the bucket, because waitForBucket has nicer retry backoff.
-      // Checkpoint metadata is stored using Extended Attributes, a feature introduced in 5.0.
-      LOGGER.info("Couchbase Server version {}", requireCouchbaseVersion(cluster, new Version(5, 0, 0)));
 
       final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(metadataCollection, config.group().name());
 
