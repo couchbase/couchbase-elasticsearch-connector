@@ -9,7 +9,7 @@ Scroll down to the version you want, then click the "Download" link to get the f
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
 [[v4.3.2]]
-== Version 4.3.2 (2021-09-19)
+== Version 4.3.2 (2021-10-19)
 
 https://packages.couchbase.com/clients/connectors/elasticsearch/4.3.2/couchbase-elasticsearch-connector-4.3.2.zip[Download]
 
