@@ -2,10 +2,9 @@
 
 == Bug reports and feature requests
 
-If you come across a bug or find something unintuitive, let us know and we’ll work to fix it in an upcoming release.
+This project uses https://issues.couchbase.com[Couchbase Jira] for issue tracking.
 
-To file a bug report or feature request, go to the https://issues.couchbase.com[Couchbase Jira site].
-If this is your first visit, request an account using the "Jira Administrators" link below the Login form.
+If you come across a bug or find something unintuitive, let us know and we’ll work to fix it in an upcoming release.
 
 When filing a bug report, please include:
 
@@ -13,12 +12,12 @@ When filing a bug report, please include:
 * Elasticsearch version
 * Connector version
 * Operating system
-* A description of the problem
+* A summary of the problem
 * Detailed steps to reproduce the problem
 
 == Contributing code
 
-Whether you have a fix for a typo in a component, a bugfix, or a new feature, we love to receive code from the community!
+Whether you have a fix for a typo in a comment, a bugfix, or a new feature, we love to receive code from the community!
 
 It takes a lot of work to get from a potential new bug fix or feature idea to well-tested shipping code.
 Our engineers want to help you get there.
@@ -40,4 +39,4 @@ Fill out the agreement under **Settings > Agreements**.
 We encourage you to submit patch sets directly to the Gerrit server.
 That makes things easier for us, but if you're new to Gerrit it might be intimidating.
 Alternatively, free to submit a pull request on GitHub.
-A robot will automatically import your change into Gerrit.
+A bot will automatically import your change into Gerrit.
