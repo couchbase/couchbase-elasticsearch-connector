@@ -191,12 +191,23 @@ extraStartScripts.each { scriptName, driverClass ->
   startScripts.dependsOn(t)
 }
 
+def requireFileExists(filename)  {
+  if (!file(filename).exists()) throw new GradleException("File '$filename' not found")
+  return filename
+}
+
+def readmeFilename = requireFileExists("DIST_README.txt")
+applicationDistribution.from(".") {
+  include(readmeFilename, requireFileExists("LICENSE"))
+  rename(readmeFilename, 'README.txt')
+}
+
 applicationDistribution.into("notices") {
   // https://github.com/jk1/Gradle-License-Report
   from(generateLicenseReport)
 }
 
-def getGitInfo = { ->
+def getGitInfo() {
   def stdout = new ByteArrayOutputStream()
   exec {
     commandLine 'git', 'describe', '--tags', '--dirty', '--always'
