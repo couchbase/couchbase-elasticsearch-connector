@@ -30,7 +30,6 @@ import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.core.service.ServiceType;
 import com.couchbase.client.core.util.ConnectionString;
 import com.couchbase.client.dcp.config.HostAndPort;
-import com.couchbase.client.dcp.util.Version;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.Collection;
@@ -261,11 +260,9 @@ public class CouchbaseHelper {
 
   public static Collection getMetadataCollection(Bucket metadataBucket, CouchbaseConfig config) {
     ScopeAndCollection c = config.metadataCollection();
-    // Default collection requires special handling to prevent SDK 3.0.6 from trying to
-    // refresh the collection map, which fails prior to Couchbase Server 7.0.
-    return c.equals(ScopeAndCollection.DEFAULT)
-        ? metadataBucket.defaultCollection()
-        : metadataBucket.scope(c.getScope()).collection(c.getCollection());
+    return metadataBucket
+        .scope(c.getScope())
+        .collection(c.getCollection());
   }
 
   public static Collection getMetadataCollection(Cluster cluster, CouchbaseConfig config) {
