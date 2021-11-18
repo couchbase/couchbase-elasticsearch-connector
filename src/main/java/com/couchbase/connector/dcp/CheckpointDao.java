@@ -16,14 +16,14 @@
 
 package com.couchbase.connector.dcp;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 
 public interface CheckpointDao {
-  void save(String bucketUuid, Map<Integer, Checkpoint> vbucketToCheckpoint) throws IOException;
 
-  Map<Integer, Checkpoint> load(String bucketUuid, Set<Integer> vbuckets) throws IOException;
+  void save(String bucketUuid, Map<Integer, Checkpoint> vbucketToCheckpoint);
 
-  void clear(String bucketUuid, Set<Integer> vbuckets) throws IOException;
+  Map<Integer, Checkpoint> load(String bucketUuid, Set<Integer> vbuckets);
+
+  void clear(String bucketUuid, Set<Integer> vbuckets);
 }

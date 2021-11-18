@@ -20,21 +20,16 @@ import com.couchbase.client.core.error.DocumentNotFoundException;
 import com.couchbase.client.core.error.TemporaryFailureException;
 import com.couchbase.client.java.Collection;
 import com.couchbase.client.java.codec.RawBinaryTranscoder;
-import com.couchbase.client.java.codec.RawJsonTranscoder;
-import com.couchbase.client.java.json.JsonObject;
 import com.couchbase.client.java.kv.LookupInResult;
 import com.couchbase.client.java.kv.LookupInSpec;
 import com.couchbase.client.java.kv.MutateInSpec;
 import com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -49,6 +44,9 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
 
+/**
+ * Stores the connector's checkpoints in Couchbase.
+ */
 public class CouchbaseCheckpointDao implements CheckpointDao {
   private static final Logger LOGGER = LoggerFactory.getLogger(CouchbaseCheckpointDao.class);
 
@@ -56,18 +54,12 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
 
   private final Collection collection;
   private final String[] checkpointDocumentKeys; // indexed by partition (vbucket)
-  private final boolean xattrs;
 
-  public CouchbaseCheckpointDao(Collection collection, String clusterId) {
-    this(collection, clusterId, true);
-  }
-
-  public CouchbaseCheckpointDao(Collection collection, String clusterId, boolean xattrs) {
+  public CouchbaseCheckpointDao(Collection collection, String groupName) {
     this.collection = requireNonNull(collection);
-    this.xattrs = xattrs;
 
     final int numPartitions = CouchbaseHelper.getNumPartitions(collection);
-    final String keyPrefix = DcpHelper.metadataDocumentIdPrefix() + clusterId + ":checkpoint:";
+    final String keyPrefix = DcpHelper.metadataDocumentIdPrefix() + groupName + ":checkpoint:";
 
     // Brute-forcing the key names so they map to the correct partitions is expensive,
     // so make a lookup table.
@@ -79,8 +71,8 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
   }
 
   @Override
-  public void save(String bucketUuid, Map<Integer, Checkpoint> vbucketToCheckpoint) throws IOException {
-    IOException deferredException = null;
+  public void save(String bucketUuid, Map<Integer, Checkpoint> vbucketToCheckpoint) {
+    RuntimeException deferredException = null;
 
     final Iterator<TimeValue> retryDelays = new BackoffPolicyBuilder(truncatedExponentialBackoff(
         TimeValue.timeValueMillis(50), TimeValue.timeValueSeconds(5)))
@@ -118,16 +110,15 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
 
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new InterruptedIOException(e.getMessage());
+        throw new RuntimeException(e);
 
       } catch (Exception e) {
         LOGGER.debug("Failed to save checkpoint for vbucket {}", vbucket);
 
-        // Remember the exception and throw it later. In the mean time,
+        // Remember the exception and throw it later. In the meantime,
         // save as many other checkpoints as possible.
-        final IOException ioException = toIOException(e);
         if (deferredException == null) {
-          deferredException = ioException;
+          deferredException = new RuntimeException(e);
         }
       }
     }
@@ -141,24 +132,14 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
     collection.mutateIn(documentId, singletonList(MutateInSpec.upsert(XATTR_NAME, content).xattr()));
   }
 
-  private void createDocument(String documentId, Map<String, Object> content) throws JsonProcessingException {
-    if (xattrs) {
-      try {
-        upsertXattrs(documentId, content);
-      } catch (DocumentNotFoundException e) {
-        collection.upsert(documentId, EMPTY_BYTE_ARRAY, upsertOptions()
-            .transcoder(RawBinaryTranscoder.INSTANCE));
-        upsertXattrs(documentId, content);
-      }
-    } else {
-      final String json = mapper.writeValueAsString(content);
-      collection.upsert(documentId, json, upsertOptions()
-          .transcoder(RawJsonTranscoder.INSTANCE));
+  private void createDocument(String documentId, Map<String, Object> content) {
+    try {
+      upsertXattrs(documentId, content);
+    } catch (DocumentNotFoundException e) {
+      collection.upsert(documentId, EMPTY_BYTE_ARRAY, upsertOptions()
+          .transcoder(RawBinaryTranscoder.INSTANCE));
+      upsertXattrs(documentId, content);
     }
-  }
-
-  private static IOException toIOException(Throwable t) {
-    return t instanceof IOException ? (IOException) t : new IOException(t);
   }
 
   private String documentIdForVbucket(int vbucket) {
@@ -177,12 +158,11 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
   }
 
   @Override
-  public Map<Integer, Checkpoint> load(String bucketUuid, Set<Integer> vbuckets) throws IOException {
+  public Map<Integer, Checkpoint> load(String bucketUuid, Set<Integer> vbuckets) {
     final Map<Integer, Checkpoint> result = new LinkedHashMap<>();
 
     for (int vbucket : vbuckets) {
-      final String id = documentIdForVbucket(vbucket);
-      final JsonNode content = readDocument(id);
+      final JsonNode content = readCheckpointForPartition(vbucket);
 
       if (content == null) {
         result.put(vbucket, Checkpoint.ZERO);
@@ -204,21 +184,17 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
 
   private static final String XATTR_NAME = "cbes";
 
-  private JsonNode readDocument(String documentId) throws IOException {
-    if (xattrs) {
-      try {
-        LookupInResult lookup = collection.lookupIn(documentId, singletonList(LookupInSpec.get(XATTR_NAME).xattr()));
-        return mapper.readTree(lookup.contentAsObject(0).toString());
+  /**
+   * @return (nullable) context of the checkpoint document, or null if there was any kind of failure.
+   */
+  private JsonNode readCheckpointForPartition(int partition) {
+    try {
+      String documentId = documentIdForVbucket(partition);
+      LookupInResult lookup = collection.lookupIn(documentId, singletonList(LookupInSpec.get(XATTR_NAME).xattr()));
+      return mapper.readTree(lookup.contentAs(0, byte[].class));
 
-      } catch (Exception e) {
-        return null;
-      }
-    } else {
-      JsonObject doc = collection.get(documentId).contentAsObject();
-      if (doc == null) {
-        return null;
-      }
-      return mapper.readTree(doc.toString());
+    } catch (Exception e) {
+      return null;
     }
   }
 }
