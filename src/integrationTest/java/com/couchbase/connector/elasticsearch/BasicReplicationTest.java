@@ -113,7 +113,8 @@ public class BasicReplicationTest {
     // This list is informed by https://www.elastic.co/support/eol
     // If possible, we also want to support the last release of the previous major version.
     final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "7.15.1",
+        "7.16.0",
+        "7.15.2",
         "7.14.2",
         "7.13.3",
         "7.12.1",
