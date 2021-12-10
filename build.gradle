@@ -14,7 +14,7 @@ repositories {
   maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
 }
 
-version = "4.3.3"
+version = "4.3.4-SNAPSHOT"
 
 def compileJavaVersion = "11"
 def testJavaVersion = project.findProperty("testJavaVersion") ?: compileJavaVersion
