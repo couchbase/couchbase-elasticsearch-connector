@@ -2,14 +2,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: elasticsearch-connector-example-group
+  name: couchbase-elasticsearch-connector-example-group
   labels:
-    app: elasticsearch-connector
-    cbes-group: example-group
+    app: couchbase-elasticsearch-connector
+    cbesGroup: example-group
 spec:
   selector:
-    app: elasticsearch-connector
-    cbes-group: example-group
+    app: couchbase-elasticsearch-connector
+    cbesGroup: example-group
   clusterIP: None
   ports:
   - name: metrics
@@ -18,67 +18,75 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: elasticsearch-connector-example-group
+  name: couchbase-elasticsearch-connector-example-group
   labels:
-    app: elasticsearch-connector
-    cbes-group: example-group
+    app: couchbase-elasticsearch-connector
+    cbesGroup: example-group
 spec:
   selector:
     matchLabels:
-      app: elasticsearch-connector
-      cbes-group: example-group
-  serviceName: elasticsearch-connector-example-group
-  replicas: 2 # Must match CBES_TOTALMEMBERS set in env
+      app: couchbase-elasticsearch-connector
+      cbesGroup: example-group
+  serviceName: couchbase-elasticsearch-connector-example-group
+  replicas: 2 # For a fixed-scale deployment, this MUST match CBES_TOTAL_MEMBERS environment variable
   podManagementPolicy: Parallel
   template:
     metadata:
       labels:
-        app: elasticsearch-connector
-        cbes-group: example-group
+        app: couchbase-elasticsearch-connector
+        cbesGroup: example-group
     spec:
-      affinity:
-        # Try to avoid scheduling the pods on the same node
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                  - elasticsearch-connector
-              topologyKey: failure-domain.beta.kubernetes.io/zone
+      # This custom service account is only required if you're using
+      # the connector's native Kubernetes integration.
+      serviceAccountName: couchbase-elasticsearch-connector
       containers:
-      - image: registry/image:tag # Replace with your image
-        imagePullPolicy: IfNotPresent
+      - image: couchbase/elasticsearch-connector:4.3.4
         name: connector
-        resources:
-          limits:
-            cpu: '8'
-            memory: '16Gi'
-          requests:
-            cpu: '4'
-            memory: '8Gi'
+# SET RESOURCE LIMITS HERE
+#        resources:
+#          limits:
+#            cpu: '4'
+#            memory: '8Gi'
         env:
-        - name: CBES_GROUP
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.labels['cbes-group']
-        - name: CBES_TOTALMEMBERS
-          value: "2" # Must match replica count
-        command:
-        # Get the CBES_MEMBERNUMBER from the name of the pod
-        - /bin/bash
-        - -c
-        - export CBES_MEMBERNUMBER=$((${HOSTNAME##*-} + 1)) && cbes
+          - name: CBES_GROUP
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.labels['cbesGroup']
+          # For a simple fixed-scale deployment, set CBES_K8S_STATEFUL_SET=true
+          # and set CBES_TOTAL_MEMBERS to the number of replicas in the StatefulSet.
+          # Also make sure CBES_K8S_WATCH_REPLICAS is not true.
+          #
+          # WARNING: In this mode, YOU MUST NOT CHANGE THE REPLICA COUNT while the connector is deployed.
+          #
+          # NOTE: These environment variables are *Volatile API* and may change without notice.
+          - name: CBES_K8S_STATEFUL_SET
+            value: 'true' # true means group member number is pod ordinal + 1
+          - name: CBES_TOTAL_MEMBERS
+            value: '2' # must be same as spec.replicas
+          # To enable native Kubernetes integration, set CBES_K8S_WATCH_REPLICAS=true
+          # and use a service account that can get and watch the StatefulSet.
+          # The connector will ignore CBES_K8S_STATEFUL_SET and CBES_TOTAL_MEMBERS,
+          # and will instead determine group size and member number based on values
+          # from the StatefulSet spec.
+          #
+          # NOTE: In this mode, when changing the replica count it's advisable
+          #       to first scale down to zero (or delete the stateful set)
+          #       before scaling back up to the desired number of replicas.
+          #       Otherwise, it's theoretically possible for some pods to fail
+          #       to shut down in time, which could cause stale versions of
+          #       some documents to be written to Elasticsearch and remain
+          #       until the documents are modified again in Couchbase.
+          #
+          # NOTE: This environment variable is *Volatile API* and may change without notice.
+          - name: CBES_K8S_WATCH_REPLICAS
+            value: 'true'
+        terminationMessagePolicy: FallbackToLogsOnError
         livenessProbe:
-          # This probe is imperfect, but confirms the HTTP metrics server is still running
           httpGet:
             path: /metrics
             port: 31415
           timeoutSeconds: 10
-          initialDelaySeconds: 30
+          initialDelaySeconds: 45
           periodSeconds: 30
           successThreshold: 1
           failureThreshold: 2

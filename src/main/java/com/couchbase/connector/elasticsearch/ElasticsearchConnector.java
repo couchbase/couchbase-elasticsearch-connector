@@ -28,12 +28,16 @@ import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.Collection;
 import com.couchbase.client.java.env.ClusterEnvironment;
-import com.couchbase.connector.cluster.Coordinator;
+import com.couchbase.connector.cluster.DefaultPanicButton;
 import com.couchbase.connector.cluster.Membership;
-import com.couchbase.connector.cluster.StaticCoordinator;
+import com.couchbase.connector.cluster.PanicButton;
+import com.couchbase.connector.cluster.k8s.ReplicaChangeWatcher;
+import com.couchbase.connector.cluster.k8s.StatefulSetInfo;
 import com.couchbase.connector.config.ConfigException;
+import com.couchbase.connector.config.common.ImmutableGroupConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ElasticsearchConfig;
+import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import com.couchbase.connector.config.es.TypeConfig;
 import com.couchbase.connector.dcp.CheckpointDao;
 import com.couchbase.connector.dcp.CheckpointService;
@@ -45,6 +49,8 @@ import com.couchbase.connector.elasticsearch.io.RequestFactory;
 import com.couchbase.connector.util.HttpServer;
 import com.couchbase.connector.util.RuntimeHelper;
 import com.couchbase.connector.util.ThrowableHelper;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import joptsimple.OptionSet;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.TimeValue;
@@ -56,6 +62,7 @@ import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Function;
 
 import static com.couchbase.client.core.logging.RedactableArgument.redactSystem;
 import static com.couchbase.connector.VersionHelper.getVersionString;
@@ -91,6 +98,12 @@ public class ElasticsearchConnector extends AbstractCliCommand {
     return reporter;
   }
 
+  private static ConnectorConfig transformMembership(ConnectorConfig config, Function<Membership, Membership> transformer) {
+    return ImmutableConnectorConfig.copyOf(config)
+        .withGroup(ImmutableGroupConfig.copyOf(config.group())
+            .withStaticMembership(transformer.apply(config.group().staticMembership())));
+  }
+
   public static void main(String... args) throws Throwable {
     LOGGER.info("Couchbase Elasticsearch Connector version {}", getVersionString());
 
@@ -99,16 +112,68 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
     final File configFile = options.valueOf(parser.configFile);
     System.out.println("Reading connector configuration from " + configFile.getAbsoluteFile());
-    final ConnectorConfig config = ConnectorConfig.from(configFile);
-    run(config);
+    ConnectorConfig config = ConnectorConfig.from(configFile);
+
+    final PanicButton panicButton = new DefaultPanicButton();
+
+    boolean watchK8sReplicas = "true".equals(System.getenv("CBES_K8S_WATCH_REPLICAS"));
+    boolean getMemberNumberFromHostname = watchK8sReplicas || "true".equals(System.getenv("CBES_K8S_STATEFUL_SET"));
+
+    if (getMemberNumberFromHostname) {
+      int memberNumber = StatefulSetInfo.fromHostname().podOrdinal + 1;
+      LOGGER.info("Getting group member number from Kubernetes pod hostname: {}", memberNumber);
+
+      // This is a kludge. The Membership class validates its arguments, so you can't have a Membership
+      // of "4 of 1", for example. If we plan to get the group size from the Kubernetes StatefulSet,
+      // bypass this validation by temporarily setting the group size to the largest sane value (1024).
+      // We'll dial it down to the actual size of the StatefulSet a bit later on.
+      int clusterSize = watchK8sReplicas ? 1024 : config.group().staticMembership().getClusterSize();
+      config = transformMembership(config, m -> Membership.of(memberNumber, clusterSize));
+    }
+
+    KubernetesClient k8sClient = null;
+    try {
+      if (watchK8sReplicas) {
+        k8sClient = new DefaultKubernetesClient();
+
+        LOGGER.info("Activating native Kubernetes integration; connector will use StatefulSet spec" +
+            " to determine group size." +
+            " This mode requires a Kubernetes service account with 'get' and 'watch', and 'list'" +
+            " permissions for the StatefulSet.");
+
+        int k8sReplicas = ReplicaChangeWatcher.getReplicasAndPanicOnChange(k8sClient, panicButton);
+
+        config = transformMembership(config, m -> Membership.of(m.getMemberNumber(), k8sReplicas));
+      }
+
+      if (watchK8sReplicas || getMemberNumberFromHostname) {
+        LOGGER.info("Patched configuration with info from Kubernetes environment; membership = {}",
+            config.group().staticMembership());
+      }
+
+      if (config.group().staticMembership().getClusterSize() > 1024) {
+        panicButton.panic("Invalid group size configuration; totalMembers must be <= 1024." +
+            " Did you forget to set the CBES_TOTAL_MEMBERS environment variable?");
+      }
+
+      Duration startupQuietPeriod = watchK8sReplicas ? ReplicaChangeWatcher.startupQuietPeriod() : Duration.ZERO;
+
+      run(config, panicButton, startupQuietPeriod);
+    } finally {
+      if (k8sClient != null) {
+        k8sClient.close(); // so client threads don't prevent app from exiting
+      }
+    }
   }
 
   public static void run(ConnectorConfig config) throws Throwable {
+    run(config, new DefaultPanicButton(), Duration.ZERO);
+  }
+
+  public static void run(ConnectorConfig config, PanicButton panicButton, Duration startupQuietPeriod) throws Throwable {
     final Throwable fatalError;
 
     final Membership membership = config.group().staticMembership();
-
-    final Coordinator coordinator = new StaticCoordinator();
 
     LOGGER.info("Read configuration: {}", redactSystem(config));
 
@@ -166,16 +231,15 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
       final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), kvNodes, config.trustStore());
 
-      initEventListener(dcpClient, coordinator, workers::submit);
+      initEventListener(dcpClient, panicButton, workers::submit);
 
       final Thread saveCheckpoints = new Thread(checkpointService::save, "save-checkpoints");
 
       try {
         try {
           dcpClient.connect().block(Duration.ofMillis(config.couchbase().dcp().connectTimeout().millis()));
-        } catch (Exception e) {
-          LOGGER.error("Failed to establish initial DCP connection within {} -- shutting down.", config.couchbase().dcp().connectTimeout(), e);
-          System.exit(1);
+        } catch (Throwable t) {
+          panicButton.panic("Failed to establish initial DCP connection within " + config.couchbase().dcp().connectTimeout(), t);
         }
 
         final int numPartitions = dcpClient.numPartitions();
@@ -190,8 +254,18 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         dcpClient.initializeState(StreamFrom.BEGINNING, StreamTo.INFINITY).block();
         initSessionState(dcpClient, checkpointService, partitions);
 
+        // Do quiet period *after* connecting so user doesn't need to wait just to discover
+        // configuration problems.
+        if (!startupQuietPeriod.isZero()) {
+          LOGGER.info("Entering startup quiet period; sleeping for {} so peers can terminate in case of unsafe scaling.", startupQuietPeriod);
+          MILLISECONDS.sleep(startupQuietPeriod.toMillis());
+          LOGGER.info("Startup quiet period complete.");
+        }
+
         checkpointExecutor.scheduleWithFixedDelay(checkpointService::save, 10, 10, SECONDS);
         RuntimeHelper.addShutdownHook(saveCheckpoints);
+        // Unless shutdown is due to panic...
+        panicButton.addPrePanicHook(() -> RuntimeHelper.removeShutdownHook(saveCheckpoints));
 
         try {
           LOGGER.debug("Opening DCP streams for partitions: {}", partitions);

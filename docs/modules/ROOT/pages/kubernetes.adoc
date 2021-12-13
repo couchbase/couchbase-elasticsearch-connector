@@ -1,0 +1,157 @@
+= Deploying in Kubernetes
+
+[abstract]
+A guide to deploying the connector in Kubernetes as a StatefulSet.
+
+WARNING: The connector's relationship with Kubernetes is evolving.
+Deployment instructions may change from one release to the next.
+*These instructions apply to version 4.3.4 of the connector.*
+
+== Docker Image
+
+The connector image is available on Docker Hub as `couchbase/elasticsearch-connector`.
+// See https://hub.docker.com/r/couchbase/elasticsearch-connector/
+It's built from a Red Hat Universal Base Image, making it suitable for deployment to OpenShift as well as other Kubernetes environments.
+
+To configure the connector, mount volumes for the `config` and `secrets` directories.
+We'll look at an example in a moment.
+
+== Deploying as a StatefulSet
+
+We recommend deploying the connector as a StatefulSet.
+The connector does not require persistent storage, but it does take advantage of some  StatefulSet semantics like stable pod hostnames.
+
+There are two alternatives for configuring the StatefulSet depending on your requirements.
+
+=== Fixed-Scale [[fixed-scale]]
+
+The simplest way to deploy the connector is to decide up-front how many replicas to use.
+We'll call this a "fixed-scale" deployment.
+In this mode, the connector doesn't know it's deployed in Kubernetes, so you have to tell it the number of replicas by setting an <<environment-variables,environment variable>>.
+The value of this environment variable *must* be the same as the number of replicas in the StatefulSet.
+
+To change the number of replicas in a fixed-scale deployment, you must first delete the StatefulSet and then deploy a new one configured with the desired replica count.
+As long as you use the same group name, the new StatefulSet will resume streaming from where the old one stopped.
+
+To enable fixed-scale mode:
+
+1. Set `CBES_K8S_STATEFUL_SET` environment variable to `true`.
+
+2. Set `CBES_TOTAL_MEMBERS` environment variable to the replica count.
+
+3. Set `CBES_K8S_WATCH_REPLICAS` environment variable to `false` or leave it unset.
+
+==== Pros:
+
+* Does not require Kubernetes API.
+** Less load on the Kubernetes control plane.
+** Does not require a special ServiceAccount.
+* Does not require a quiet period on startup.
+
+==== Cons:
+
+* Accidentally scaling the connector with `kubectl scale` can confuse the connector and cause inconsistencies between documents in Couchbase and Elasticsearch.
+* Changing the number of replicas can be cumbersome.
+* Not compatible with Horizontal Pod Autoscaling (HPA).
+
+=== Native Kubernetes Integration [[native-k8s]]
+
+If you wish to use the `kubectl scale` command to change the number of replicas, you can enable native Kubernetes integration.
+
+In this mode, the connector knows it is running in Kubernetes.
+It uses the Kubernetes API to watch its StatefulSet spec for changes to the number of replicas.
+When the replica count changes, each pod responds by shutting down.
+Upon restart, each pod waits for a quiet period to elapse, giving other pods a chance to notice the scale change.
+
+To enable fixed-scale mode:
+
+1. Set `CBES_K8S_WATCH_REPLICAS` environment variable to `true`.
+
+2. Use a service account with permission to read and watch the StatefulSet.
+
+==== Pros:
+* Can safely scale the connector using `kubectl scale`.
+* Potentially compatible with Horizontal Pod Autoscaling (HPA), although we haven't tested this.
+
+==== Cons:
+
+* Depends on the Kubernetes API.
+** Requires a ServiceAccount with permission to read and watch the StatefulSet.
+** Generates load on the Kubernetes control plane.
+** If the connector is unable to contact the Kubernetes control plane after a few retries, the pod will terminate.
+* Requires a quiet period (about a minute) on startup and after scaling.
+* Rescaling causes the pod to restart (unless you scale down to zero first); monitoring tools might find this alarming.
+* Theoretically possible for a pod to fail to shut down in time when the scale changes, which could result in stale documents being written to Elasticsearch and remaining until they are modified again in Couchbase.
+For this reason, we recommend first scaling to zero and waiting for pods to terminate before scaling back up to desired replica count.
+
+== Environment Variables [[environment-variables]]
+
+The following environment variables control aspects of the connector's behavior related to deployment in Kubernetes:
+
+* `CBES_K8S_STATEFUL_SET` - When set to `true`, the connector uses the ordinal suffix from the pod's hostname to determine its member number, and ignores the value of the `memberNumber` config property.
+This means you don't need to manually assign a unique member number to each pod, or parse the hostname yourself.
+_(Ignored if `CBES_K8S_WATCH_REPLICAS` is true.)_
+
+* `CBES_TOTAL_MEMBERS` - If you are doing a fixed-scale deployment, you must set this to the same number as the StatefulSet's `spec.replicas` property.
+When combined with `CBES_K8S_STATEFUL_SET`, this gives the connector all the information it needs to determine the size of the group and its rank within the group.
+_(Ignored if `CBES_K8S_WATCH_REPLICAS` is true.)_
+
+* `CBES_K8S_WATCH_REPLICAS` - When set to `true`, enables native Kubernetes integration.
+
+== Managing Checkpoints
+
+A simple way to back up the connector's replication checkpoint is to run the `cbes-checkpoint-backup` command as a Kubernetes https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/[CronJob].
+To save the checkpoint for later, attach a https://kubernetes.io/docs/concepts/storage/persistent-volumes/[PersistentVolume] to the pod that runs this command.
+
+Saved checkpoints are typically valid for no more than a few days.
+Your cron job should prune old checkpoints to save space.
+
+To restore a checkpoint, *first undeploy the connector* (or scale down to zero if using native Kubernetes integration) *and wait for the pods to terminate*.
+Then deploy a Kubernetes https://kubernetes.io/docs/concepts/workloads/controllers/job/[Job] that runs the `cbes-checkpoint-restore` command.
+When the Job is complete, redeploy the connector (or scale it back up).
+
+WARNING: If you fail to undeploy the connector (or scale to zero) before restoring a checkpoint, the connector will ignore the restored checkpoint and overwrite it.
+
+The backup CronJob and the restore Job both use the same Docker image as the connector.
+They should also use the same ConfigMap and Secret (and associated volume mounts) as the connector.
+Be sure to override the default command (`cbes`, which runs the connector) by setting the `command` and `args` container properties in your CronJob/Job descriptor.
+
+== A Practical Example
+
+The connector's GitHub repository has some https://github.com/couchbase/couchbase-elasticsearch-connector/tree/master/examples/kubernetes[example YAML files] you can use to get started.
+
+Start by creating the service account (skip this step if doing a fixed-scale deployment):
+
+```
+kubectl apply -f elasticsearch-connector-service-account.yaml
+```
+
+Edit `elasticsearch-connector-configuration.yaml` to reflect your desired connector configuration.
+Then apply the ConfigMap and Secret:
+
+```
+kubectl apply -f elasticsearch-connector-configuration.yaml
+```
+
+TIP: If the connector is already running, you must restart it for config changes to take effect.
+
+Now edit `elasticsearch-connector.yaml`.
+The default values are appropriate for experimenting with native Kubernetes integration.
+For a fixed-scale deployment, remove (or comment-out) any references to the custom service account.
+
+It's important for each StatefulSet to use a different connector group name.
+The default group name in the example YAML files is `example-group`.
+Pick a name for your new group.
+Search for "example-group" and replace every occurrence with the new group name.
+
+Finally, apply the StatefulSet YAML to start the connector:
+
+```
+kubectl apply -f elasticsearch-connector.yaml
+```
+
+You should now be able to follow the logs of the connector pods and watch the startup process.
+
+=== Troubleshooting
+
+If something went wrong, please get in touch on the Couchbase Forum or through your regular support channel.

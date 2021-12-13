@@ -16,17 +16,21 @@
 
 package com.couchbase.connector.cluster;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-public class StaticCoordinator implements Coordinator {
-  private static final Logger LOGGER = LoggerFactory.getLogger(StaticCoordinator.class);
-
-  @Override
-  public void panic(String message, Throwable t) {
-    LOGGER.error("PANIC: " + message, t);
-
-    // todo: think a little harder and exit some other way?
-    System.exit(1);
+/**
+ * The big red button that brings everything to a crashing halt.
+ */
+public interface PanicButton {
+  default void panic(String message) {
+    panic(message, null);
   }
+
+  /**
+   * Same as a panic, but log as WARN instead of ERROR and
+   * don't say anything about panicking in the log message.
+   */
+  void mildPanic(String message);
+
+  void panic(String message, Throwable t);
+
+  void addPrePanicHook(Runnable hook);
 }

@@ -7,6 +7,9 @@ data:
   default-connector.toml: |
     # Introduction to TOML config file format:
     #   https://npf.io/2014/08/intro-to-toml/
+    #
+    # NOTE: Some properties in this file refer to filesystem paths.
+    # The base for a relative path is the connector installation directory.
 
     # The work of replicating a Couchbase bucket may be distributed between
     # several connector worker processes, known collectively as a "group".
@@ -19,52 +22,62 @@ data:
     # To preserve the checkpoint, run the `cbes-checkpoint-backup` command
     # before renaming, and `cbes-checkpoint-restore` afterwards.
     [group]
-      name = '${CBES_GROUP:example-group}'
+      name = '${CBES_GROUP}'
 
-    # The simplest way to deploy the connector is "static" mode. In this mode,
-    # each worker process is independent of the others, and must be manually
-    # configured to know which partitions it is responsible for.
+    # The values under group.static are ignored when native Kubernetes
+    # integration is enabled, but the section itself must still be present.
     [group.static]
-      # Each member in a static group must have a unique member number.
-      memberNumber = ${CBES_MEMBERNUMBER:1} # A value from 1 to 'totalMembers', inclusive.
+      memberNumber = 1 # ignored when CBES_K8S_STATEFUL_SET=true
+      totalMembers = ${CBES_TOTAL_MEMBERS:9999} # ignored when CBES_K8S_WATCH_REPLICAS=true
 
-      # The total number of workers in the static group.
-      #
-      # TIP: To safely add or remove workers from a static group, first stop all
-      # running workers, then reconfigure them with the new 'totalMembers' value,
-      # and finally start all the workers again.
-      totalMembers = ${CBES_TOTALMEMBERS:1}
+    [logging]
+      # If true, document lifecycle milestones will be logged at INFO level
+      # instead of DEBUG. Enabling this feature lets you watch documents
+      # flow through the connector without having to edit the Log4j config file.
+      # Disabled by default because it generates many log messages.
+      logDocumentLifecycle = false
+
+      # Determines which kinds of sensitive log messages from the Couchbase connector
+      # will be tagged for later redaction by the Couchbase log redaction tool.
+      # NONE = no tagging; PARTIAL = user data is tagged; FULL = user, meta, and system data is tagged.
+      # Defaults to NONE.
+      redactionLevel = 'NONE'
 
     # Performance metrics may be written to a log file and/or exposed via HTTP.
     [metrics]
       httpPort = 31415 # Positive = fixed, 0 = ephemeral, -1 = disable HTTP server
-      logInterval = '0m' # Set to '0m' to disable metrics logging
+      logInterval = '5m' # Set to '0m' to disable metrics logging
 
     # Required if secure connections are enabled (SSL/TLS).
     [truststore]
       # Use the Java keytool command to create this file and import the root
       # certificate from the Security section of the Couchbase admin console
       # and/or the CA certificate used by Elasticsearch.
-      path = '/opt/couchbase-elasticsearch-connector/config/truststore.jks'
+      path = 'path/to/truststore'
       pathToPassword = 'secrets/truststore-password.toml'
 
     [couchbase]
-      hosts = ['couchbase']
+      hosts = ['couchbase-couchbase-cluster']
       network = 'auto'
-      bucket = 'travel-sample'
+      bucket = 'default'
 
       # By default the connector stores replication checkpoint documents
       # in the source bucket. If you'd rather store those documents in a
       # separate existing bucket, put that bucket's name here.
       metadataBucket = ''
 
+      # If you want to store replication checkpoint documents in a specific
+      # collection, name that collection here (qualified by scope, like
+      # 'myScope.cbesCheckpoints'). Otherwise, checkpoints will be stored
+      # in the bucket's default collection. The collection must already exist.
+      metadataCollection=''
+
       # At a minimum, the Couchbase user must have the "Data DCP Reader"
       # role for the source bucket, and "Data Reader" & "Data Writer"
       # roles for the bucket where replication checkpoints are stored.
-      username = ''
+      username = '${CBES_COUCHBASE_USERNAME:Administrator}'
 
       # Path to a separate TOML file with a single 'password' key.
-      # The base for a relative path is the connector installation directory.
       pathToPassword = 'secrets/couchbase-password.toml'
 
       # Optionally use SSL/TLS to encrypt the connection between Couchbase and
@@ -72,24 +85,87 @@ data:
       # [truststore] section to be configured.
       secureConnection = false
 
+      # Set this to `false` to disable TLS hostname verification for Couchbase
+      # connections. Less secure, but might be required if for some reason you
+      # can't issue a certificate whose Subject Alternative Names match the
+      # hostname used to connect to the server. Only disable if you understand
+      # the impact and can accept the risks.
+      hostnameVerification = true
+
+      # By default the connector examines every document in the bucket.
+      #
+      # Set the 'scope' property if you want to limit the replication to
+      # all collections within a single scope. The value is the name of the
+      # scope to replicate from.
+      # For example:
+      #   scope = 'myScope'
+      #
+      # Set the 'collections' property if you want to limit the replication to
+      # a subset of the collections in a scope, or collections in different scopes.
+      # The value is a list of qualified collections names (scope.collection).
+      # For example:
+      #   collections = ['myScope.widgets','myScope.invoices']
+      #
+      # NOTE: The 'scope' and 'collections' properties are mutually exlcusive.
+      # You can set one OR the other, but not both.
+      scope = ''
+      collections = []
+
+    # When secure connections are enabled, you can optionally authenticate
+    # using a client certificate instead of username & password.
+    [couchbase.clientCertificate]
+      # Authenticate using client certificate? If true, the username
+      # and password configured in the [couchbase] section are ignored.
+      use = false
+
+      # Filesystem path to a Java keystore or PKCS12 bundle holding
+      # the private key and certificate chain.
+      path = 'path/to/couchbase-client-cert.p12'
+
+      # Filesystem path to a separate TOML file containing the password
+      # for the PKCS12 bundle.
+      pathToPassword = 'secrets/couchbase-client-cert-password.toml'
+
     # Options for the Couchbase Database Change Protocol (DCP).
     [couchbase.dcp]
       compression = true
       flowControlBuffer = '16mb'
       persistencePollingInterval = '100ms'
 
+    # Custom environment settings for the Couchbase client.
+    # Property name reference:
+    #   https://docs.couchbase.com/java-sdk/current/ref/client-settings.html#configuration-options
+    [couchbase.env]
+      # Omit the "com.couchbase.env." prefix when specifying a property here.
+      # For example, to set the "com.couchbase.env.timeout.kvTimeout" property:
+      #   timeout.kvTimeout = '2.5s'
+
     [elasticsearch]
-      hosts = ['elastic']
-      username = 'elastic'
+      hosts = ['elasticsearch-master']
+      username = '${CBES_ELASTICSEARCH_USERNAME:elastic}'
 
       # Path to a separate TOML file with a single 'password' key.
-      # The base for a relative path is the connector installation directory.
       pathToPassword = 'secrets/elasticsearch-password.toml'
 
       # Optionally use SSL/TLS to encrypt the connection between Elasticsearch and
       # the connector. Requires the [truststore] section to be configured. See also:
       # https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html
       secureConnection = false
+
+    # When secure connections are enabled, you can optionally authenticate
+    # using a client certificate instead of username & password.
+    [elasticsearch.clientCertificate]
+      # Authenticate using client certificate? If true, the username
+      # and password configured in the [elasticsearch] section are ignored.
+      use = false
+
+      # Filesystem path to a Java keystore or PKCS12 bundle holding
+      # the private key and certificate chain.
+      path = 'path/to/elasticsearch-client-cert.p12'
+
+      # Filesystem path to a separate TOML file containing the password
+      # for the PKCS12 bundle.
+      pathToPassword = 'secrets/elasticsearch-client-cert-password.toml'
 
     # If connecting directly to an Amazon Elasticsearch Service, specify the AWS region.
     # AWS credentials are obtained from the Default Credential Provider Chain.
@@ -127,6 +203,13 @@ data:
       # Write matching documents to this index.
       # Empty string means "no default".
       index = ''
+
+      # If true, the 'prefix' and 'regex' rules operate on the qualified key.
+      # A qualified key includes the Couchbase document's parent scope and
+      # collection, for example: "scope.collection.documentId".
+      # If false, 'prefix' and 'regex' rules operate on the unqualified key,
+      # which is simply the Couchbase document ID.
+      matchOnQualifiedKey = false
 
       # Send matching documents though this pipeline.
       # Empty string means "no pipeline".
@@ -184,6 +267,25 @@ data:
       routing = '/airlineid' # JSON pointer to the parent ID field.
       ignoreDeletes = true # Must always be true if `routing` is specified.
 
+    # If your couchbase documents are organized into collections, the destination
+    # index can be derived from a document's parent scope and/or collection.
+    # This example rule matches any document and derives the index name
+    # from the scope and collection that contain the document.
+    # For example, a document with the qualified key "scope.collection.foo"
+    # is written to index "scope.collection".
+    [[elasticsearch.type]]
+      matchOnQualifiedKey = true
+      regex = '(?<index>[^.]+.[^.]+).*'
+
+    # This rule is similar to the previous one, but it ignores the scope component
+    # and derives the index name from just the collection name.
+    # For example, a document with the qualified key "scope.collection.foo"
+    # is written to index "collection".
+    [[elasticsearch.type]]
+      matchOnQualifiedKey = true
+      regex = '[^.]+.(?<index>[^.]+).*'
+
+    # This is a "catch-all" rule that matches any document.
     [[elasticsearch.type]]
       prefix = '' # Empty prefix matches any document ID.
       index = 'etc'
@@ -206,53 +308,15 @@ data:
             <Console name="Console" target="SYSTEM_OUT">
                 <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{1.} - %msg%n"/>
             </Console>
-
-            <RollingFile name="General"
-                         fileName="${env:APP_HOME}/logs/cbes.log"
-                         filePattern="${env:APP_HOME}/logs/cbes.%d{yyy-MM-dd}.%i.log.gz"
-                         ignoreExceptions="false">
-                <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{1.} - %msg%n"/>
-                <Policies>
-                    <OnStartupTriggeringPolicy/>
-                    <SizeBasedTriggeringPolicy size="250 MB"/>
-                    <TimeBasedTriggeringPolicy/>
-                </Policies>
-                <DefaultRolloverStrategy>
-                    <Delete basePath="${env:APP_HOME}/logs/">
-                        <IfFileName glob="cbes.*.log.gz"/>
-                        <IfLastModified age="14d"/>
-                    </Delete>
-                </DefaultRolloverStrategy>
-            </RollingFile>
-
-            <RollingFile name="Metrics"
-                         fileName="${env:APP_HOME}/logs/cbes-metrics.log"
-                         filePattern="${env:APP_HOME}/logs/cbes-metrics.%d{yyy-MM-dd}.%i.log.gz"
-                         ignoreExceptions="false">
-                <PatternLayout pattern="%d{yyy-MM-dd HH:mm:ss.SSS} %msg%n"/>
-                <Policies>
-                    <OnStartupTriggeringPolicy/>
-                    <SizeBasedTriggeringPolicy size="250 MB"/>
-                    <TimeBasedTriggeringPolicy/>
-                </Policies>
-                <DefaultRolloverStrategy>
-                    <Delete basePath="${env:APP_HOME}/logs/">
-                        <IfFileName glob="cbes-metrics.*.log.gz"/>
-                        <IfLastModified age="10d"/>
-                    </Delete>
-                </DefaultRolloverStrategy>
-            </RollingFile>
         </Appenders>
+
+        <!-- Log to the console and let Kubernetes handle rollover / retention -->
 
         <Loggers>
             <Root level="info">
                 <AppenderRef ref="Console"/>
-                <AppenderRef ref="General"/>
             </Root>
             <Logger name="com.couchbase.client.core" level="warn"/>
-            <Logger name="cbes.metrics" level="info" additivity="false">
-                <AppenderRef ref="Metrics"/>
-            </Logger>
 
             <!-- Suppress document type deprecation warnings issued by Elasticsearch 7 -->
             <Logger name="org.elasticsearch.client.RestClient">
@@ -264,9 +328,12 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  # This Secret contains files for the /secrets directory
+  # This Secret contains files for the "secrets" directory
   # This could also be created using "kubectl create secret generic elasticsearch-connector-secrets --from-file=./secrets"
   name: elasticsearch-connector-secrets
-data:
-  couchbase-password.toml: IyBQYXNzd29yZCBmb3IgdGhlIENvdWNoYmFzZSB1c2VyLgpwYXNzd29yZCA9ICdwYXNzd29yZCcK
-  elasticsearch-password.toml: IyBQYXNzd29yZCBmb3IgdGhlIEVsYXN0aWNzZWFyY2ggdXNlci4KcGFzc3dvcmQgPSAnY2hhbmdlbWUnCg
+stringData:
+  couchbase-password.toml: "password = 'password'"
+  elasticsearch-password.toml: "password = 'changeme'"
+  truststore-password.toml: "password = 'changeit'"
+  couchbase-client-cert-password.toml: "password = 'changeit'"
+  elasticsearch-client-cert-password.toml: "password = 'changeit'"

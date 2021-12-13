@@ -1,0 +1,29 @@
+# Builds an image using a pre-built connector distribution archive from couchbase.com
+
+# First stage downloads and unzips the connector distribution archive
+FROM redhat/ubi8-minimal:latest AS build
+
+# Version of the connector to download. See release notes for valid versions
+# https://docs.couchbase.com/elasticsearch-connector/current/release-notes.html
+ARG VERSION=4.3.2
+
+RUN curl -s https://packages.couchbase.com/clients/connectors/elasticsearch/${VERSION}/couchbase-elasticsearch-connector-${VERSION}.zip -o /couchbase-elasticsearch-connector.zip
+RUN microdnf install unzip
+RUN unzip -o -d / /couchbase-elasticsearch-connector.zip
+RUN mv /couchbase-elasticsearch-connector-${VERSION} /couchbase-elasticsearch-connector
+
+
+# Second stage uses the unzipped connector distribution to build the final image
+FROM registry.access.redhat.com/ubi8/openjdk-11-runtime:1.10-1.1634738684
+ARG CBES_HOME=/opt/couchbase-elasticsearch-connector
+
+# Set owner to jboss to appease ubi8/openjdk-11
+COPY --chown=jboss:root --from=build /couchbase-elasticsearch-connector $CBES_HOME
+VOLUME [ "$CBES_HOME/config", "$CBES_HOME/secrets" ]
+
+ENV PATH="$CBES_HOME/bin:$PATH"
+WORKDIR $CBES_HOME
+
+EXPOSE 31415
+
+ENTRYPOINT [ "cbes" ]

@@ -43,7 +43,7 @@ import com.couchbase.client.dcp.state.PartitionState;
 import com.couchbase.client.dcp.state.SessionState;
 import com.couchbase.client.dcp.transport.netty.ChannelFlowController;
 import com.couchbase.connector.VersionHelper;
-import com.couchbase.connector.cluster.Coordinator;
+import com.couchbase.connector.cluster.PanicButton;
 import com.couchbase.connector.config.ScopeAndCollection;
 import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.couchbase.connector.config.common.ClientCertConfig;
@@ -181,11 +181,11 @@ public class DcpHelper {
     return partitionToSeqno;
   }
 
-  public static void initEventListener(Client dcpClient, Coordinator coordinator, Consumer<Event> eventSink) {
+  public static void initEventListener(Client dcpClient, PanicButton panicButton, Consumer<Event> eventSink) {
     dcpClient.nonBlockingListener(new DatabaseChangeListener() {
       @Override
       public void onFailure(StreamFailure streamFailure) {
-        coordinator.panic("DCP stream failure.", streamFailure.getCause());
+        panicButton.panic("DCP stream failure.", streamFailure.getCause());
       }
 
       @Override
