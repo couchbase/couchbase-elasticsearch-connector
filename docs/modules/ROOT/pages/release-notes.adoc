@@ -8,6 +8,23 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.2.14]]
+== Version 4.2.14 (2021-12-21)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.14/couchbase-elasticsearch-connector-4.2.14.zip[Download]
+
+This release upgrades Log4j from 2.15.0 to 2.17.0.
+
+This prevents vulnerability scanners from flagging Log4j 2.15.0 as a potential security risk.
+
+NOTE: All versions of the connector are immune to CVE-2021-45046 and CVE-2021-45105 because the connector does not use the Thread Context Map / Mapped Diagnostic Context (MDC) feature of Log4j.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-232[CBES-232]:
+Upgrade Log4j from 2.15.0 to 2.17.0.
+
+
 [[v4.2.13]]
 == Version 4.2.13 (2021-12-10)
 

@@ -14,7 +14,7 @@ Elasticsearch version support is informed by https://www.elastic.co/support/eol[
 [%autowidth,cols="^,4*^"]
 |===
  |             4+h| Connector
-h| Elasticsearch↓ | 4.1 | 4.2.0 - 4.2.1 | 4.2.2 - 4.2.7 | 4.2.8+
+h| Elasticsearch↓ | 4.1 | 4.2.0 - 4.2.1 | 4.2.2 - 4.2.7 | 4.2.8 - 4.2.14
  | 7.8 - 7.11     | ✖   | ✖             | ✖             | ✔
  | 7.6 - 7.7      | ✖   | ✖             | ✔             | ✔
  | 7.4 - 7.5      | ✖   | ✔             | ✔             | ✔
