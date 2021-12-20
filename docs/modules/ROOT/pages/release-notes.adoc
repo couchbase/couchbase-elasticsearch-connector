@@ -8,6 +8,50 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.3.4]]
+== Version 4.3.4 (2021-12-21)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.3.4/couchbase-elasticsearch-connector-4.3.4.zip[Download]
+
+This release makes it easier to xref:kubernetes.adoc[deploy the connector in Kubernetes], and upgrades Log4j from 2.15.0 to 2.17.0.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-232[CBES-232]:
+Upgraded Log4j from 2.15.0 to 2.17.0.
+This prevents vulnerability scanners from flagging Log4j 2.15.0 as a potential security risk.
+
+NOTE: All versions of the connector are immune to CVE-2021-45046 and CVE-2021-45105 because the connector does not use the Thread Context Map / Mapped Diagnostic Context (MDC) feature of Log4j.
+
+* https://issues.couchbase.com/browse/CBES-200[CBES-200]:
+Added basic Kubernetes integration.
+See the new documentation page, xref:kubernetes.adoc[].
+
+* https://issues.couchbase.com/browse/CBES-226[CBES-226]:
+Added a LICENSE file to the distribution archive (Apache License Version 2.0, same as before).
+
+* https://issues.couchbase.com/browse/CBES-234[CBES-234]:
+Upgraded DCP client from 0.37.0 to 0.38.0 for better error messages if the Couchbase user does not have the required permissions.
+
+* https://issues.couchbase.com/browse/CBES-235[CBES-235]:
+Upgraded Couchbase Java client from 3.2.0 to 3.2.4 to pick up the latest dependency versions.
+
+
+[[v4.2.14]]
+== Version 4.2.14 (2021-12-21)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.14/couchbase-elasticsearch-connector-4.2.14.zip[Download]
+
+This release upgrades Log4j from 2.15.0 to 2.17.0.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-232[CBES-232]:
+Upgraded Log4j from 2.15.0 to 2.17.0.
+This prevents vulnerability scanners from flagging Log4j 2.15.0 as a potential security risk.
+
+NOTE: All versions of the connector are immune to CVE-2021-45046 and CVE-2021-45105 because the connector does not use the Thread Context Map / Mapped Diagnostic Context (MDC) feature of Log4j.
+
 [[v4.3.3]]
 == Version 4.3.3 (2021-12-10)
 
