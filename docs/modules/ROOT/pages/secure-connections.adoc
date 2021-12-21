@@ -28,7 +28,7 @@ A trial license can be activated by modifying a configuration setting, as explai
 [#get-couchbase-cert]
 == Get the Couchbase CA Certificate
 
-The steps for getting the Couchbase certificate are different depending on whether you are hosting your own Couchbase Server cluster or using Couchbase Cloud.
+The steps for getting the Couchbase certificate are different depending on whether you are hosting your own Couchbase Server cluster or using xref:cloud:ROOT:index.adoc[Couchbase Capella].
 
 [#get-couchbase-cert-server]
 === Couchbase Server (Self-hosted)
@@ -48,11 +48,12 @@ The filename does not matter, but let's call it `couchbase.pem`.
 To use a different root certificate, you can follow instructions on the xref:server:manage:manage-security/configure-server-certificates.adoc[Configure Server Certificates] page.
 
 [#get-couchbase-cert-cloud]
-=== Couchbase Cloud
-[abstract]
-How to get the certificate for a Couchbase Cloud cluster.
+=== Couchbase Capella
 
-Once you have created a Cluster in Couchbase Cloud, navigate to the `Connect` tab and download the security certificate.
+[abstract]
+How to get the certificate for a Couchbase Capella cluster.
+
+Once you have created a Cluster in Couchbase Capella, navigate to the `Connect` tab and download the security certificate.
 
 image::cloud-ui.png[Cloud UI]
 
