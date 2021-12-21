@@ -5,7 +5,7 @@ FROM redhat/ubi8-minimal:latest AS build
 
 # Version of the connector to download. See release notes for valid versions
 # https://docs.couchbase.com/elasticsearch-connector/current/release-notes.html
-ARG VERSION=4.3.2
+ARG VERSION=4.3.4
 
 RUN curl -s https://packages.couchbase.com/clients/connectors/elasticsearch/${VERSION}/couchbase-elasticsearch-connector-${VERSION}.zip -o /couchbase-elasticsearch-connector.zip
 RUN microdnf install unzip
