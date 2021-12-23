@@ -60,9 +60,14 @@ public class SessionTask implements AutoCloseable {
       final List<String> tags = singletonList("couchbase-elasticsearch-connector");// emptyList();
       final Map<String, String> meta = singletonMap("uuid", serviceUuid);
 
+      // WORKAROUND a bug in the Consul client; it always expects the service definition JSON server responses
+      // to have a "port" field. Consul 1.10 stopped including this field when it's zero, so we need to either
+      // patch the Consul client or supply a non-zero port when registering the service. For now, let's do the latter!
+      final int ARBITRARY_NON_ZERO_PORT = 31415;
+
       // todo catch exception, retry with backoff (wait for consul agent to start)
       final int sessionTtlSeconds = HEALTH_CHECK_INTERVAL_SECONDS * 2;
-      ctx.consul().agentClient().register(0, sessionTtlSeconds, ctx.serviceName(), ctx.serviceId(), tags, meta);
+      ctx.consul().agentClient().register(ARBITRARY_NON_ZERO_PORT, sessionTtlSeconds, ctx.serviceName(), ctx.serviceId(), tags, meta);
 
       passHealthCheck();
 
