@@ -18,6 +18,6 @@ package com.couchbase.connector.config.toml;
 
 public class Toml {
   public static ParseResult parse(String toml) {
-    return new ParseResult(net.consensys.cava.toml.Toml.parse(toml));
+    return new ParseResult(org.apache.tuweni.toml.Toml.parse(toml));
   }
 }

@@ -16,8 +16,8 @@
 
 package com.couchbase.connector.config.toml;
 
-import net.consensys.cava.toml.TomlArray;
-import net.consensys.cava.toml.TomlPosition;
+import org.apache.tuweni.toml.TomlArray;
+import org.apache.tuweni.toml.TomlPosition;
 
 import static java.util.Objects.requireNonNull;
 

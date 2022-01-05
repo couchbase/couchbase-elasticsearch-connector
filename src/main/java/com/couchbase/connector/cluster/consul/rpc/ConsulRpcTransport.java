@@ -22,7 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
-import com.github.therapi.jsonrpc.client.JsonRpcHttpClient;
+import com.github.therapi.jsonrpc.client.JsonRpcTransport;
 import com.google.common.base.Strings;
 import com.orbitz.consul.KeyValueClient;
 import com.orbitz.consul.model.ConsulResponse;
@@ -44,14 +44,14 @@ import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.cons
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-public class ConsulRpcTransport implements JsonRpcHttpClient {
+public class ConsulRpcTransport implements JsonRpcTransport {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsulRpcTransport.class);
 
   private final KeyValueClient kv;
   private final String endpointKey;
   private final Duration timeout;
 
-  private final static String requestIdPrefix = UUID.randomUUID().toString() + "#";
+  private final static String requestIdPrefix = UUID.randomUUID() + "#";
   private final static AtomicLong requestCounter = new AtomicLong();
   private final ConsulDocumentWatcher watcher;
 
@@ -133,7 +133,7 @@ public class ConsulRpcTransport implements JsonRpcHttpClient {
         return mapper.writeValueAsString(doc);
 
       } catch (IOException e) {
-        LOGGER.error("Failed to remove response with ID {} from malformed RPC endpoint document,", e);
+        LOGGER.error("Failed to remove response with ID {} from malformed RPC endpoint document,", id, e);
         return value;
       }
     });

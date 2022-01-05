@@ -17,7 +17,7 @@
 package com.couchbase.connector.config.toml;
 
 import com.couchbase.connector.config.ConfigException;
-import net.consensys.cava.toml.TomlParseResult;
+import org.apache.tuweni.toml.TomlParseResult;
 
 public class ParseResult extends ConfigTable {
   public ParseResult(TomlParseResult wrapped) {

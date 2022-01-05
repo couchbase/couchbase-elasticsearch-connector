@@ -19,9 +19,9 @@ package com.couchbase.connector.config.toml;
 import com.couchbase.connector.config.ConfigException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
-import net.consensys.cava.toml.TomlArray;
-import net.consensys.cava.toml.TomlPosition;
-import net.consensys.cava.toml.TomlTable;
+import org.apache.tuweni.toml.TomlArray;
+import org.apache.tuweni.toml.TomlPosition;
+import org.apache.tuweni.toml.TomlTable;
 
 import java.util.Arrays;
 import java.util.HashSet;

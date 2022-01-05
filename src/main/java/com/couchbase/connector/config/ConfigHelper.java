@@ -18,8 +18,8 @@ package com.couchbase.connector.config;
 
 import com.couchbase.connector.config.toml.ConfigTable;
 import com.google.common.io.ByteStreams;
-import net.consensys.cava.toml.Toml;
-import net.consensys.cava.toml.TomlParseResult;
+import org.apache.tuweni.toml.Toml;
+import org.apache.tuweni.toml.TomlParseResult;
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.http.HttpHost;
 import org.elasticsearch.common.unit.ByteSizeValue;
