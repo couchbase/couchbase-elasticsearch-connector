@@ -64,6 +64,18 @@ If the release succeeded, now's the time to publish the tag:
 
     git push origin x.y.z
 
+## Publish Docker image
+
+First stage the image on the internal repo.
+From the internal network:
+
+    docker build . -f Dockerfile.download -t build-docker.couchbase.com/couchbase/elasticsearch-connector:$VERS --build-arg VERSION=$VERS
+    docker push build-docker.couchbase.com/couchbase/elasticsearch-connector:$VERS
+
+Then use the [Jenkins job](http://sdk.jenkins.couchbase.com/job/dockerhub-release/) to promote the image to Docker Hub.
+Run it twice (`Build with parameters`). The first time, use the actual version for both INTERNAL_TAG and EXTERNAL_TAG.
+The second time, use the action version for INTERNAL_TAG and `latest` for EXTERNAL_TAG.
+
 ## Prepare for next dev cycle
 
 Increment the version number in `build.gradle` and restore the `-SNAPSHOT` suffix.
