@@ -8,6 +8,48 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.3.5]]
+== Version 4.3.5 (2022-01-18)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.3.5/couchbase-elasticsearch-connector-4.3.5.zip[Download]
+
+This is a maintenance released focused on upgrading dependencies to the latest versions.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-238[CBES-238]:
+Resolved an incompatibility with Consul 1.10.
+
+* https://issues.couchbase.com/browse/CBES-241[CBES-241]:
+Upgraded Log4j from 2.17.0 to 2.17.1.
+
+NOTE: *Regarding CVE-2021-44832:* The connector’s out-of-the-box logging configuration does not use Log4j’s JDBC appender.
+You may still wish to upgrade to avoid false positives from vulnerability scanners.
+
+* https://issues.couchbase.com/browse/CBES-245[CBES-245]:
+Upgraded Couchbase DCP client from 0.38.0 to 0.39.0:
+
+** https://issues.couchbase.com/browse/JDCP-210[JDCP-210]
+Authentication no longer fails when credentials have non-ASCII characters and the system default encoding is not UTF-8.
+
+* https://issues.couchbase.com/browse/CBES-242[CBES-242]:
+Upgraded other dependencies to the latest versions.
+
+[[v4.2.15]]
+== Version 4.2.15 (2022-01-18)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.2.15/couchbase-elasticsearch-connector-4.2.15.zip[Download]
+
+This release upgrades Log4j again (sigh).
+
+NOTE: *Regarding CVE-2021-44832:* The connector's out-of-the-box logging configuration does not use Log4j's JDBC appender.
+You may still wish to upgrade to avoid false positives from vulnerability scanners.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-241[CBES-241]:
+Upgrade Log4j from 2.17.0 to 2.17.1.
+
 [[v4.3.4]]
 == Version 4.3.4 (2021-12-21)
 
