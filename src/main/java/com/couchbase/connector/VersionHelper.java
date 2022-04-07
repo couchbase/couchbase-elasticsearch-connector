@@ -59,7 +59,7 @@ public class VersionHelper {
   }
 
   public static String getVersionString() {
-    final String gitInfo = getGetInfo().orElse(null);
+    final String gitInfo = getGitInfo().orElse(null);
     return gitInfo == null ? version : version + "(" + gitInfo + ")";
   }
 
@@ -67,7 +67,7 @@ public class VersionHelper {
     return version;
   }
 
-  public static Optional<String> getGetInfo() {
+  public static Optional<String> getGitInfo() {
     return version.equals(gitInfo) ? Optional.empty() : Optional.of(gitInfo);
   }
 }

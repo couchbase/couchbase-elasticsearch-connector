@@ -41,6 +41,7 @@ import com.couchbase.client.dcp.deps.io.netty.handler.codec.http.QueryStringDeco
 import com.couchbase.client.dcp.deps.io.netty.handler.logging.LogLevel;
 import com.couchbase.client.dcp.deps.io.netty.handler.logging.LoggingHandler;
 import com.couchbase.connector.VersionHelper;
+import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.elasticsearch.Metrics;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -53,10 +54,12 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.DAYS;
 
 public class HttpServer implements Closeable {
@@ -72,9 +75,11 @@ public class HttpServer implements Closeable {
 
   private boolean started;
   private Channel serverChannel;
+  private Membership membership;
 
-  public HttpServer(int httpPort) {
+  public HttpServer(int httpPort, Membership membership) {
     this.httpPort = httpPort;
+    this.membership = requireNonNull(membership);
   }
 
   public synchronized void start() throws IOException {
@@ -135,14 +140,14 @@ public class HttpServer implements Closeable {
   }
 
   public static void main(String[] args) throws InterruptedException, IOException {
-    try (HttpServer server = new HttpServer(31415)) {
+    try (HttpServer server = new HttpServer(31415, Membership.of(1, 2))) {
       server.start();
       DAYS.sleep(1);
     }
   }
 
-  public static class HttpServerInitializer extends ChannelInitializer<Channel> {
-    private static final int MAX_REQUEST_CONTENT_LENGTH = (int) ByteSizeUnit.MB.toBytes(1);
+  public class HttpServerInitializer extends ChannelInitializer<Channel> {
+    private final int MAX_REQUEST_CONTENT_LENGTH = (int) ByteSizeUnit.MB.toBytes(1);
 
     @Override
     protected void initChannel(Channel channel) throws Exception {
@@ -156,7 +161,7 @@ public class HttpServer implements Closeable {
 
   private static final ObjectMapper mapper = new ObjectMapper();
 
-  public static class HttpServerHandler extends SimpleChannelInboundHandler<HttpObject> {
+  public class HttpServerHandler extends SimpleChannelInboundHandler<HttpObject> {
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg) throws Exception {
@@ -176,10 +181,23 @@ public class HttpServer implements Closeable {
           final String html = "<h2>Couchbase Elasticsearch Connector</h2>" +
               "Version " + VersionHelper.getVersionString() +
               "<p>" +
+              "<a href=\"info\">Connector info</a> (version, membership, etc.)" +
+              "<p>" +
               "<a href=\"metrics/prometheus\">Metrics (Prometheus)</a>" +
               "<p>" +
               "<a href=\"metrics/dropwizard?pretty\">Metrics (Dropwizard)</a>";
           content = Unpooled.wrappedBuffer(html.getBytes(UTF_8));
+          break;
+
+        case "/info":
+          var info = Map.of(
+              "version", VersionHelper.getVersion(),
+              "commit", VersionHelper.getGitInfo().orElse(""),
+              "membership", membership.toString()
+          );
+          content = Unpooled.wrappedBuffer(mapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(info));
+          contentType = "application/json";
+          status = HttpResponseStatus.OK;
           break;
 
         case "/metrics": // default to dropwizard for now. Maybe add a switch for the default format?

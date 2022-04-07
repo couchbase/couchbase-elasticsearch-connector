@@ -180,7 +180,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
     final ScheduledExecutorService checkpointExecutor = Executors.newSingleThreadScheduledExecutor();
 
     try (Slf4jReporter metricReporter = newSlf4jReporter(config.metrics().logInterval());
-         HttpServer httpServer = new HttpServer(config.metrics().httpPort());
+         HttpServer httpServer = new HttpServer(config.metrics().httpPort(), membership);
          RestHighLevelClient esClient = newElasticsearchClient(config.elasticsearch(), config.trustStore())) {
 
       DocumentLifecycle.setLogLevel(config.logging().logDocumentLifecycle() ? LogLevel.INFO : LogLevel.DEBUG);
