@@ -65,7 +65,7 @@ dependencies {
   // Route that through SLF4J instead.
   implementation 'org.slf4j:jcl-over-slf4j:1.7.32'
 
-  implementation 'com.couchbase.client:java-client:3.2.4'
+  implementation 'com.couchbase.client:java-client:3.2.6'
   implementation 'com.couchbase.client:dcp-client:0.39.0'
 
   // Can't upgrade ES client to 7.x until we drop support for ES 6
