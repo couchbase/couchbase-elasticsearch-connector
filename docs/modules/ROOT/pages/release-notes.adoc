@@ -8,6 +8,21 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.3.6]]
+== Version 4.3.6 (2022-04-19)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.3.6/couchbase-elasticsearch-connector-4.3.6.zip[Download]
+
+This release adds a new `/info` HTTP endpoint that displays information about the connector.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-247[CBES-247]:
+The new `/info` HTTP endpoint reports the connector version and membership in a machine-readable format.
+
+* https://issues.couchbase.com/browse/CBES-248[CBES-248]:
+Upgrade Couchbase Java SDK from 3.2.4 to 3.2.6.
+
 [[v4.3.5]]
 == Version 4.3.5 (2022-01-18)
 
