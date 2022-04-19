@@ -16,14 +16,17 @@ repositories {
 
 version = "4.3.7-SNAPSHOT"
 
-def compileJavaVersion = "11"
-def testJavaVersion = project.findProperty("testJavaVersion") ?: compileJavaVersion
-def jvmVendor = JvmVendorSpec.ADOPTOPENJDK
-println "Compiling for Java ${compileJavaVersion}, testing against Java ${testJavaVersion} (${jvmVendor})"
+def targetJavaRelease = 11
+def jvmVersion = System.getProperty("os.arch").equals("aarch64") ? "17" : "11" // Only 17 is available for Apple silicon.
+def testJvmVersion = project.findProperty("testJvmVersion") ?: jvmVersion
+def jvmVendor = JvmVendorSpec.ADOPTIUM
+println "Compiling for Java ${targetJavaRelease} using JVM ${jvmVersion} (${jvmVendor}), testing using JVM ${testJvmVersion}"
+
+tasks.withType(JavaCompile).configureEach { options.release = targetJavaRelease }
 
 java {
   toolchain {
-    languageVersion = JavaLanguageVersion.of(compileJavaVersion)
+    languageVersion = JavaLanguageVersion.of(jvmVersion)
     vendor = jvmVendor
   }
 }
@@ -42,7 +45,7 @@ integrationTest {
 tasks.withType(Test) {
   testLogging.showStandardStreams = true
   javaLauncher = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(testJavaVersion)
+    languageVersion = JavaLanguageVersion.of(testJvmVersion)
     vendor = jvmVendor
   }
 }
