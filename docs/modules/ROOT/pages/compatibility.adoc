@@ -35,6 +35,8 @@ Connector versions 4.2.4 and later are compatible with Couchbase Capella.
 
 == Couchbase Server
 
+The connector is compatible with Couchbase Server Enterprise Edition and Couchbase Server Community Edition.
+
 [%autowidth,cols="^,3*^"]
 |===
  |                   3+h| Connector
