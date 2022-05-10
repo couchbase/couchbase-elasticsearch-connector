@@ -17,7 +17,6 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.orbitz.consul.Consul;
-import com.orbitz.consul.KeyValueClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +50,7 @@ public abstract class AbstractLongPollTask<SELF extends AbstractLongPollTask> im
   /**
    * @throws IllegalStateException if already started
    */
+  @SuppressWarnings("unchecked")
   public SELF start() {
     try {
       thread.start();
