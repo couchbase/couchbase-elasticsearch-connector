@@ -15,7 +15,7 @@ RUN mv /couchbase-elasticsearch-connector-${VERSION} /couchbase-elasticsearch-co
 
 
 # Second stage uses the unzipped connector distribution to build the final image
-FROM registry.access.redhat.com/ubi8/openjdk-11-runtime:1.11-2.1648459559
+FROM registry.access.redhat.com/ubi8/openjdk-11-runtime:1.12-1.1651233103
 ARG CBES_HOME=/opt/couchbase-elasticsearch-connector
 
 # Set owner to jboss to appease ubi8/openjdk-11
