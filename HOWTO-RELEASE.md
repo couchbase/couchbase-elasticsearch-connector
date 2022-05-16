@@ -66,13 +66,9 @@ If the release succeeded, now's the time to publish the tag:
 
 ## Publish Docker image
 
-First stage the image on the internal repo.
-From the internal network:
+First, stage the image on the internal repo using [this Jenkins job](http://sdk.jenkins.couchbase.com/job/connectors/job/elasticsearch-docker-publish-internal/).
 
-    docker build . -f Dockerfile.download -t build-docker.couchbase.com/couchbase/elasticsearch-connector:$VERS --build-arg VERSION=$VERS
-    docker push build-docker.couchbase.com/couchbase/elasticsearch-connector:$VERS
-
-Then use the [Jenkins job](http://sdk.jenkins.couchbase.com/job/dockerhub-release/) to promote the image to Docker Hub.
+Then use [this other Jenkins job](https://sdk.jenkins.couchbase.com/job/dockerhub-release/) to promote the image to Docker Hub.
 Run it twice (`Build with parameters`). The first time, use the actual version for both INTERNAL_TAG and EXTERNAL_TAG.
 The second time, use the action version for INTERNAL_TAG and `latest` for EXTERNAL_TAG.
 
