@@ -9,6 +9,14 @@ It is best to upgrade to a supported version.
 
 * ✔ *Supported*: This combination is subject to ongoing quality assurance, and is fully supported by our technical support organization.
 
+== Operating System
+
+Linux is required for production deployments.
+
+macOS is fine for experimentation and development, but is not officially supported.
+
+Windows is completely untested and unsupported.
+
 == Elasticsearch
 
 Elasticsearch version support is informed by https://www.elastic.co/support/eol[Elastic product end of life dates].
