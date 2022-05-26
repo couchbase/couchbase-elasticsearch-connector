@@ -2,7 +2,7 @@
 # To build from a pre-built connector distribution, see Dockerfile.download
 
 # Use Red Hat Universal Base Image (UBI) for compatibility with OpenShift
-FROM registry.access.redhat.com/ubi8/openjdk-11-runtime:1.12-1.1651233103
+FROM registry.access.redhat.com/ubi8/openjdk-11-runtime:1.13-1
 
 ARG CBES_HOME=/opt/couchbase-elasticsearch-connector
 
