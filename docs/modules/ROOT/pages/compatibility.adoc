@@ -33,9 +33,9 @@ h| Elasticsearch↓ | 4.1 | 4.2.0 - 4.2.1 | 4.2.2 - 4.2.7 | 4.2.8 - 4.2.15 | 4.3
  | 5.6.16         | ◎   | ◎             | ◎             | ◎              | ✖
 |===
 
-== Amazon Elasticsearch Service
+== Amazon OpenSearch Service
 
-Direct connection to Amazon Elasticsearch Service instances is supported by connector versions 4.2 and later.
+Direct connection to Amazon OpenSearch Service instances is supported by connector versions 4.2 and later.
 
 == Couchbase Capella
 
