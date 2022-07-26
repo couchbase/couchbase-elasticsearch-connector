@@ -254,9 +254,9 @@ Username and password are only required if Elasticsearch is set up to require au
 <3> Path to a separate TOML file with a single 'password' key.
 <4> If your Elasticsearch cluster requires secure connections, configure the <<truststore,Trust Store>> section and then set this to `true` to encrypt the Elasticsearch connections.
 
-=== Amazon Elasticsearch Service
+=== Amazon OpenSearch Service
 
-If connecting directly to an instance of the Amazon Elasticsearch Service, all Elasticsearch requests must be signed with AWS credentials.
+If connecting directly to an instance of the Amazon OpenSearch Service, all Elasticsearch requests must be signed with AWS credentials.
 Specifying the AWS region of the service tells the connector to sign the requests.
 Credentials are obtained from the https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html[Default Credential Provider Chain].
 
@@ -267,7 +267,7 @@ Credentials are obtained from the https://docs.aws.amazon.com/sdk-for-java/v1/de
 ----
 
 <1> Activates request signing for the specified AWS region.
-Leave this blank unless you're connecting directly to an instance of the Amazon Elasticsearch Service.
+Leave this blank unless you're connecting directly to an instance of the Amazon OpenSearch Service.
 
 === Bulk Request Limits
 
