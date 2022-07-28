@@ -34,6 +34,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
@@ -43,10 +44,7 @@ import static org.apache.commons.lang3.StringUtils.substringBeforeLast;
 public class TestConfigHelper {
 
   public static String readConfig() throws IOException {
-    return Files.asCharSource(new File("src/dist/config/example-connector.toml"), UTF_8).read()
-        // Rewrite the document type config for compatibility with ES 5.x.
-        // (if you change this, also change code in TestEsClient that assumes type name is "doc")
-        .replace("'_doc'", "'doc'");
+    return Files.asCharSource(new File("src/dist/config/example-connector.toml"), UTF_8).read();
   }
 
   public static String readConfig(CustomCouchbaseContainer couchbase, ElasticsearchContainer elasticsearch) throws IOException {
@@ -68,10 +66,27 @@ public class TestConfigHelper {
     final Map<String, Object> effectiveOverrides = new HashMap<>(defaultOverrides);
     effectiveOverrides.putAll(propertyOverrides);
 
+    checkState(elasticsearch.isRunning()); // Can only get CA cert after container starts
+    elasticsearch.caCertAsBytes().ifPresent(certBytes -> {
+      try {
+        File caFile = new File("build/tmp/elasticsearch-ca-cert.pem");
+        Files.createParentDirs(caFile);
+        Files.write(certBytes, caFile);
+
+        effectiveOverrides.put("elasticsearch.secureConnection", true);
+        effectiveOverrides.put("elasticsearch.pathToCaCertificate", caFile.getAbsolutePath());
+
+        System.out.println("Copied Elasticsearch CA certificate to file: " + caFile.getAbsolutePath());
+
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    });
+
     return readConfig(effectiveOverrides);
   }
 
-  public static String readConfig(Map<String, Object> propertyOverrides) throws IOException {
+  private static String readConfig(Map<String, Object> propertyOverrides) throws IOException {
     String config = readConfig();
     for (Map.Entry<String, Object> override : propertyOverrides.entrySet()) {
       config = patchToml(config, override.getKey(), override.getValue());

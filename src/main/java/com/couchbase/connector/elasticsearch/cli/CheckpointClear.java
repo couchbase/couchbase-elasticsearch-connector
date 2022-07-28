@@ -79,7 +79,7 @@ public class CheckpointClear extends AbstractCliCommand {
   }
 
   private static void run(ConnectorConfig config, boolean catchUp) throws IOException {
-    final ClusterEnvironment env = environmentBuilder(config.couchbase(), config.trustStore()).build();
+    final ClusterEnvironment env = environmentBuilder(config).build();
     final Cluster cluster = createCluster(config.couchbase(), env);
     try {
       final Bucket metadataBucket = CouchbaseHelper.waitForBucket(cluster, config.couchbase().metadataBucket());
@@ -108,7 +108,7 @@ public class CheckpointClear extends AbstractCliCommand {
   }
 
   private static void setCheckpointToNow(ConnectorConfig config, Set<SeedNode> kvNodes, CheckpointDao checkpointDao) throws IOException {
-    final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), kvNodes, config.trustStore());
+    final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), kvNodes, config.trustStore().orElse(null));
     try {
       dcpClient.connect().block();
 

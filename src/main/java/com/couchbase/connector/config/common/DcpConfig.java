@@ -17,34 +17,32 @@
 package com.couchbase.connector.config.common;
 
 import com.couchbase.client.dcp.config.CompressionMode;
+import com.couchbase.connector.config.StorageSize;
 import com.couchbase.connector.config.toml.ConfigTable;
-import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.common.unit.TimeValue;
 import org.immutables.value.Value;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 import static com.couchbase.connector.config.ConfigHelper.getSize;
 import static com.couchbase.connector.config.ConfigHelper.getTime;
-import static org.elasticsearch.common.unit.ByteSizeUnit.MB;
 
 @Value.Immutable
 public interface DcpConfig {
   CompressionMode compression();
 
-  TimeValue persistencePollingInterval();
+  Duration persistencePollingInterval();
 
-  ByteSizeValue flowControlBuffer();
+  StorageSize flowControlBuffer();
 
-  default TimeValue connectTimeout() {
-    return new TimeValue(10, TimeUnit.SECONDS);
+  default Duration connectTimeout() {
+    return Duration.ofSeconds(10);
   }
 
   static ImmutableDcpConfig from(ConfigTable config) {
     return ImmutableDcpConfig.builder()
         .compression(config.getBoolean("compression").orElse(true) ? CompressionMode.ENABLED : CompressionMode.DISABLED)
-        .persistencePollingInterval(getTime(config, "persistencePollingInterval").orElse(new TimeValue(100, TimeUnit.MILLISECONDS)))
-        .flowControlBuffer(getSize(config, "flowControlBuffer").orElse(new ByteSizeValue(128, MB)))
+        .persistencePollingInterval(getTime(config, "persistencePollingInterval").orElse(Duration.ofMillis(100)))
+        .flowControlBuffer(getSize(config, "flowControlBuffer").orElse(StorageSize.ofMebibytes(16)))
         .build();
   }
 }

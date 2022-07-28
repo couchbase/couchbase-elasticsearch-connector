@@ -44,7 +44,7 @@ class TestCouchbaseClient implements Closeable {
   }
 
   public TestCouchbaseClient(ImmutableConnectorConfig config) {
-    ClusterEnvironment.Builder builder = environmentBuilder(config.couchbase(), config.trustStore());
+    ClusterEnvironment.Builder builder = environmentBuilder(config);
     builder.ioConfig().enableMutationTokens(true);
     builder.timeoutConfig().connectTimeout(Duration.ofSeconds(15));
     builder.timeoutConfig().kvTimeout(Duration.ofSeconds(10));

@@ -24,8 +24,13 @@ import com.google.common.collect.ImmutableList;
 import org.apache.http.HttpHost;
 import org.immutables.value.Value;
 
+import java.security.cert.X509Certificate;
+import java.util.List;
+
 import static com.couchbase.connector.config.ConfigHelper.createHttpHost;
+import static com.couchbase.connector.config.ConfigHelper.readCertificates;
 import static com.couchbase.connector.config.ConfigHelper.readPassword;
+import static com.couchbase.connector.config.ConfigHelper.warnIfDeprecatedTypeNameIsPresent;
 import static java.util.stream.Collectors.toList;
 
 @Value.Immutable
@@ -38,6 +43,9 @@ public interface ElasticsearchConfig {
   String password();
 
   boolean secureConnection();
+
+  @Value.Redacted // not secret, but the toString is too verbose
+  List<X509Certificate> caCert();
 
   ClientCertConfig clientCert();
 
@@ -59,7 +67,7 @@ public interface ElasticsearchConfig {
   }
 
   static ImmutableElasticsearchConfig from(ConfigTable config) {
-    config.expectOnly("hosts", "username", "pathToPassword", "secureConnection", "clientCertificate", "aws", "bulkRequestLimits", "docStructure", "typeDefaults", "type", "rejectionLog");
+    config.expectOnly("hosts", "username", "pathToPassword", "secureConnection", "pathToCaCertificate", "clientCertificate", "aws", "bulkRequestLimits", "docStructure", "typeDefaults", "type", "rejectionLog");
 
     final boolean secureConnection = config.getBoolean("secureConnection").orElse(false);
 
@@ -69,14 +77,15 @@ public interface ElasticsearchConfig {
     // Standard ES HTTP port is 9200. Amazon Elasticsearch Service listens on ports 80 & 443.
     final int defaultPort = aws.region().isEmpty() ? 9200 :
         secureConnection ? 443 : 80;
-
+    String parentConfigName = "elasticsearch";
     final ImmutableElasticsearchConfig.Builder builder = ImmutableElasticsearchConfig.builder()
         .secureConnection(secureConnection)
+        .caCert(readCertificates(config, parentConfigName, "pathToCaCertificate"))
         .hosts(config.getRequiredStrings("hosts").stream()
             .map(h -> createHttpHost(h, defaultPort, secureConnection))
             .collect(toList()))
         .username(config.getString("username").orElse(""))
-        .password(readPassword(config, "elasticsearch", "pathToPassword"))
+        .password(readPassword(config, parentConfigName, "pathToPassword"))
         .bulkRequest(BulkRequestConfig.from(config.getTableOrEmpty("bulkRequestLimits")))
         .aws(aws)
         .clientCert(clientCert)
@@ -85,9 +94,10 @@ public interface ElasticsearchConfig {
     final ConfigTable typeDefaults = config.getTableOrEmpty("typeDefaults");
     typeDefaults.expectOnly("typeName", "index", "pipeline", "ignore", "ignoreDeletes", "matchOnQualifiedKey");
 
+    warnIfDeprecatedTypeNameIsPresent(typeDefaults);
+
     final TypeConfig defaultTypeConfig = ImmutableTypeConfig.builder()
         .index(typeDefaults.getString("index").orElse(null))
-        .type(typeDefaults.getString("typeName").orElse("_doc"))
         .pipeline(typeDefaults.getString("pipeline").orElse(null))
         .ignore(typeDefaults.getBoolean("ignore").orElse(false))
         .ignoreDeletes(typeDefaults.getBoolean("ignoreDeletes").orElse(false))
@@ -102,7 +112,7 @@ public interface ElasticsearchConfig {
     }
     builder.types(typeConfigs.build());
 
-    builder.rejectLog(RejectLogConfig.from(config.getTableOrEmpty("rejectionLog"), defaultTypeConfig.type()));
+    builder.rejectLog(RejectLogConfig.from(config.getTableOrEmpty("rejectionLog")));
     return builder.build();
 
   }

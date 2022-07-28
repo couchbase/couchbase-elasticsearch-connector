@@ -16,12 +16,25 @@
 
 package com.couchbase.connector.util;
 
+import com.couchbase.connector.config.ConfigException;
+import com.couchbase.connector.config.common.TrustStoreConfig;
+import com.google.common.hash.Hashing;
+
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
+import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static com.couchbase.connector.config.ConfigHelper.resolveIfRelative;
 
@@ -52,4 +65,59 @@ public class KeyStoreHelper {
       }
     }
   }
+
+  public static Supplier<KeyStore> trustStoreFrom(
+      String serviceName,
+      List<X509Certificate> trustedCertificates,
+      @Nullable TrustStoreConfig trustStoreConfig
+  ) {
+    if (trustedCertificates.isEmpty()) {
+      // use the global trust store (deprecated)
+      return () -> {
+        if (trustStoreConfig == null) {
+          throw new ConfigException(
+              "Please specify the " + serviceName + " Certificate Authority (CA) certificate to trust" +
+                  " by configuring the `pathToCaCertificate` property in the " + serviceName + " config section.");
+        }
+        return trustStoreConfig.get();
+      };
+    }
+
+    List<X509Certificate> certs = new ArrayList<>(trustedCertificates);
+    return () -> {
+      try {
+        KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+        ks.load(null, null);
+        for (int i = 0; i < certs.size(); i++) {
+          ks.setCertificateEntry(serviceName + "-" + i, certs.get(i));
+        }
+        return ks;
+      } catch (GeneralSecurityException | IOException e) {
+        throw new ConfigException(
+            "Failed to generate KeyStore for " + serviceName + " Certificate Authority (CA) certificate.",
+            e
+        );
+      }
+    };
+  }
+
+  public static String describe(List<X509Certificate> certificates) {
+    if (certificates.isEmpty()) {
+      return "n/a";
+    }
+
+    return certificates.stream()
+        .map(it -> "SHA-256 fingerprint: " + sha512(it) + " " + it.getSubjectX500Principal() + " (valid from " + it.getNotBefore().toInstant() + " to " + it.getNotAfter().toInstant() + ")")
+        .collect(Collectors.toList())
+        .toString();
+  }
+
+  private static String sha512(X509Certificate cert) {
+    try {
+      return Hashing.sha256().hashBytes(cert.getEncoded()).toString();
+    } catch (CertificateEncodingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
 }

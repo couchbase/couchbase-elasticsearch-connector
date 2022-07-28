@@ -16,31 +16,33 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
-import org.elasticsearch.action.bulk.BackoffPolicy;
-import org.elasticsearch.common.unit.TimeValue;
+import com.google.common.collect.Iterables;
 
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
+import java.util.Iterator;
 
 import static java.util.Objects.requireNonNull;
 
 public class BackoffPolicyBuilder {
   private BackoffPolicy policy;
 
-  public static BackoffPolicyBuilder truncatedExponentialBackoff(TimeValue seed, TimeValue cap) {
+  public static BackoffPolicyBuilder truncatedExponentialBackoff(Duration seed, Duration cap) {
     return new BackoffPolicyBuilder(MoreBackoffPolicies.truncatedExponentialBackoff(seed, cap));
   }
 
-  public static BackoffPolicyBuilder constantBackoff(long duration, TimeUnit unit) {
-    return constantBackoff(new TimeValue(duration, unit));
-  }
+  public static BackoffPolicyBuilder constantBackoff(Duration delay) {
+    BackoffPolicy policy = new BackoffPolicy() {
+      public String toString() {
+        return "constantBackoff(delay: " + delay + ")";
+      }
 
-  public static BackoffPolicyBuilder constantBackoff(Duration duration) {
-    return constantBackoff(duration.toNanos(), TimeUnit.NANOSECONDS);
-  }
+      @Override
+      public Iterator<Duration> iterator() {
+        return Iterables.cycle(delay).iterator();
+      }
+    };
 
-  public static BackoffPolicyBuilder constantBackoff(TimeValue delay) {
-    return new BackoffPolicyBuilder(BackoffPolicy.constantBackoff(delay, Integer.MAX_VALUE));
+    return new BackoffPolicyBuilder(policy);
   }
 
   public BackoffPolicyBuilder(BackoffPolicy policy) {
@@ -52,15 +54,7 @@ public class BackoffPolicyBuilder {
     return this;
   }
 
-  public BackoffPolicyBuilder timeout(Duration duration) {
-    return timeout(duration.toNanos(), TimeUnit.NANOSECONDS);
-  }
-
-  public BackoffPolicyBuilder timeout(long duration, TimeUnit unit) {
-    return timeout(new TimeValue(duration, unit));
-  }
-
-  public BackoffPolicyBuilder timeout(TimeValue timeout) {
+  public BackoffPolicyBuilder timeout(Duration timeout) {
     policy = MoreBackoffPolicies.withTimeout(timeout, policy);
     return this;
   }

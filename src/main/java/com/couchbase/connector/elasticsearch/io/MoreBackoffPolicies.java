@@ -16,26 +16,25 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
+import com.couchbase.client.core.util.NanoTimestamp;
 import com.google.common.collect.Iterators;
-import org.elasticsearch.action.bulk.BackoffPolicy;
-import org.elasticsearch.common.unit.TimeValue;
 
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
-import static org.elasticsearch.common.unit.TimeValue.timeValueMillis;
 
 public class MoreBackoffPolicies {
   private MoreBackoffPolicies() {
     throw new AssertionError("not instantiable");
   }
 
-  public static BackoffPolicy truncatedExponentialBackoff(TimeValue seedDelay, TimeValue delayCap) {
+  public static BackoffPolicy truncatedExponentialBackoff(Duration seedDelay, Duration delayCap) {
     requireNonNull(seedDelay);
     requireNonNull(delayCap);
-    checkArgument(seedDelay.millis() > 0, "seed delay must be positive");
+    checkArgument(seedDelay.toMillis() > 0, "seed delay must be positive");
 
     return new BackoffPolicy() {
       public String toString() {
@@ -43,9 +42,9 @@ public class MoreBackoffPolicies {
       }
 
       @Override
-      public Iterator<TimeValue> iterator() {
-        return new Iterator<TimeValue>() {
-          long delay = seedDelay.millis();
+      public Iterator<Duration> iterator() {
+        return new Iterator<>() {
+          long delay = seedDelay.toMillis();
 
           @Override
           public boolean hasNext() {
@@ -53,7 +52,7 @@ public class MoreBackoffPolicies {
           }
 
           @Override
-          public TimeValue next() {
+          public Duration next() {
             final long shifted = delay << 1;
 
             if (shifted <= 0) {
@@ -61,7 +60,7 @@ public class MoreBackoffPolicies {
               return delayCap;
             }
             delay = shifted;
-            return timeValueMillis(Math.min(delay, delayCap.millis()));
+            return Duration.ofMillis(Math.min(delay, delayCap.toMillis()));
           }
         };
       }
@@ -86,9 +85,9 @@ public class MoreBackoffPolicies {
       }
 
       @Override
-      public Iterator<TimeValue> iterator() {
+      public Iterator<Duration> iterator() {
         return Iterators.transform(deterministic.iterator(), delay ->
-            timeValueMillis(ThreadLocalRandom.current().nextLong(delay.millis() + 1)));
+            Duration.ofMillis(ThreadLocalRandom.current().nextLong(delay.toMillis() + 1)));
       }
     };
   }
@@ -97,7 +96,7 @@ public class MoreBackoffPolicies {
    * Wrap the given policy so its iterators no longer return elements after the given timeout duration
    * has elapsed. The timeout countdown starts when the iterator is created.
    */
-  public static BackoffPolicy withTimeout(final TimeValue timeout, final BackoffPolicy wrapped) {
+  public static BackoffPolicy withTimeout(final Duration timeout, final BackoffPolicy wrapped) {
     requireNonNull(wrapped);
 
     return new BackoffPolicy() {
@@ -106,18 +105,18 @@ public class MoreBackoffPolicies {
       }
 
       @Override
-      public Iterator<TimeValue> iterator() {
-        final long deadline = System.nanoTime() + timeout.nanos();
-        final Iterator<TimeValue> wrappedIterator = wrapped.iterator();
+      public Iterator<Duration> iterator() {
+        NanoTimestamp start = NanoTimestamp.now();
+        final Iterator<Duration> wrappedIterator = wrapped.iterator();
 
-        return new Iterator<TimeValue>() {
+        return new Iterator<>() {
           @Override
           public boolean hasNext() {
-            return wrappedIterator.hasNext() && System.nanoTime() < deadline;
+            return wrappedIterator.hasNext() && !start.hasElapsed(timeout);
           }
 
           @Override
-          public TimeValue next() {
+          public Duration next() {
             return wrappedIterator.next();
           }
         };
@@ -134,7 +133,7 @@ public class MoreBackoffPolicies {
       }
 
       @Override
-      public Iterator<TimeValue> iterator() {
+      public Iterator<Duration> iterator() {
         return Iterators.limit(wrapped.iterator(), maxRetries);
       }
     };

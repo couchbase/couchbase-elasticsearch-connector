@@ -24,10 +24,12 @@ import com.google.common.collect.ImmutableList;
 import org.immutables.value.Value;
 
 import javax.annotation.Nullable;
+import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.couchbase.connector.config.ConfigHelper.readCertificates;
 import static com.couchbase.connector.config.ConfigHelper.readPassword;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
@@ -61,6 +63,9 @@ public interface CouchbaseConfig {
 
   boolean secureConnection();
 
+  @Value.Redacted // not secret, but the toString is too verbose
+  List<X509Certificate> caCert();
+
   boolean hostnameVerification();
 
   DcpConfig dcp();
@@ -77,12 +82,14 @@ public interface CouchbaseConfig {
   }
 
   static ImmutableCouchbaseConfig from(ConfigTable config) {
-    config.expectOnly("bucket", "metadataBucket", "metadataCollection", "scope", "collections", "hosts", "network", "username", "pathToPassword", "clientCertificate", "dcp", "secureConnection", "hostnameVerification", "env");
+    config.expectOnly("bucket", "metadataBucket", "metadataCollection", "scope", "collections", "hosts", "network", "username", "pathToPassword", "clientCertificate", "dcp", "secureConnection", "pathToCaCertificate", "hostnameVerification", "env");
 
     final String sourceBucket = config.getString("bucket").orElse("default");
     final String networkName = config.getString("network").orElse("auto");
     final String metadataBucket = config.getString("metadataBucket").orElse("");
     final String metadataCollection = config.getString("metadataCollection").orElse("_default._default");
+
+    String parentConfigName = "couchbase";
 
     return ImmutableCouchbaseConfig.builder()
         .bucket(sourceBucket)
@@ -93,8 +100,9 @@ public interface CouchbaseConfig {
         .hosts(config.getRequiredStrings("hosts"))
         .network(networkName.isEmpty() ? NetworkResolution.AUTO : NetworkResolution.valueOf(networkName))
         .username(config.getString("username").orElse(""))
-        .password(readPassword(config, "couchbase", "pathToPassword"))
+        .password(readPassword(config, parentConfigName, "pathToPassword"))
         .secureConnection(config.getBoolean("secureConnection").orElse(false))
+        .caCert(readCertificates(config, parentConfigName, "pathToCaCertificate"))
         .hostnameVerification(config.getBoolean("hostnameVerification").orElse(true))
         .dcp(DcpConfig.from(config.getTableOrEmpty("dcp")))
         .clientCert(ClientCertConfig.from(config.getTableOrEmpty("clientCertificate"), "couchbase.clientCertificate"))

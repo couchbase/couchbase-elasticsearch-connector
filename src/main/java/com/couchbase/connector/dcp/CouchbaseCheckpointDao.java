@@ -26,10 +26,10 @@ import com.couchbase.client.java.kv.MutateInSpec;
 import com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -74,10 +74,10 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
   public void save(String bucketUuid, Map<Integer, Checkpoint> vbucketToCheckpoint) {
     RuntimeException deferredException = null;
 
-    final Iterator<TimeValue> retryDelays = new BackoffPolicyBuilder(truncatedExponentialBackoff(
-        TimeValue.timeValueMillis(50), TimeValue.timeValueSeconds(5)))
+    final Iterator<Duration> retryDelays = new BackoffPolicyBuilder(truncatedExponentialBackoff(
+        Duration.ofMillis(50), Duration.ofSeconds(5)))
         .fullJitter()
-        .timeout(TimeValue.timeValueSeconds(5)).build().iterator();
+        .timeout(Duration.ofSeconds(5)).build().iterator();
 
     for (Map.Entry<Integer, Checkpoint> entry : vbucketToCheckpoint.entrySet()) {
       final int vbucket = entry.getKey();
@@ -102,9 +102,9 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
             if (!retryDelays.hasNext()) {
               throw e;
             }
-            final TimeValue retryDelay = retryDelays.next();
+            final Duration retryDelay = retryDelays.next();
             LOGGER.info("Temporary failure saving checkpoint for vbucket {}, retying in {}", vbucket, retryDelay);
-            MILLISECONDS.sleep(retryDelay.millis());
+            MILLISECONDS.sleep(retryDelay.toMillis());
           }
         }
 

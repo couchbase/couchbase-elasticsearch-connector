@@ -1,11 +1,11 @@
 /*
- * Copyright 2018 Couchbase, Inc.
+ * Copyright 2022 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,15 +17,15 @@
 package com.couchbase.connector.elasticsearch.io;
 
 import com.couchbase.connector.dcp.Event;
-import org.elasticsearch.action.index.IndexRequest;
 
 import static java.util.Objects.requireNonNull;
 
-public class EventIndexRequest extends IndexRequest implements EventDocWriteRequest<IndexRequest> {
+public abstract class BaseOperation implements Operation {
+  private final String index;
   private final Event event;
 
-  public EventIndexRequest(String index, String type, Event event) {
-    super(index, type, event.getKey());
+  public BaseOperation(String index, Event event) {
+    this.index = requireNonNull(index);
     this.event = requireNonNull(event);
   }
 
@@ -34,8 +34,7 @@ public class EventIndexRequest extends IndexRequest implements EventDocWriteRequ
     return event;
   }
 
-  @Override
-  public int estimatedSizeInBytes() {
-    return REQUEST_OVERHEAD + source().length();
+  public String getIndex() {
+    return index;
   }
 }

@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.cluster.consul;
 
+import com.couchbase.connector.elasticsearch.io.BackoffPolicy;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.orbitz.consul.Consul;
@@ -31,8 +32,6 @@ import com.orbitz.consul.model.kv.Verb;
 import com.orbitz.consul.option.ImmutablePutOptions;
 import com.orbitz.consul.option.ImmutableQueryOptions;
 import com.orbitz.consul.option.PutOptions;
-import org.elasticsearch.action.bulk.BackoffPolicy;
-import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -55,6 +54,7 @@ import java.util.stream.Collectors;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class ConsulHelper {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsulHelper.class);
@@ -112,7 +112,7 @@ public class ConsulHelper {
   }
 
   public static ConsulResponse<Value> getWithRetry(KeyValueClient kv, String key, BackoffPolicy backoffPolicy) throws TimeoutException {
-    final Iterator<TimeValue> retryDelays = backoffPolicy.iterator();
+    final Iterator<Duration> retryDelays = backoffPolicy.iterator();
 
     while (true) {
       final ConsulResponse<Value> response = kv.getConsulResponseWithValue(key).orElse(null);
@@ -125,9 +125,9 @@ public class ConsulHelper {
           break;
         }
 
-        final TimeValue retryDelay = retryDelays.next();
+        final Duration retryDelay = retryDelays.next();
         LOGGER.debug("Document does not exist; sleeping for {} and then trying again to get {}", retryDelay, key);
-        retryDelay.timeUnit().sleep(retryDelay.duration());
+        MILLISECONDS.sleep(retryDelay.toMillis());
 
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();

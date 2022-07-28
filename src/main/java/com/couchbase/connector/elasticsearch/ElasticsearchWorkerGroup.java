@@ -22,18 +22,16 @@ import com.couchbase.connector.dcp.Event;
 import com.couchbase.connector.elasticsearch.io.ElasticsearchWriter;
 import com.couchbase.connector.elasticsearch.io.RequestFactory;
 import com.google.common.collect.ImmutableList;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class ElasticsearchWorkerGroup implements Closeable {
   private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchWorkerGroup.class);
@@ -43,7 +41,7 @@ public class ElasticsearchWorkerGroup implements Closeable {
   // Workers communicate failures by writing them to this queue
   private final BlockingQueue<Throwable> fatalErrorQueue = new LinkedBlockingQueue<>();
 
-  public ElasticsearchWorkerGroup(RestHighLevelClient client,
+  public ElasticsearchWorkerGroup(ElasticsearchOps client,
                                   CheckpointService checkpointService,
                                   RequestFactory requestFactory,
                                   ErrorListener errorListener,
@@ -90,13 +88,13 @@ public class ElasticsearchWorkerGroup implements Closeable {
 
   @Override
   public void close() {
-    final TimeValue timeout = new TimeValue(3, SECONDS);
+    final Duration timeout = Duration.ofSeconds(3);
     for (ElasticsearchWorker w : workers) {
       w.close();
     }
     try {
       for (ElasticsearchWorker w : workers) {
-        if (!w.join(Math.max(1, timeout.millis()))) {
+        if (!w.join(Math.max(1, timeout.toMillis()))) {
           LOGGER.warn("Worker {} failed to stop after {}", w, timeout);
         }
       }

@@ -23,7 +23,9 @@ import com.couchbase.client.dcp.util.Version;
 import com.couchbase.connector.config.common.ClientCertConfig;
 import com.couchbase.connector.config.common.TrustStoreConfig;
 import com.couchbase.connector.config.es.AwsConfig;
+import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ElasticsearchConfig;
+import com.couchbase.connector.util.KeyStoreHelper;
 import com.couchbase.connector.util.ThrowableHelper;
 import com.google.common.collect.Iterables;
 import org.apache.http.ConnectionClosedException;
@@ -35,29 +37,24 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
-import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.client.Node;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import java.security.KeyStore;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static com.couchbase.connector.elasticsearch.io.MoreBackoffPolicies.truncatedExponentialBackoff;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.commons.lang3.StringUtils.substringBefore;
 
 public class ElasticsearchHelper {
   private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchHelper.class);
@@ -66,24 +63,13 @@ public class ElasticsearchHelper {
     throw new AssertionError("not instantiable");
   }
 
-  private static final Pattern ES_ERROR_TYPE_PATTERN = Pattern.compile("\\[type=(.+?),");
-
-  public static Optional<String> getElasticsearchExceptionType(BulkItemResponse.Failure failure) {
-    final Matcher m = ES_ERROR_TYPE_PATTERN.matcher(failure.getMessage());
-    if (!m.find()) {
-      return Optional.empty();
-    }
-    return Optional.of(m.group(1));
-  }
-
-  public static Version waitForElasticsearchAndRequireVersion(RestHighLevelClient esClient, Version required, Version recommended) throws InterruptedException {
-    final Iterator<TimeValue> retryDelays = truncatedExponentialBackoff(
-        TimeValue.timeValueSeconds(1), TimeValue.timeValueMinutes(1)).iterator();
+  public static Version waitForElasticsearchAndRequireVersion(ElasticsearchOps esClient, Version required, Version recommended) throws InterruptedException {
+    final Iterator<Duration> retryDelays = truncatedExponentialBackoff(
+        Duration.ofSeconds(1), Duration.ofMinutes(1)).iterator();
 
     while (true) {
       try {
-        org.elasticsearch.Version esVersion = esClient.info().getVersion();
-        final Version version = new Version(esVersion.major, esVersion.minor, esVersion.revision);
+        final Version version = esClient.version();
         if (version.compareTo(required) < 0) {
           throw new RuntimeException("Elasticsearch version " + required + " or later required; actual version is " + version);
         }
@@ -93,37 +79,42 @@ public class ElasticsearchHelper {
         return version;
 
       } catch (Exception e) {
-        final TimeValue delay = retryDelays.next();
+        final Duration delay = retryDelays.next();
         LOGGER.warn("Failed to connect to Elasticsearch. Retrying in {}", delay, e);
         if (ThrowableHelper.hasCause(e, ConnectionClosedException.class)) {
           LOGGER.warn("  Troubleshooting tip: If the Elasticsearch connection failure persists," +
               " and if Elasticsearch is configured to require TLS/SSL, then make sure the connector is also configured to use secure connections.");
         }
 
-        MILLISECONDS.sleep(delay.millis());
+        MILLISECONDS.sleep(delay.toMillis());
       }
     }
   }
 
-  public static RestHighLevelClient newElasticsearchClient(ElasticsearchConfig elasticsearchConfig, TrustStoreConfig trustStoreConfig) throws Exception {
-    return newElasticsearchClient(
+  public static ElasticsearchOps newElasticsearchClient(ConnectorConfig config) throws Exception {
+    ElasticsearchConfig elasticsearchConfig = config.elasticsearch();
+    TrustStoreConfig trustStoreConfig = config.trustStore().orElse(null);
+
+    Supplier<KeyStore> trustStoreSupplier = KeyStoreHelper.trustStoreFrom(
+        "Elasticsearch",
+        elasticsearchConfig.caCert(),
+        trustStoreConfig
+    );
+
+    return new ElasticsearchOpsImpl(newRestClient(
         elasticsearchConfig.hosts(),
         elasticsearchConfig.username(),
         elasticsearchConfig.password(),
         elasticsearchConfig.secureConnection(),
-        trustStoreConfig,
+        trustStoreSupplier,
         elasticsearchConfig.clientCert(),
         elasticsearchConfig.aws(),
-        elasticsearchConfig.bulkRequest().timeout());
+        elasticsearchConfig.bulkRequest().timeout()));
   }
 
-  private static long toMillis(TimeValue timeValue) {
-    return timeValue.timeUnit().toMillis(timeValue.duration());
-  }
-
-  public static RestHighLevelClient newElasticsearchClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore, ClientCertConfig clientCert, AwsConfig aws, TimeValue bulkRequestTimeout) throws Exception {
+  public static RestClientBuilder newRestClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore, ClientCertConfig clientCert, AwsConfig aws, Duration bulkRequestTimeout) throws Exception {
     final int connectTimeoutMillis = (int) SECONDS.toMillis(5);
-    final int socketTimeoutMillis = (int) Math.max(SECONDS.toMillis(60), toMillis(bulkRequestTimeout) + SECONDS.toMillis(3));
+    final int socketTimeoutMillis = (int) Math.max(SECONDS.toMillis(60), bulkRequestTimeout.toMillis() + SECONDS.toMillis(3));
     LOGGER.info("Elasticsearch client connect timeout = {}ms; socket timeout={}ms", connectTimeoutMillis, socketTimeoutMillis);
 
     final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
@@ -152,7 +143,7 @@ public class ElasticsearchHelper {
           }
         });
 
-    return new RestHighLevelClient(builder);
+    return builder;
   }
 
   private static SSLContext newSslContext(KeyStore trustStore, ClientCertConfig clientCert) throws Exception {
@@ -187,29 +178,5 @@ public class ElasticsearchHelper {
 
     return Optional.of(new AWSRequestSigningApacheInterceptor(
         serviceName, signer, new DefaultAWSCredentialsProviderChain()));
-  }
-
-  /**
-   * Wrapper around {@link BulkItemResponse#getFailure()} that sanitizes
-   * the failure message to prevent sensitive info from leaking into log messages.
-   */
-  public static BulkItemResponse.Failure getFailure(BulkItemResponse response) {
-    BulkItemResponse.Failure orig = response.getFailure();
-    if (orig == null) {
-      return null;
-    }
-
-    return new BulkItemResponse.Failure(orig.getIndex(), orig.getType(), orig.getId(), orig.getCause(), orig.getStatus(), orig.getSeqNo(), orig.isAborted()) {
-      @Override
-      public String getMessage() {
-        // Sanitize the message, otherwise the message of certain failures
-        // can include the document content or even HTTP requests with
-        // sensitive headers.
-        String message = super.getMessage();
-        return message.contains("[Source:")
-            ? substringBefore(message, "[Source:") + "<REDACTED>"
-            : message;
-      }
-    };
   }
 }

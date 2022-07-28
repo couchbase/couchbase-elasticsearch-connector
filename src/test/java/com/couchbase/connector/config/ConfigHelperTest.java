@@ -17,9 +17,12 @@
 package com.couchbase.connector.config;
 
 import org.junit.Test;
-import org.junit.Assert;
+
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 
 import static com.couchbase.connector.config.ConfigHelper.createHttpHost;
+import static com.couchbase.connector.config.ConfigHelper.parseTime;
 import static org.junit.Assert.assertEquals;
 
 public class ConfigHelperTest {
@@ -55,5 +58,16 @@ public class ConfigHelperTest {
   @Test(expected = ConfigException.class)
   public void secureHttpDefaultPort() throws Exception {
     createHttpHost("http://localhost", 9200, true);
+  }
+
+  @Test
+  public void canParseElasticsearchDurations() {
+    assertEquals(Duration.ofNanos(10), parseTime("10ns"));
+    assertEquals(Duration.ofNanos(10), parseTime("10nanos"));
+    assertEquals(Duration.ofNanos(10), parseTime(" 10  nanos "));
+    assertEquals(Duration.of(10, ChronoUnit.MICROS), parseTime(" 10  micros "));
+
+    assertEquals(Duration.ofNanos(10), parseTime("10NANOS"));
+    assertEquals(Duration.ofHours(10), parseTime("10H"));
   }
 }

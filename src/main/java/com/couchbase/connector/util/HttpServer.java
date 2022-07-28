@@ -46,7 +46,6 @@ import com.couchbase.connector.elasticsearch.Metrics;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Throwables;
-import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,7 +146,8 @@ public class HttpServer implements Closeable {
   }
 
   public class HttpServerInitializer extends ChannelInitializer<Channel> {
-    private final int MAX_REQUEST_CONTENT_LENGTH = (int) ByteSizeUnit.MB.toBytes(1);
+    private final int BYTES_PER_MEBIBYTE = 1024 * 1024;
+    private final int MAX_REQUEST_CONTENT_LENGTH = BYTES_PER_MEBIBYTE;
 
     @Override
     protected void initChannel(Channel channel) throws Exception {

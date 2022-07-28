@@ -16,14 +16,14 @@
 
 package com.couchbase.connector.config;
 
+import com.couchbase.client.core.error.CouchbaseException;
+import com.couchbase.client.core.util.Golang;
 import com.couchbase.connector.config.toml.ConfigTable;
 import com.google.common.io.ByteStreams;
-import org.apache.tuweni.toml.Toml;
-import org.apache.tuweni.toml.TomlParseResult;
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.http.HttpHost;
-import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.common.unit.TimeValue;
+import org.apache.tuweni.toml.Toml;
+import org.apache.tuweni.toml.TomlParseResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,10 +32,18 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.time.Duration;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import static com.couchbase.connector.util.EnvironmentHelper.getInstallDir;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.emptyList;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.startsWithIgnoreCase;
 
 public class ConfigHelper {
@@ -55,23 +63,72 @@ public class ConfigHelper {
     return new HttpHost(host.getHostName(), port, secure ? "https" : "http");
   }
 
-  public static Optional<ByteSizeValue> getSize(ConfigTable toml, String dottedKey) {
-    return Optional.ofNullable(
-        ByteSizeValue.parseBytesSizeValue(
-            toml.getString(dottedKey).orElse(null),
-            "'" + dottedKey + "' at " + toml.inputPositionOf(dottedKey)));
+  public static Optional<StorageSize> getSize(ConfigTable toml, String dottedKey) {
+    return toml.getString(dottedKey).map(it -> {
+      try {
+        return StorageSize.parse(it);
+      } catch (Exception e) {
+        throw new IllegalArgumentException(
+            "Failed to parse storage size value '" + it + "' from config property '" + dottedKey + "'" +
+                " at " + toml.inputPositionOf(dottedKey) + "; " + e.getMessage());
+      }
+    });
   }
 
-  public static Optional<TimeValue> getTime(ConfigTable toml, String dottedKey) {
-    // unlike parseBytesSizeValue, the time parser doesn't accept null :-p
-    final String value = toml.getString(dottedKey).orElse(null);
-    if (value == null) {
-      return Optional.empty();
+  public static Optional<Duration> getTime(ConfigTable toml, String dottedKey) {
+    return toml.getString(dottedKey).map(it -> {
+      try {
+        return parseTime(it);
+      } catch (Exception e) {
+        throw new IllegalArgumentException(
+            "Failed to parse duration value '" + it + "' from config property '" + dottedKey + "'" +
+                " at " + toml.inputPositionOf(dottedKey) + "; " + e.getMessage());
+      }
+    });
+  }
+
+  static Duration parseTime(String value) {
+    // Previous versions of the connector parsed durations using org.elasticsearch.common.unit.TimeValue.
+    // Massage the input so values that were recognized by TimeValue can be parsed as valid Golang durations.
+    String normalizedValue = value
+        .toLowerCase(Locale.ROOT)
+        .trim()
+        .replaceAll("\\s+(\\D+)", "$1") // remove whitespace before a non-digit
+        .replace("nanos", "ns")
+        .replace("micros", "us");
+    return Golang.parseDuration(normalizedValue);
+  }
+
+  public static List<X509Certificate> readCertificates(ConfigTable parent, String parentName, String keyName) {
+    final String path = parent.getString(keyName).orElse(null);
+    if (isBlank(path)) {
+      return emptyList();
     }
-    return Optional.ofNullable(
-        TimeValue.parseTimeValue(
-            value,
-            "'" + dottedKey + "' at " + toml.inputPositionOf(dottedKey)));
+
+    final File file = resolveIfRelative(path);
+    String context = "File: '" + file + "' (specified as '" + path + "' at " + parentName + "." + keyName;
+    try (InputStream is = new FileInputStream(file)) {
+      //noinspection unchecked
+      List<X509Certificate> result = List.copyOf((List<X509Certificate>) getX509CertificateFactory().generateCertificates(is));
+      if (result.isEmpty())  {
+        LOGGER.warn("Certificate file contained zero certificates! " + context);
+      }
+      return result;
+
+    } catch (IOException e) {
+      throw new ConfigException("Failed to read certificate file; " + context, e);
+
+    } catch (CertificateException e) {
+      throw new ConfigException("Failed to parse certificate(s); expected one or more X.509 certificates in PEM format; " + context, e);
+    }
+  }
+
+  private static CertificateFactory getX509CertificateFactory() {
+    try {
+      return CertificateFactory.getInstance("X.509");
+    } catch (CertificateException e) {
+      throw new CouchbaseException("Could not instantiate X.509 CertificateFactory", e);
+    }
   }
 
   public static String readPassword(ConfigTable parent, String parentName, String keyName) {
@@ -100,6 +157,13 @@ public class ConfigHelper {
       LOGGER.error("Failed to read password from file {}", passwordFile, e);
       throw new ConfigException(e.getMessage());
     }
+  }
+
+  public static void warnIfDeprecatedTypeNameIsPresent(ConfigTable config) {
+    config.getString("typeName").ifPresent(it -> LOGGER.warn(
+        "The `typeName` config property is DEPRECATED, since Elasticsearch no longer has the concept of document types." +
+            " Please remove the property from your config file; a future version of the connector will reject it as invalid."
+    ));
   }
 
   public static File resolveIfRelative(String pathToPassword) {

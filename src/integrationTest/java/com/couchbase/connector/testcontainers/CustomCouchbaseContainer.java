@@ -17,17 +17,14 @@
 package com.couchbase.connector.testcontainers;
 
 import com.couchbase.client.dcp.util.Version;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testcontainers.couchbase.CouchbaseContainer;
 import org.testcontainers.couchbase.CouchbaseService;
 import org.testcontainers.utility.DockerImageName;
 
 import java.util.Optional;
+import java.util.Set;
 
 public class CustomCouchbaseContainer extends CouchbaseContainer {
-  private static final Logger log = LoggerFactory.getLogger(CustomCouchbaseContainer.class);
-
   private final CouchbaseOps ops;
 
   public CustomCouchbaseContainer(String containerName) {
@@ -36,6 +33,7 @@ public class CustomCouchbaseContainer extends CouchbaseContainer {
   }
 
   public static CustomCouchbaseContainer newCouchbaseCluster(String dockerImageName) {
+    @SuppressWarnings("resource")
     CouchbaseContainer couchbase = new CustomCouchbaseContainer(dockerImageName)
         .withEnabledServices(CouchbaseService.KV, CouchbaseService.QUERY, CouchbaseService.INDEX);
     couchbase.start();
@@ -48,11 +46,11 @@ public class CustomCouchbaseContainer extends CouchbaseContainer {
   }
 
   public void createBucket(String bucketName) {
-    createBucket(bucketName, 100, 0);
+    createBucket(bucketName, 100, 0, Set.of("kv", "n1ql", "index"));
   }
 
-  public void createBucket(String bucketName, int bucketQuotaMb, int replicas) {
-    ops.createBucket(bucketName, bucketQuotaMb, replicas);
+  public void createBucket(String bucketName, int bucketQuotaMb, int replicas, Set<String> servicesToWaitFor) {
+    ops.createBucket(bucketName, bucketQuotaMb, replicas, servicesToWaitFor);
   }
 
   public void deleteBucket(String bucketName) {

@@ -72,7 +72,7 @@ public class CheckpointBackup extends AbstractCliCommand {
   }
 
   public static void backup(ConnectorConfig config, File outputFile) throws IOException {
-    final Bucket bucket = CouchbaseHelper.openMetadataBucket(config.couchbase(), config.trustStore());
+    final Bucket bucket = CouchbaseHelper.openMetadataBucket(config);
     final ResolvedBucketConfig bucketConfig = getBucketConfig(config.couchbase(), bucket);
     final String bucketUuid = ""; // don't care bucketConfig.uuid();
 

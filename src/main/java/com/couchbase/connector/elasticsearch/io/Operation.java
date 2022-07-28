@@ -16,25 +16,35 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import com.couchbase.connector.dcp.Event;
-import org.elasticsearch.action.DocWriteRequest;
-import org.elasticsearch.action.bulk.BulkRequest;
 
 /**
- * An Elasticsearch request with an attached DCP event.
- * Streamlines bulk request retry handling, simpler than using the
- * {@link BulkRequest#payloads()} mechanism.
+ * An Elasticsearch operation, with an attached DCP event.
  */
-public interface EventDocWriteRequest<T> extends DocWriteRequest<T> {
+public interface Operation {
+
+  enum Type {
+    INDEX, DELETE
+  }
+
   /**
    * Estimate of the overhead associated with each item in a bulk request.
    */
   int REQUEST_OVERHEAD = 50;
+
+  String getIndex();
 
   Event getEvent();
 
   /**
    * Returns {@link #REQUEST_OVERHEAD} plus the size of the request content.
    */
-  int estimatedSizeInBytes();
+  default int estimatedSizeInBytes() {
+    return REQUEST_OVERHEAD;
+  }
+
+  BulkOperation toBulkOperation();
+
+  Type type();
 }

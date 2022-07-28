@@ -23,9 +23,6 @@ import com.couchbase.connector.dcp.Event;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,28 +79,27 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
   }
 
   @Override
-  public void setSourceFromEventContent(IndexRequest indexRequest, Event mutationEvent) {
+  public @Nullable Object getElasticsearchDocument(Event mutationEvent) {
     if (!mutationEvent.isMutation()) {
       throw new IllegalArgumentException("expected a mutation event");
     }
 
     final byte[] bytes = mutationEvent.getContent();
 
-    // optimized passthrough
+    // optimized pass-through
     if (documentContentAtTopLevel && metadataFieldName == null) {
       // Need to ensure valid JSON, otherwise bulk request fails with IOException.
-      // That would be really bad, since we retry those.
+      // That would be catastrophic, since we retry those.
       // Also, the doc root might be a counter which needs wrapping.
       if (isSingleValidJsonObject(bytes)) {
-        indexRequest.source(new BytesArray(bytes), XContentType.JSON);
-        return;
+        return new PreserializedJson(bytes);
       }
     }
 
     final Map<String, Object> couchbaseDocument = getDocumentAsMap(bytes);
     if (couchbaseDocument == null) {
       LOGGER.debug("Skipping document {} because it's not a JSON Object", mutationEvent);
-      return;
+      return null;
     }
 
     final Map<String, Object> esDocument;
@@ -122,7 +118,7 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
       }
     }
 
-    indexRequest.source(esDocument, XContentType.JSON);
+    return esDocument;
   }
 
   @Nullable

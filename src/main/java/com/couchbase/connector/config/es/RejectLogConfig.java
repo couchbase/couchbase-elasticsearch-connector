@@ -22,18 +22,20 @@ import org.immutables.value.Value;
 
 import javax.annotation.Nullable;
 
+import static com.couchbase.connector.config.ConfigHelper.warnIfDeprecatedTypeNameIsPresent;
+
 @Value.Immutable
 public interface RejectLogConfig {
   @Nullable
   String index();
 
-  String typeName();
-
-  static ImmutableRejectLogConfig from(ConfigTable config, String defaultTypeName) {
+  static ImmutableRejectLogConfig from(ConfigTable config) {
     config.expectOnly("index", "typeName");
+
+    warnIfDeprecatedTypeNameIsPresent(config);
+
     return ImmutableRejectLogConfig.builder()
         .index(Strings.emptyToNull(config.getString("index").orElse(null)))
-        .typeName(config.getString("typeName").orElse(defaultTypeName))
         .build();
   }
 }

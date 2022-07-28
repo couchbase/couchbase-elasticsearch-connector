@@ -32,7 +32,7 @@ public class ExecUtils {
     throw new AssertionError("not instantiable");
   }
 
-  public static Container.ExecResult execOrDie(Container container, String... command) {
+  public static Container.ExecResult execOrDie(Container<?> container, String... command) {
     return checkExitCode(execInContainerUnchecked(container, command));
   }
 
@@ -43,7 +43,7 @@ public class ExecUtils {
     return result;
   }
 
-  public static Container.ExecResult execInContainerUnchecked(Container container, String... command) {
+  public static Container.ExecResult execInContainerUnchecked(Container<?> container, String... command) {
     try {
       log.info("Executing command: " + Arrays.toString(command));
 

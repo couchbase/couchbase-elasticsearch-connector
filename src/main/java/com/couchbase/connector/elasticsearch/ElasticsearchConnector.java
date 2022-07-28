@@ -47,13 +47,12 @@ import com.couchbase.connector.dcp.DcpHelper;
 import com.couchbase.connector.elasticsearch.cli.AbstractCliCommand;
 import com.couchbase.connector.elasticsearch.io.RequestFactory;
 import com.couchbase.connector.util.HttpServer;
+import com.couchbase.connector.util.KeyStoreHelper;
 import com.couchbase.connector.util.RuntimeHelper;
 import com.couchbase.connector.util.ThrowableHelper;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import joptsimple.OptionSet;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,15 +84,15 @@ public class ElasticsearchConnector extends AbstractCliCommand {
   private static class OptionsParser extends CommonParser {
   }
 
-  private static Slf4jReporter newSlf4jReporter(TimeValue logInterval) {
+  private static Slf4jReporter newSlf4jReporter(Duration logInterval) {
     Slf4jReporter reporter = Slf4jReporter.forRegistry(Metrics.dropwizardRegistry())
         .convertDurationsTo(MILLISECONDS)
         .convertRatesTo(SECONDS)
         .outputTo(LoggerFactory.getLogger("cbes.metrics"))
         .withLoggingLevel(Slf4jReporter.LoggingLevel.INFO)
         .build();
-    if (logInterval.duration() > 0) {
-      reporter.start(logInterval.duration(), logInterval.duration(), logInterval.timeUnit());
+    if (logInterval.toMillis() > 0) {
+      reporter.start(logInterval.toMillis(), logInterval.toMillis(), MILLISECONDS);
     }
     return reporter;
   }
@@ -113,6 +112,13 @@ public class ElasticsearchConnector extends AbstractCliCommand {
     final File configFile = options.valueOf(parser.configFile);
     System.out.println("Reading connector configuration from " + configFile.getAbsoluteFile());
     ConnectorConfig config = ConnectorConfig.from(configFile);
+
+    if (config.trustStore().isPresent()) {
+      LOGGER.warn("The [truststore] config section is DEPRECATED and will be removed in a future release." +
+          " Please specify the Couchbase and/or Elasticsearch CA certificates by setting `pathToCaCertificate`" +
+          " in the [couchbase] and/or [elasticsearch] config sections. The files identified by `pathToCaCertificate`" +
+          " should contain one or more certificates in PEM format.");
+    }
 
     final PanicButton panicButton = new DefaultPanicButton();
 
@@ -176,25 +182,25 @@ public class ElasticsearchConnector extends AbstractCliCommand {
     final Membership membership = config.group().staticMembership();
 
     LOGGER.info("Read configuration: {}", redactSystem(config));
+    LOGGER.info("Couchbase CA certificate(s): {}", KeyStoreHelper.describe(config.couchbase().caCert()));
+    LOGGER.info("Elasticsearch CA certificate(s): {}", KeyStoreHelper.describe(config.elasticsearch().caCert()));
 
     final ScheduledExecutorService checkpointExecutor = Executors.newSingleThreadScheduledExecutor();
 
     try (Slf4jReporter metricReporter = newSlf4jReporter(config.metrics().logInterval());
          HttpServer httpServer = new HttpServer(config.metrics().httpPort(), membership);
-         RestHighLevelClient esClient = newElasticsearchClient(config.elasticsearch(), config.trustStore())) {
+         ElasticsearchOps esClient = newElasticsearchClient(config)) {
 
       DocumentLifecycle.setLogLevel(config.logging().logDocumentLifecycle() ? LogLevel.INFO : LogLevel.DEBUG);
       LogRedaction.setRedactionLevel(config.logging().redactionLevel());
       DcpHelper.setRedactionLevel(config.logging().redactionLevel());
 
-      final ClusterEnvironment env = CouchbaseHelper.environmentBuilder(config.couchbase(), config.trustStore()).build();
+      final ClusterEnvironment env = CouchbaseHelper.environmentBuilder(config).build();
       final Cluster cluster = CouchbaseHelper.createCluster(config.couchbase(), env);
 
       final Version elasticsearchVersion = waitForElasticsearchAndRequireVersion(
-          esClient, new Version(2, 0, 0), new Version(5, 6, 16));
+          esClient, new Version(7, 14, 0), new Version(7, 17, 5));
       LOGGER.info("Elasticsearch version {}", elasticsearchVersion);
-
-      validateConfig(elasticsearchVersion, config.elasticsearch());
 
       // Wait for couchbase server to come online, then open the bucket.
       final Bucket bucket = CouchbaseHelper.waitForBucket(cluster, config.couchbase().bucket());
@@ -229,7 +235,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
           "Duration of in-flight Elasticsearch bulk request (including any retries). Long duration may indicate connector has stalled.",
           workers, value -> value.getCurrentRequestMillis() / (double) SECONDS.toMillis(1));
 
-      final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), kvNodes, config.trustStore());
+      final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), kvNodes, config.trustStore().orElse(null));
 
       initEventListener(dcpClient, panicButton, workers::submit);
 
@@ -237,7 +243,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
       try {
         try {
-          dcpClient.connect().block(Duration.ofMillis(config.couchbase().dcp().connectTimeout().millis()));
+          dcpClient.connect().block(config.couchbase().dcp().connectTimeout());
         } catch (Throwable t) {
           panicButton.panic("Failed to establish initial DCP connection within " + config.couchbase().dcp().connectTimeout(), t);
         }
@@ -316,19 +322,5 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
     MILLISECONDS.sleep(500); // give stdout a chance to quiet down so the stack trace on stderr isn't interleaved with stdout.
     throw fatalError;
-  }
-
-  private static void validateConfig(Version elasticsearchVersion, ElasticsearchConfig config) {
-    // The default/example config is for Elasticsearch 6, and isn't 100% compatible with ES 5.x.
-    // Rather than spamming the log with indexing errors, let's do a preflight check.
-    if (elasticsearchVersion.major() < 6) {
-      for (TypeConfig type : config.types()) {
-        if (type.type().startsWith("_")) {
-          throw new ConfigException(
-              "Elasticsearch versions prior to 6.0 do not allow type names to start with underscores. " +
-                  "Please edit the connector configuration and replace type name '" + type.type() + "' with something else.");
-        }
-      }
-    }
   }
 }

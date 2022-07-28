@@ -18,6 +18,7 @@ package com.couchbase.connector.cluster.consul.rpc;
 
 import com.couchbase.connector.cluster.consul.ConsulDocumentWatcher;
 import com.couchbase.connector.cluster.consul.ConsulHelper;
+import com.couchbase.connector.elasticsearch.io.BackoffPolicy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -27,7 +28,6 @@ import com.google.common.base.Strings;
 import com.orbitz.consul.KeyValueClient;
 import com.orbitz.consul.model.ConsulResponse;
 import com.orbitz.consul.model.kv.Value;
-import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +42,6 @@ import static com.couchbase.client.core.logging.RedactableArgument.redactSystem;
 import static com.couchbase.connector.cluster.consul.ConsulHelper.getWithRetry;
 import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.constantBackoff;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class ConsulRpcTransport implements JsonRpcTransport {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsulRpcTransport.class);
@@ -74,7 +73,7 @@ public class ConsulRpcTransport implements JsonRpcTransport {
   public JsonNode execute(ObjectMapper mapper, Object jsonRpcRequest) throws IOException {
     try {
       // retry getting the endpoint document, because the server node might not have created it yet.
-      final BackoffPolicy backoffPolicy = constantBackoff(500, MILLISECONDS).timeout(timeout).build();
+      final BackoffPolicy backoffPolicy = constantBackoff(Duration.ofMillis(500)).timeout(timeout).build();
       final ConsulResponse<Value> initialEndpointValue = getWithRetry(kv, endpointKey, backoffPolicy);
 
       final ObjectNode requestNode = mapper.valueToTree(jsonRpcRequest);

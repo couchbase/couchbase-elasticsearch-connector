@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
+import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import com.couchbase.connector.config.es.DocStructureConfig;
 import com.couchbase.connector.config.es.RejectLogConfig;
 import com.couchbase.connector.config.es.TypeConfig;
@@ -27,14 +28,13 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.core.filter.FilteringParserDelegate;
 import com.fasterxml.jackson.core.filter.JsonPointerBasedFilter;
+import com.fasterxml.jackson.core.filter.TokenFilter;
 import io.micrometer.core.instrument.Timer;
-import org.elasticsearch.action.DocWriteRequest;
-import org.elasticsearch.action.bulk.BulkItemResponse;
-import org.elasticsearch.common.Nullable;
 import org.immutables.value.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.List;
 
@@ -60,27 +60,26 @@ public class RequestFactory {
   }
 
   @Nullable
-  public EventRejectionIndexRequest newRejectionLogRequest(final EventDocWriteRequest origRequest, BulkItemResponse.Failure f) {
+  public RejectOperation newRejectionLogRequest(final Operation origRequest, BulkResponseItem f) {
     if (rejectLogConfig.index() == null) {
       origRequest.getEvent().release();
       return null;
     }
-    return new EventRejectionIndexRequest(rejectLogConfig.index(), rejectLogConfig.typeName(), origRequest, f);
+    return new RejectOperation(rejectLogConfig.index(), origRequest, f);
   }
 
   @Nullable
-  public EventRejectionIndexRequest newRejectionLogRequest(final Event origEvent, MatchResult matchResult, Throwable failure) {
+  public RejectOperation newRejectionLogRequest(final Event origEvent, MatchResult matchResult, Throwable failure) {
     if (rejectLogConfig.index() == null) {
-      origEvent.release();
       return null;
     }
-    final DocWriteRequest.OpType opType = origEvent.isMutation() ? DocWriteRequest.OpType.INDEX : DocWriteRequest.OpType.DELETE;
-    return new EventRejectionIndexRequest(rejectLogConfig.index(), rejectLogConfig.typeName(),
-        origEvent, matchResult.index(), matchResult.typeConfig().type(), opType, failure.getMessage());
+    final Operation.Type opType = origEvent.isMutation() ? Operation.Type.INDEX : Operation.Type.DELETE;
+    return new RejectOperation(rejectLogConfig.index(),
+        origEvent, matchResult.index(), opType, failure.getMessage());
   }
 
   @Nullable
-  public EventDocWriteRequest newDocWriteRequest(final Event e) {
+  public Operation newDocWriteRequest(final Event e) {
     if (isMetadata(e)) {
       return null;
     }
@@ -113,21 +112,28 @@ public class RequestFactory {
   }
 
   @Nullable
-  private EventDeleteRequest newDeleteRequest(final Event event, final MatchResult matchResult) {
-    return new EventDeleteRequest(matchResult.index(), matchResult.typeConfig().type(), event);
+  private DeleteOperation newDeleteRequest(final Event event, final MatchResult matchResult) {
+    return new DeleteOperation(matchResult.index(), event);
   }
 
   @Nullable
-  private EventIndexRequest newIndexRequest(final Event event, final MatchResult matchResult) {
+  private IndexOperation newIndexRequest(final Event event, final MatchResult matchResult) {
     try {
       final Timer.Sample timerContext = Timer.start();
-      EventIndexRequest request = new EventIndexRequest(matchResult.index(), matchResult.typeConfig().type(), event);
-      request.setPipeline(matchResult.typeConfig().pipeline());
-      request.routing(getRouting(event, matchResult.typeConfig().routing()));
-      documentTransformer.setSourceFromEventContent(request, event);
+      Object document = documentTransformer.getElasticsearchDocument(event);
+      if (document == null) {
+        return null;
+      }
+      IndexOperation op = new IndexOperation(
+          matchResult.index(),
+          event,
+          document,
+          matchResult.typeConfig().pipeline(),
+          getRouting(event, matchResult.typeConfig().routing())
+      );
 
       timerContext.stop(newIndexRequestTimer);
-      return request.source() == null ? null : request;
+      return op;
 
     } catch (Exception failure) {
       LOGGER.warn("Failed to create doc write request for {} ; adding an entry to the rejection log instead.", redactUser(event), failure);
@@ -143,7 +149,11 @@ public class RequestFactory {
     }
 
     final JsonParser parser = new FilteringParserDelegate(
-        factory.createParser(event.getContent()), new JsonPointerBasedFilter(routingPointer), false, false);
+        factory.createParser(event.getContent()),
+        new JsonPointerBasedFilter(routingPointer),
+        TokenFilter.Inclusion.ONLY_INCLUDE_ALL,
+        false
+    );
 
     if (parser.nextToken() == null) {
       LOGGER.warn("Document '{}' has no field matching routing JSON pointer '{}'",

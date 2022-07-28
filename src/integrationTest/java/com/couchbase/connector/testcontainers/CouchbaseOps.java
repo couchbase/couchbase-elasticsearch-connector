@@ -17,6 +17,8 @@
 package com.couchbase.connector.testcontainers;
 
 import com.couchbase.client.dcp.util.Version;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.Credentials;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -26,18 +28,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Container;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.shaded.com.google.common.base.Stopwatch;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
+import java.util.Iterator;
 import java.util.Optional;
+import java.util.Set;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static com.couchbase.connector.testcontainers.ExecUtils.execInContainerUnchecked;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class CouchbaseOps {
   private static final Logger log = LoggerFactory.getLogger(CouchbaseOps.class);
+  private static final ObjectMapper mapper = new ObjectMapper();
 
   private final GenericContainer<?> container;
   private final String username;
@@ -63,11 +72,11 @@ public class CouchbaseOps {
         "--server-add-password=" + password);
   }
 
-  public void createBucket(String bucketName, int bucketQuotaMb, int replicas) {
+  public void createBucket(String bucketName, int bucketQuotaMb, int replicas, Set<String> servicesToWaitFor) {
     Stopwatch timer = Stopwatch.createStarted();
 
     execOrDie("couchbase-cli", "bucket-create",
-        "--cluster", "localhost",
+        "--cluster", "127.0.0.1",
         "--username", username,
         "--password", password,
         "--bucket", bucketName,
@@ -77,12 +86,13 @@ public class CouchbaseOps {
         , "--wait"
     );
 
-    try {
-      // extra wait for good measure. will this fix failures in CI environment?
-      SECONDS.sleep(5);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    new HttpWaitStrategy()
+        .forPath("/pools/default/b/" + bucketName)
+        .forPort(8091)
+        .withBasicCredentials(username, password)
+        .forStatusCode(200)
+        .forResponsePredicate(new ServicesReady(servicesToWaitFor))
+        .waitUntilReady(container);
 
     log.info("Creating bucket took {}", timer);
   }
@@ -91,7 +101,7 @@ public class CouchbaseOps {
     Stopwatch timer = Stopwatch.createStarted();
 
     execOrDie("couchbase-cli", "bucket-delete",
-        "--cluster", "localhost",
+        "--cluster", "127.0.0.1",
         "--username", username,
         "--password", password,
         "--bucket", bucketName);
@@ -105,17 +115,17 @@ public class CouchbaseOps {
 
   public void rebalance() {
     execOrDie("couchbase-cli", "rebalance",
-        "-c", "localhost",
+        "-c", "127.0.0.1",
         "-u", username,
         "-p", password);
   }
 
   public void failover() {
     execOrDie("couchbase-cli", "failover",
-        "--cluster", "localhost:8091",
+        "--cluster", "127.0.0.1:8091",
         "--username", username,
         "--password", password,
-        "--server-failover", "localhost:8091");
+        "--server-failover", "127.0.0.1:8091");
   }
 
   /**
@@ -155,15 +165,17 @@ public class CouchbaseOps {
 //    log.info("Importing sample bucket with cbdocloader took {}", timer);
 
     // cbimport is faster, but isn't always available, and fails when query & index services are absent
-    createBucket(bucketName, bucketQuotaMb, 0);
-    execOrDie("cbimport", "json",
+    createBucket(bucketName, bucketQuotaMb, 0, Set.of("kv", "n1ql", "index"));
+    String[] args = {
+        "cbimport", "json",
         "--threads", "2",
-        "--cluster", "localhost",
+        "--cluster", "127.0.0.1",
         "--username", username,
         "--password", password,
         "--bucket", bucketName,
         "--format", "sample",
-        "--dataset", "file://opt/couchbase/samples/" + bucketName + ".zip");
+        "--dataset", "file://opt/couchbase/samples/" + bucketName + ".zip"};
+    execOrDie(args);
 
     log.info("Importing sample bucket with cbimport took {} (including bucket creation)", timer);
   }
@@ -224,7 +236,7 @@ public class CouchbaseOps {
                                  final boolean auth) {
     try {
       Request.Builder requestBuilder = new Request.Builder()
-          .url("http://" + container.getContainerIpAddress() + ":" + container.getMappedPort(port) + path);
+          .url("http://" + container.getHost() + ":" + container.getMappedPort(port) + path);
 
       if (auth) {
         requestBuilder = requestBuilder.header("Authorization", Credentials.basic(username, password));
@@ -239,6 +251,41 @@ public class CouchbaseOps {
       return httpClient.newCall(requestBuilder.build()).execute();
     } catch (Exception ex) {
       throw new RuntimeException("Could not perform request against couchbase HTTP endpoint ", ex);
+    }
+  }
+
+  // borrowed from CouchbaseContainer.AllServicesEnabledPredicate because it's private over there
+  private static class ServicesReady implements Predicate<String> {
+    private final Set<String> enabledServices;
+
+    public ServicesReady(Set<String> services) {
+      this.enabledServices = requireNonNull(services);
+    }
+
+    private static <T> Stream<T> stream(Iterator<T> iterator) {
+      return StreamSupport.stream(
+          Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED),
+          false
+      );
+    }
+
+    @Override
+    public boolean test(final String rawConfig) {
+      try {
+        for (JsonNode node : mapper.readTree(rawConfig).at("/nodesExt")) {
+          for (String enabledService : enabledServices) {
+            Stream<String> fieldNames = stream(node.get("services").fieldNames());
+            if (fieldNames.noneMatch(it -> it.startsWith(enabledService))) {
+              log.info("Service '{}' not yet part of config; retrying.", enabledService);
+              return false;
+            }
+          }
+        }
+        return true;
+      } catch (IOException ex) {
+        log.error("Unable to parse response: {}", rawConfig, ex);
+        return false;
+      }
     }
   }
 }

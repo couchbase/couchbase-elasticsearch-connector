@@ -92,37 +92,18 @@ public class BasicReplicationTest {
     final boolean exhaustive = Boolean.parseBoolean(System.getProperty("com.couchbase.integrationTest.exhaustive"));
 
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
-        "enterprise-6.5.1"
-//        "community-6.5.1", // depends on https://github.com/testcontainers/testcontainers-java/pull/4221
-        );
-
-    // Need to figure out how to run the following in Docker with Testcontainers 1.14.1.
-    // They don't support alternate addresses, so we can't use CouchbaseContainer anymore.
-//
-//        "enterprise-6.0.1",
-//        "enterprise-5.5.1",
-//        "enterprise-5.5.0",
-//        "enterprise-5.1.1",
-//        "community-6.0.0",
-//        "community-5.1.1",
-//        "enterprise-5.1.0",
-//        "enterprise-5.0.1",
-//        "community-5.0.1"
-
+        "enterprise-7.1.1",
+        "community-7.1.1"
+//        "enterprise-6.6.5",
+//        "community-6.6.0"
+    );
 
     // This list is informed by https://www.elastic.co/support/eol
     // If possible, we also want to support the last release of the previous major version.
     final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "7.16.0",
-        "7.15.2",
-        "7.14.2",
-        "7.13.3",
-        "7.12.1",
-        "7.11.2",
-        "7.10.1",
-        "7.9.3",
-        "7.8.1",
-        "6.8.17"
+        "8.3.2", // latest version
+        "7.17.5", // latest version of previous major
+        "7.14.0" // oldest supported version (first version that sends required "X-Elastic-Product" header)
     ));
 
     if (!exhaustive) {
@@ -285,7 +266,6 @@ public class BasicReplicationTest {
         content.toString().toLowerCase(Locale.ROOT).contains("authorization"));
 
     assertEquals(index, content.path("index").textValue());
-    assertEquals("doc", content.path("type").textValue());
     assertEquals("INDEX", content.path("action").textValue());
     assertThat(content.path("error").textValue()).contains(reason);
   }

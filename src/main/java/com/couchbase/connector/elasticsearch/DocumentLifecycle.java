@@ -21,8 +21,8 @@ import com.couchbase.client.dcp.metrics.LogLevel;
 import com.couchbase.connector.config.es.TypeConfig;
 import com.couchbase.connector.dcp.DcpHelper;
 import com.couchbase.connector.dcp.Event;
-import com.couchbase.connector.elasticsearch.io.EventDocWriteRequest;
-import com.couchbase.connector.elasticsearch.io.EventRejectionIndexRequest;
+import com.couchbase.connector.elasticsearch.io.Operation;
+import com.couchbase.connector.elasticsearch.io.RejectOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +53,6 @@ public class DocumentLifecycle {
     ELASTICSEARCH_WRITE_SUCCEEDED,
     ELASTICSEARCH_WRITE_FAILED_WILL_RETRY,
     ELASTICSEARCH_WRITE_PERMANENTLY_REJECTED,
-    ;
   }
 
   private static final Logger log = LoggerFactory.getLogger(DocumentLifecycle.class);
@@ -116,11 +115,11 @@ public class DocumentLifecycle {
     }
   }
 
-  public static void logEsWriteStarted(List<EventDocWriteRequest> requests, int attemptCounter) {
+  public static void logEsWriteStarted(List<Operation> requests, int attemptCounter) {
     if (logLevel.isEnabled(log)) {
       LinkedHashMap<String, Object> details = new LinkedHashMap<>();
       details.put("attempt", attemptCounter);
-      for (EventDocWriteRequest request : requests) {
+      for (Operation request : requests) {
         if (shouldLog(request)) { // filter out EventRejectionIndexRequest
           logMilestone(request.getEvent(), Milestone.ELASTICSEARCH_WRITE_STARTED, details);
         }
@@ -128,19 +127,19 @@ public class DocumentLifecycle {
     }
   }
 
-  public static void logEsWriteSucceeded(EventDocWriteRequest request) {
+  public static void logEsWriteSucceeded(Operation request) {
     if (shouldLog(request)) {
       logMilestone(request.getEvent(), Milestone.ELASTICSEARCH_WRITE_SUCCEEDED);
     }
   }
 
-  public static void logEsWriteFailedWillRetry(EventDocWriteRequest request) {
+  public static void logEsWriteFailedWillRetry(Operation request) {
     if (shouldLog(request)) {
       logMilestone(request.getEvent(), Milestone.ELASTICSEARCH_WRITE_FAILED_WILL_RETRY);
     }
   }
 
-  public static void logEsWriteRejected(EventDocWriteRequest request, int httpStatusCode, String message) {
+  public static void logEsWriteRejected(Operation request, int httpStatusCode, String message) {
     if (shouldLog(request)) {
       LinkedHashMap<String, Object> details = new LinkedHashMap<>();
       details.put("httpStatusCode", httpStatusCode);
@@ -169,7 +168,7 @@ public class DocumentLifecycle {
     return logLevel.isEnabled(log) && !DcpHelper.isMetadata(event);
   }
 
-  private static boolean shouldLog(EventDocWriteRequest request) {
-    return shouldLog(request.getEvent()) && !(request instanceof EventRejectionIndexRequest);
+  private static boolean shouldLog(Operation request) {
+    return shouldLog(request.getEvent()) && !(request instanceof RejectOperation);
   }
 }

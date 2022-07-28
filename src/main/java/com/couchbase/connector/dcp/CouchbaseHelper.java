@@ -38,12 +38,12 @@ import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.ScopeAndCollection;
 import com.couchbase.connector.config.common.ClientCertConfig;
 import com.couchbase.connector.config.common.CouchbaseConfig;
+import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.util.SeedNodeHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
-import java.security.KeyStore;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -51,7 +51,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.couchbase.client.core.env.IoConfig.networkResolution;
@@ -70,17 +69,27 @@ public class CouchbaseHelper {
     throw new AssertionError("not instantiable");
   }
 
-  public static ClusterEnvironment.Builder environmentBuilder(CouchbaseConfig config, Supplier<KeyStore> trustStore) {
+  public static ClusterEnvironment.Builder environmentBuilder(ConnectorConfig connectorConfig) {
+    CouchbaseConfig config = connectorConfig.couchbase();
     final ClusterEnvironment.Builder envBuilder = ClusterEnvironment.builder()
         .ioConfig(networkResolution(config.network()))
         .timeoutConfig(connectTimeout(Duration.ofSeconds(10)));
 
     if (config.secureConnection()) {
-      envBuilder.securityConfig(SecurityConfig.builder()
+      SecurityConfig.Builder securityBuilder = SecurityConfig.builder()
           .enableTls(true)
-          .trustStore(trustStore.get())
-          .enableHostnameVerification(config.hostnameVerification())
-      );
+          .enableHostnameVerification(config.hostnameVerification());
+
+      if (!config.caCert().isEmpty()) {
+        // The user specified a CA cert specifically for Couchbase. Trust it and no others!
+        securityBuilder.trustCertificates(config.caCert());
+      } else {
+        // Use the keystore from the DEPRECATED `[truststore]` config section if present.
+        // Otherwise, don't specify a trust store, and let the SDK use the default CA certificates.
+        connectorConfig.trustStore().ifPresent(it -> securityBuilder.trustStore(it.get()));
+      }
+
+      envBuilder.securityConfig(securityBuilder);
     }
 
     applyCustomEnvironmentProperties(envBuilder, config);
@@ -174,10 +183,10 @@ public class CouchbaseHelper {
    * @deprecated Leaks the environment. Probably shouldn't use this.
    */
   @Deprecated
-  public static Bucket openMetadataBucket(CouchbaseConfig config, Supplier<KeyStore> keystore) {
+  public static Bucket openMetadataBucket(ConnectorConfig config) {
     // xxx caller has no way of shutting down this environment :-/
-    final ClusterEnvironment env = environmentBuilder(config, keystore).build();
-    return createCluster(config, env).bucket(config.metadataBucket());
+    final ClusterEnvironment env = environmentBuilder(config).build();
+    return createCluster(config.couchbase(), env).bucket(config.couchbase().metadataBucket());
   }
 
   public static int getNumPartitions(Bucket bucket) {

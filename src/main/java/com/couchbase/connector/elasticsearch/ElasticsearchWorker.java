@@ -18,10 +18,10 @@ package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.connector.dcp.Event;
 import com.couchbase.connector.elasticsearch.io.ElasticsearchWriter;
-import org.elasticsearch.common.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;

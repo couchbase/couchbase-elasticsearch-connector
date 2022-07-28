@@ -16,8 +16,8 @@
 
 package com.couchbase.connector.elasticsearch;
 
+import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import com.couchbase.connector.dcp.Event;
-import org.elasticsearch.action.bulk.BulkItemResponse;
 
 public interface ErrorListener {
 
@@ -25,7 +25,7 @@ public interface ErrorListener {
 
   void onError(Event event, Throwable error);
 
-  void onFailedIndexResponse(Event event, BulkItemResponse response);
+  void onFailedIndexResponse(Event event, BulkResponseItem response);
 
 
   ErrorListener NOOP = new ErrorListener() {
@@ -35,7 +35,7 @@ public interface ErrorListener {
     }
 
     @Override
-    public void onFailedIndexResponse(Event event, BulkItemResponse response) {
+    public void onFailedIndexResponse(Event event, BulkResponseItem response) {
 
     }
 

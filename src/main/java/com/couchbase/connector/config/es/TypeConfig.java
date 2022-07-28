@@ -30,14 +30,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import static com.couchbase.connector.config.ConfigHelper.warnIfDeprecatedTypeNameIsPresent;
 import static java.util.Objects.requireNonNull;
 
 @Value.Immutable
 public interface TypeConfig {
   @Nullable
   String index(); // may be null only for ignored types, or types where index is inferred using a regex.
-
-  String type();
 
   @Nullable
   String pipeline();
@@ -67,13 +66,14 @@ public interface TypeConfig {
   static ImmutableTypeConfig from(ConfigTable config, ConfigPosition position, TypeConfig defaults) {
     config.expectOnly("typeName", "index", "pipeline", "routing", "ignore", "ignoreDeletes", "prefix", "regex", "matchOnQualifiedKey");
 
+    warnIfDeprecatedTypeNameIsPresent(config);
+
     final String index = Strings.emptyToNull(config.getString("index").orElseGet(defaults::index));
     final String routing = Strings.emptyToNull(config.getString("routing").orElse(null));
     final boolean qualifiedKey = config.getBoolean("matchOnQualifiedKey").orElseGet(defaults::matchOnQualifiedKey);
 
     ImmutableTypeConfig.Builder builder = ImmutableTypeConfig.builder()
         .position(position)
-        .type(config.getString("typeName").orElseGet(defaults::type))
         .index(index)
         .matchOnQualifiedKey(qualifiedKey)
         .routing(parseRouting(routing, config.inputPositionOf("routing")))

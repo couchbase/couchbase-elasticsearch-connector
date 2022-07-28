@@ -16,26 +16,24 @@
 
 package com.couchbase.connector.config.es;
 
+import com.couchbase.connector.config.StorageSize;
 import com.couchbase.connector.config.toml.ConfigTable;
-import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.common.unit.TimeValue;
 import org.immutables.value.Value;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 import static com.couchbase.connector.config.ConfigHelper.getSize;
 import static com.couchbase.connector.config.ConfigHelper.getTime;
-import static org.elasticsearch.common.unit.ByteSizeUnit.MB;
 
 @Value.Immutable
 public interface BulkRequestConfig {
   int maxActions();
 
-  ByteSizeValue maxBytes();
+  StorageSize maxBytes();
 
   int concurrentRequests();
 
-  TimeValue timeout();
+  Duration timeout();
 
   @Value.Check
   default void check() {
@@ -48,8 +46,8 @@ public interface BulkRequestConfig {
     config.expectOnly("actions", "bytes", "timeout", "concurrentRequests");
     return ImmutableBulkRequestConfig.builder()
         .maxActions(config.getInt("actions").orElse(1000))
-        .maxBytes(getSize(config, "bytes").orElse(new ByteSizeValue(10, MB)))
-        .timeout(getTime(config, "timeout").orElse(new TimeValue(1, TimeUnit.MINUTES)))
+        .maxBytes(getSize(config, "bytes").orElse(StorageSize.ofMebibytes(10)))
+        .timeout(getTime(config, "timeout").orElse(Duration.ofMinutes(1)))
         .concurrentRequests(config.getIntInRange("concurrentRequests", 1, 16).orElse(2))
         .build();
   }

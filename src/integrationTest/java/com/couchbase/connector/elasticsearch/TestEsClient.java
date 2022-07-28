@@ -16,21 +16,20 @@
 
 package com.couchbase.connector.elasticsearch;
 
+import co.elastic.clients.elasticsearch.core.MgetResponse;
+import co.elastic.clients.elasticsearch.core.get.GetResult;
+import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
 import com.couchbase.connector.config.es.ConnectorConfig;
+import com.couchbase.connector.elasticsearch.io.BackoffPolicy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
-import org.elasticsearch.action.bulk.BackoffPolicy;
-import org.elasticsearch.action.get.MultiGetItemResponse;
-import org.elasticsearch.action.get.MultiGetRequest;
-import org.elasticsearch.action.get.MultiGetResponse;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseException;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +38,8 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -46,7 +47,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 
@@ -55,17 +55,16 @@ import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.cons
 import static com.couchbase.connector.testcontainers.Poller.poll;
 import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 class TestEsClient implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(TestEsClient.class);
 
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
-  private final RestHighLevelClient client;
+  private final ElasticsearchOps client;
 
   public TestEsClient(ConnectorConfig config) throws Exception {
-    this.client = newElasticsearchClient(config.elasticsearch(), config.trustStore());
+    this.client = newElasticsearchClient(config);
   }
 
   public TestEsClient(String config) throws Exception {
@@ -73,7 +72,7 @@ class TestEsClient implements AutoCloseable {
   }
 
   private static <T> T retryUntilSuccess(BackoffPolicy backoffPolicy, Callable<T> lambda) {
-    Iterator<TimeValue> delays = backoffPolicy.iterator();
+    Iterator<Duration> delays = backoffPolicy.iterator();
     while (true) {
       try {
         return lambda.call();
@@ -82,7 +81,7 @@ class TestEsClient implements AutoCloseable {
 
         if (delays.hasNext()) {
           try {
-            MILLISECONDS.sleep(delays.next().millis());
+            MILLISECONDS.sleep(delays.next().toMillis());
           } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(interrupted);
@@ -97,7 +96,7 @@ class TestEsClient implements AutoCloseable {
   public void deleteAllIndexes() {
     try {
       // retry for intermittent auth failure immediately after container startup :-p
-      final BackoffPolicy backoffPolicy = constantBackoff(1, SECONDS).limit(10).build();
+      final BackoffPolicy backoffPolicy = constantBackoff(Duration.ofSeconds(1)).limit(10).build();
 
       for (String index : retryUntilSuccess(backoffPolicy, this::indexNames)) {
         if (index.startsWith(".")) {
@@ -128,7 +127,7 @@ class TestEsClient implements AutoCloseable {
 
   public long getDocumentCount(String index) {
     try {
-      JsonNode response = doGet(index + "/doc/_count");
+      JsonNode response = doGet(index + "/_count");
       return response.get("count").longValue();
     } catch (ResponseException e) {
       return -1;
@@ -139,7 +138,7 @@ class TestEsClient implements AutoCloseable {
 
   public Optional<JsonNode> getDocument(String index, String id) {
     try {
-      return Optional.of(doGet(index + "/doc/" + encodeUriPathComponent(id)));
+      return Optional.of(doGet(index + "/_doc/" + encodeUriPathComponent(id)));
 
     } catch (ResponseException e) {
       return Optional.empty();
@@ -150,7 +149,7 @@ class TestEsClient implements AutoCloseable {
 
   public Optional<JsonNode> getDocument(String index, String id, String routing) {
     try {
-      return Optional.of(doGet(index + "/doc/" + encodeUriPathComponent(id) + "?routing=" + encodeUriQueryParameter(routing)));
+      return Optional.of(doGet(index + "/_doc/" + encodeUriPathComponent(id) + "?routing=" + encodeUriQueryParameter(routing)));
 
     } catch (ResponseException e) {
       return Optional.empty();
@@ -163,36 +162,36 @@ class TestEsClient implements AutoCloseable {
     return waitForDocuments(index, singletonList(id)).get(id);
   }
 
-  private static MultiGetRequest multiGetRequest(String index, Set<String> ids) {
-    final MultiGetRequest request = new MultiGetRequest();
-    for (String id : ids) {
-      request.add(index, "doc", id);
-    }
-    return request;
-  }
-
   public Map<String, JsonNode> waitForDocuments(String index, Collection<String> ids) throws TimeoutException, InterruptedException {
     final Stopwatch timer = Stopwatch.createStarted();
 
     final Map<String, JsonNode> idToDocument = new LinkedHashMap<>();
-    final Set<String> remaining = new HashSet<>(ids);
+    final List<String> remaining = new ArrayList<>(new HashSet<>(ids));
 
     poll().atInterval(500, MILLISECONDS).until(() -> {
       try {
-        final MultiGetResponse response = client.multiGet(multiGetRequest(index, remaining));
+        final MgetResponse<JsonNode> response = client.modernClient().mget(
+            builder -> builder
+                .index(index)
+                .ids(remaining),
+            JsonNode.class
+        );
+
         final ListMultimap<String, String> errorMessageToDocId = ArrayListMultimap.create();
-        for (MultiGetItemResponse item : response) {
-          if (item.isFailed()) {
-            errorMessageToDocId.put(item.getFailure().getMessage(), item.getId());
+        for (MultiGetResponseItem<JsonNode> item : response.docs()) {
+          if (item.isFailure()) {
+            errorMessageToDocId.put(item.failure().error().reason(), item.failure().id());
             continue;
           }
-          if (item.getResponse().isExists()) {
-            idToDocument.put(item.getId(), objectMapper.readTree(item.getResponse().getSourceAsBytes()));
-            remaining.remove(item.getId());
+
+          GetResult<JsonNode> result = item.result();
+          if (result.found()) {
+            idToDocument.put(result.id(), item.result().source());
+            remaining.remove(result.id());
           }
         }
 
-        // Display only the first error of each kind so we don't spam the logs
+        // Display only the first error of each kind, so we don't spam the logs
         // with thousands of 'index_not_found_exception' errors
         for (String errorMessage : errorMessageToDocId.keySet()) {
           final List<String> docIds = errorMessageToDocId.get(errorMessage);
@@ -223,18 +222,18 @@ class TestEsClient implements AutoCloseable {
   }
 
   public void waitForDeletion(String index, String id) throws TimeoutException, InterruptedException {
-    poll().until(() -> !getDocument(index, id).isPresent());
+    poll().until(() -> getDocument(index, id).isEmpty());
   }
 
   private JsonNode doGet(String endpoint) throws IOException {
-    final Response response = client.getLowLevelClient().performRequest("GET", endpoint);
+    final Response response = client.lowLevelClient().performRequest(new Request("GET", endpoint));
     try (InputStream is = response.getEntity().getContent()) {
       return objectMapper.readTree(is);
     }
   }
 
   private JsonNode doDelete(String endpoint) throws IOException {
-    final Response response = client.getLowLevelClient().performRequest("DELETE", endpoint);
+    final Response response = client.lowLevelClient().performRequest(new Request("DELETE", endpoint));
     try (InputStream is = response.getEntity().getContent()) {
       return objectMapper.readTree(is);
     }

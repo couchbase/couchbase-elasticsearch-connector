@@ -24,9 +24,11 @@ import org.immutables.value.Value;
 
 import javax.annotation.Nullable;
 import java.security.KeyStore;
+import java.util.Optional;
 
 import static com.couchbase.connector.config.ConfigHelper.readPassword;
 import static com.google.common.base.Strings.emptyToNull;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Value.Immutable
 public interface TrustStoreConfig extends Supplier<KeyStore> {
@@ -46,15 +48,22 @@ public interface TrustStoreConfig extends Supplier<KeyStore> {
     return KeyStoreHelper.get(path(), position(), password());
   }
 
-  static ImmutableTrustStoreConfig from(ConfigTable config) {
+  static Optional<ImmutableTrustStoreConfig> from(ConfigTable config) {
     config.expectOnly("path", "pathToPassword");
+
+    String path = config.getString("path").orElse(null);
+    if (isBlank(path) || path.equals("path/to/truststore")) {
+      return Optional.empty();
+    }
 
     final String password = readPassword(config, "truststore", "pathToPassword");
 
-    return ImmutableTrustStoreConfig.builder()
-        .path(config.getRequiredString("path"))
-        .password(emptyToNull(password))
-        .position(config.inputPositionOf("path"))
-        .build();
+    return Optional.of(
+        ImmutableTrustStoreConfig.builder()
+            .path(config.getRequiredString("path"))
+            .password(emptyToNull(password))
+            .position(config.inputPositionOf("path"))
+            .build()
+    );
   }
 }

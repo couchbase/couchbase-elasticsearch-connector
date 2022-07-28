@@ -57,7 +57,7 @@ public class CheckpointRestore extends AbstractCliCommand {
   }
 
   public static void restore(ConnectorConfig config, File inputFile) throws IOException {
-    final Bucket bucket = CouchbaseHelper.openMetadataBucket(config.couchbase(), config.trustStore());
+    final Bucket bucket = CouchbaseHelper.openMetadataBucket(config);
     final ResolvedBucketConfig bucketConfig = getBucketConfig(config.couchbase(), bucket);
 
     final CheckpointDao checkpointDao = new CouchbaseCheckpointDao(

@@ -17,14 +17,15 @@
 package com.couchbase.connector.config.common;
 
 import com.couchbase.connector.config.toml.ConfigTable;
-import org.elasticsearch.common.unit.TimeValue;
 import org.immutables.value.Value;
+
+import java.time.Duration;
 
 import static com.couchbase.connector.config.ConfigHelper.getTime;
 
 @Value.Immutable
 public interface MetricsConfig {
-  TimeValue logInterval();
+  Duration logInterval();
 
   int httpPort();
 
@@ -32,7 +33,7 @@ public interface MetricsConfig {
     config.expectOnly("logInterval", "httpPort");
 
     return ImmutableMetricsConfig.builder()
-        .logInterval(getTime(config, "logInterval").orElse(TimeValue.timeValueMinutes(1)))
+        .logInterval(getTime(config, "logInterval").orElse(Duration.ofMinutes(1)))
         .httpPort(config.getIntInRange("httpPort", -1, 65535).orElse(-1))
         .build();
   }

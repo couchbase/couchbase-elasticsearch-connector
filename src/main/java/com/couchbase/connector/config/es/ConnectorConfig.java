@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Optional;
 
 import static com.couchbase.connector.config.ConfigHelper.resolveVariables;
 
@@ -45,7 +46,7 @@ public interface ConnectorConfig {
 
   GroupConfig group();
 
-  TrustStoreConfig trustStore();
+  Optional<TrustStoreConfig> trustStore();
 
   static ImmutableConnectorConfig from(ConfigTable config) {
     config.expectOnly("couchbase", "elasticsearch", "logging", "metrics", "group", "truststore");

@@ -45,23 +45,24 @@ import com.couchbase.client.dcp.transport.netty.ChannelFlowController;
 import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.PanicButton;
 import com.couchbase.connector.config.ScopeAndCollection;
-import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.couchbase.connector.config.common.ClientCertConfig;
+import com.couchbase.connector.config.common.CouchbaseConfig;
+import com.couchbase.connector.config.common.TrustStoreConfig;
 import com.couchbase.connector.elasticsearch.Metrics;
 import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
-import java.security.KeyStore;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 import static com.couchbase.connector.cluster.consul.ReactorHelper.blockSingle;
 import static java.util.Collections.singletonList;
@@ -96,7 +97,7 @@ public class DcpHelper {
     buffer.release();
   }
 
-  public static Client newClient(String groupName, CouchbaseConfig config, Set<SeedNode> kvNodes, Supplier<KeyStore> trustStore) {
+  public static Client newClient(String groupName, CouchbaseConfig config, Set<SeedNode> kvNodes, @Nullable TrustStoreConfig trustStoreConfig) {
 
     // ES connector bootstraps using Manager port, but the DCP client wants KV port.
     // Get the KV ports from the bucket config!
@@ -112,7 +113,7 @@ public class DcpHelper {
     final Client.Builder builder = Client.builder()
         .meterRegistry(Metrics.registry())
         .userAgent("elasticsearch-connector", VersionHelper.getVersion(), groupName)
-        .bootstrapTimeout(Duration.ofMillis(config.dcp().connectTimeout().millis()))
+        .bootstrapTimeout(config.dcp().connectTimeout())
         .seedNodes(seedNodes)
         .networkResolution(NetworkResolution.valueOf(config.network().name()))
         .bucket(config.bucket())
@@ -123,17 +124,29 @@ public class DcpHelper {
         .scopeName(config.scope())
         .collectionNames(collectionNames)
         .mitigateRollbacks(
-            config.dcp().persistencePollingInterval().duration(),
-            config.dcp().persistencePollingInterval().timeUnit())
+            config.dcp().persistencePollingInterval().toMillis(),
+            TimeUnit.MILLISECONDS
+        )
         .flowControl(toSaturatedInt(config.dcp().flowControlBuffer().getBytes()))
         .bufferAckWatermark(60);
 
     if (config.secureConnection()) {
-      builder.securityConfig(SecurityConfig.builder()
+      SecurityConfig.Builder securityBuilder = SecurityConfig.builder()
           .enableTls(true)
-          .trustStore(trustStore.get())
-          .enableHostnameVerification(config.hostnameVerification())
-      );
+          .enableHostnameVerification(config.hostnameVerification());
+
+      if (!config.caCert().isEmpty()) {
+        // trust only the certificate the user specified
+        securityBuilder.trustCertificates(config.caCert());
+      } else if (trustStoreConfig != null) {
+        // trust certificates in the DEPRECATED global trust store
+        securityBuilder.trustStore(trustStoreConfig.get());
+      } else {
+        // Hope the user is connecting to Capella, otherwise connection will fail.
+        securityBuilder.trustCertificates(com.couchbase.client.core.env.SecurityConfig.defaultCaCertificates());
+      }
+
+      builder.securityConfig(securityBuilder);
     }
 
     return builder.build();

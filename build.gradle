@@ -14,7 +14,7 @@ repositories {
   maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
 }
 
-version = "4.3.9-SNAPSHOT"
+version = "4.4.0-SNAPSHOT"
 
 def targetJavaRelease = 11
 def jvmVersion = System.getProperty("os.arch").equals("aarch64") ? "17" : "11" // Only 17 is available for Apple silicon.
@@ -63,29 +63,14 @@ task exhaustiveTest(group: "Verification", description: "Runs the integration te
 
 dependencies {
   implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.17.2'
-
-  // Elasticsearch High Level REST client uses commons-logging.
-  // Route that through SLF4J instead.
   implementation 'org.slf4j:jcl-over-slf4j:1.7.36'
 
-  implementation 'com.couchbase.client:java-client:3.3.1'
+  implementation 'com.couchbase.client:java-client:3.3.2'
   implementation 'com.couchbase.client:dcp-client:0.40.0'
 
-  // Can't upgrade ES client to 7.x until we drop support for ES 6
-  //   because the 7.x client omits the document type field required by 6.
-  // Can't upgrade ES client to 6.8 because it's not forwards compatible with ES 7
-  //   due to a change in how warnings are returned in HTTP responses.
-  implementation 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.7.1'
+  implementation 'co.elastic.clients:elasticsearch-java:8.3.2'
 
-  // Transitive dependencies of Elasticsearch client.
-  // Force newer versions to ward off vulnerability reports.
   implementation platform("com.fasterxml.jackson:jackson-bom:2.13.3")
-  implementation 'org.yaml:snakeyaml:1.28'
-  implementation 'commons-codec:commons-codec:1.15'
-  implementation 'org.apache.httpcomponents:httpclient:4.5.13'
-  implementation 'org.apache.httpcomponents:httpasyncclient:4.1.5'
-  implementation 'org.apache.httpcomponents:httpcore:4.4.15'
-  implementation 'org.apache.httpcomponents:httpcore-nio:4.4.15'
 
   implementation 'io.projectreactor:reactor-core:3.4.17'
 
@@ -109,10 +94,10 @@ dependencies {
   testImplementation 'junit:junit:4.13.2'
   testImplementation 'org.apache.commons:commons-lang3:3.12.0'
   testImplementation 'commons-io:commons-io:2.11.0'
-  testImplementation('org.assertj:assertj-core:3.22.0')
+  testImplementation('org.assertj:assertj-core:3.23.1')
   integrationTestImplementation 'com.jayway.jsonpath:json-path:2.7.0'
 
-  def testcontainersVersion = '1.16.2'
+  def testcontainersVersion = '1.17.3'
   integrationTestImplementation "org.testcontainers:testcontainers:${testcontainersVersion}"
   integrationTestImplementation "org.testcontainers:couchbase:${testcontainersVersion}"
   integrationTestImplementation "org.testcontainers:elasticsearch:${testcontainersVersion}"
@@ -148,7 +133,7 @@ if (!version.endsWith("SNAPSHOT")) {
 // Assumes IDEA is storing generated sources relative to the module content root,
 // using the default directory name of "generated"
 ext.generatedFilesDir = file('src/main/generated')
-compileJava.options.annotationProcessorGeneratedSourcesDirectory = generatedFilesDir
+compileJava.options.generatedSourceOutputDirectory = generatedFilesDir
 sourceSets.main.java.srcDirs += generatedFilesDir
 clean {
   delete generatedFilesDir

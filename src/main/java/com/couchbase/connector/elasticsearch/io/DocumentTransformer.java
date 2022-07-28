@@ -17,13 +17,15 @@
 package com.couchbase.connector.elasticsearch.io;
 
 import com.couchbase.connector.dcp.Event;
-import org.elasticsearch.action.index.IndexRequest;
+
+import javax.annotation.Nullable;
 
 public interface DocumentTransformer {
   /**
-   * Sets the `source` property of the given index request if the
+   * Returns the `document` to use for an index request if the
    * given event is eligible for replication to Elasticsearch,
-   * otherwise does nothing.
+   * otherwise null.
    */
-  void setSourceFromEventContent(IndexRequest indexRequest, Event mutationEvent);
+  @Nullable
+  Object getElasticsearchDocument(Event mutationEvent);
 }

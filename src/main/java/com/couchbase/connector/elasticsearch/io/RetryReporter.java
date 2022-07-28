@@ -16,10 +16,11 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
+import co.elastic.clients.elasticsearch._types.ErrorCause;
+import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import com.couchbase.connector.dcp.Event;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
-import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.slf4j.Logger;
 
 import java.util.List;
@@ -42,12 +43,16 @@ class RetryReporter {
     return new RetryReporter(logger);
   }
 
-  void add(Event e, BulkItemResponse.Failure failure) {
+  void add(Event e, BulkResponseItem failure) {
     if (!logger.isInfoEnabled()) {
       return;
     }
+    ErrorCause cause = failure.error();
+    if (cause == null) {
+      throw new IllegalArgumentException("bulk response item did not fail");
+    }
 
-    final String message = "status=" + failure.getStatus() + " message=" + failure.getMessage();
+    final String message = "status=" + failure.status() + " message=" + cause.reason();
     errorMessageToEvents.put(message, redactUser(e).toString());
   }
 

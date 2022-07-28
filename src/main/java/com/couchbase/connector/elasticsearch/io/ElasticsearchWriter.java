@@ -16,26 +16,22 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
+import co.elastic.clients.elasticsearch._types.ErrorCause;
+import co.elastic.clients.elasticsearch.core.BulkRequest;
+import co.elastic.clients.elasticsearch.core.BulkResponse;
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
+import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
+import com.couchbase.connector.config.StorageSize;
 import com.couchbase.connector.config.es.BulkRequestConfig;
 import com.couchbase.connector.dcp.Checkpoint;
 import com.couchbase.connector.dcp.CheckpointService;
 import com.couchbase.connector.dcp.Event;
 import com.couchbase.connector.elasticsearch.DocumentLifecycle;
-import com.couchbase.connector.elasticsearch.ElasticsearchHelper;
+import com.couchbase.connector.elasticsearch.ElasticsearchOps;
 import com.couchbase.connector.elasticsearch.ErrorListener;
 import com.couchbase.connector.elasticsearch.Metrics;
 import com.couchbase.connector.util.ThrowableHelper;
-import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.action.bulk.BackoffPolicy;
-import org.elasticsearch.action.bulk.BulkItemResponse;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.unit.ByteSizeUnit;
-import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.rest.RestStatus;
+import com.google.common.collect.Streams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,16 +39,15 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.couchbase.client.core.logging.RedactableArgument.redactUser;
 import static com.couchbase.connector.dcp.DcpHelper.isMetadata;
@@ -61,8 +56,6 @@ import static com.couchbase.connector.util.ThrowableHelper.propagateCauseIfPossi
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static org.elasticsearch.common.unit.TimeValue.timeValueMillis;
-import static org.elasticsearch.common.unit.TimeValue.timeValueMinutes;
 
 /**
  * Inspired by the Elasticsearch client's BulkProcessor.
@@ -73,21 +66,21 @@ import static org.elasticsearch.common.unit.TimeValue.timeValueMinutes;
 public class ElasticsearchWriter implements Closeable {
   private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchWriter.class);
 
-  private final RestHighLevelClient client;
+  private final ElasticsearchOps client;
   private final RequestFactory requestFactory;
   private final CheckpointService checkpointService;
   private final ErrorListener errorListener = ErrorListener.NOOP;
   private final long bufferBytesThreshold;
   private final int bufferActionsThreshold;
-  private final TimeValue bulkRequestTimeout;
+  private final Duration bulkRequestTimeout;
 
-  private static final TimeValue INITIAL_RETRY_DELAY = timeValueMillis(50);
-  private static final TimeValue MAX_RETRY_DELAY = timeValueMinutes(5);
+  private static final Duration INITIAL_RETRY_DELAY = Duration.ofMillis(50);
+  private static final Duration MAX_RETRY_DELAY = Duration.ofMinutes(5);
 
   private final BackoffPolicy backoffPolicy =
       truncatedExponentialBackoff(INITIAL_RETRY_DELAY, MAX_RETRY_DELAY)
           .fullJitter()
-          //.timeout(timeValueMinutes(5))
+          //.timeout(Duration.ofMinutes(5))
           .build();
 
   @GuardedBy("this")
@@ -96,7 +89,7 @@ public class ElasticsearchWriter implements Closeable {
   @GuardedBy("this")
   private long requestStartNanos;
 
-  public ElasticsearchWriter(RestHighLevelClient client, CheckpointService checkpointService,
+  public ElasticsearchWriter(ElasticsearchOps client, CheckpointService checkpointService,
                              RequestFactory requestFactory,
                              BulkRequestConfig bulkConfig) {
     this.client = requireNonNull(client);
@@ -107,7 +100,7 @@ public class ElasticsearchWriter implements Closeable {
     this.bulkRequestTimeout = requireNonNull(bulkConfig.timeout());
   }
 
-  private final LinkedHashMap<String, EventDocWriteRequest> buffer = new LinkedHashMap<>();
+  private final LinkedHashMap<String, Operation> buffer = new LinkedHashMap<>();
   private int bufferBytes;
 
   // Map from vbucket to checkpoint of last ignored event.
@@ -151,7 +144,7 @@ public class ElasticsearchWriter implements Closeable {
     // seqno than before the rollback. Anyway, let's revisit this if the
     // "one action per-document per-batch" strategy is identified as a bottleneck.
 
-    final EventDocWriteRequest request = requestFactory.newDocWriteRequest(event);
+    final Operation request = requestFactory.newDocWriteRequest(event);
     if (request == null) {
       try {
         if (LOGGER.isTraceEnabled()) {
@@ -185,7 +178,7 @@ public class ElasticsearchWriter implements Closeable {
     // Ensure every (documentID, dest index) pair is unique within a batch.
     // Do this *after* skipping unrecognized / ignored events, so that
     // an ignored deletion does not evict a previously buffered mutation.
-    final EventDocWriteRequest evicted = buffer.put(event.getKey() + '\0' + request.index(), request);
+    final Operation evicted = buffer.put(event.getKey() + '\0' + request.getIndex(), request);
     if (evicted != null) {
       String qualifiedDocId = event.getKey(true);
       String evictedQualifiedDocId = evicted.getEvent().getKey(true);
@@ -193,7 +186,7 @@ public class ElasticsearchWriter implements Closeable {
         LOGGER.warn("DOCUMENT ID COLLISION DETECTED:" +
                 " Documents '{}' and '{}' are from different collections" +
                 " but have the same destination index '{}'.",
-            qualifiedDocId, evictedQualifiedDocId, request.index());
+            qualifiedDocId, evictedQualifiedDocId, request.getIndex());
       }
 
       DocumentLifecycle.logSkippedBecauseNewerVersionReceived(evicted.getEvent(), event.getTracingToken());
@@ -247,11 +240,11 @@ public class ElasticsearchWriter implements Closeable {
 
       final long startNanos = System.nanoTime();
 
-      List<EventDocWriteRequest> requests = new ArrayList<>(buffer.values());
+      List<Operation> requests = new ArrayList<>(buffer.values());
       clearBuffer();
 
-      final Iterator<TimeValue> waitIntervals = backoffPolicy.iterator();
-      final Map<Integer, EventDocWriteRequest> vbucketToLastEvent = lenientIndex(r -> r.getEvent().getVbucket(), requests);
+      final Iterator<Duration> waitIntervals = backoffPolicy.iterator();
+      final Map<Integer, Operation> vbucketToLastEvent = lenientIndex(r -> r.getEvent().getVbucket(), requests);
 
       int attemptCounter = 1;
       long indexingTookNanos = 0;
@@ -273,23 +266,24 @@ public class ElasticsearchWriter implements Closeable {
         }
 
 
-        final List<EventDocWriteRequest> requestsToRetry = new ArrayList<>(0);
-        final BulkRequest bulkRequest = newBulkRequest(requests);
-        bulkRequest.timeout(bulkRequestTimeout);
+        final List<Operation> requestsToRetry = new ArrayList<>(0);
+        final BulkRequest.Builder bulkRequestBuilder = newBulkRequest(requests);
+        bulkRequestBuilder.timeout(time -> time.time(bulkRequestTimeout.toMillis() + "ms"));
 
         final RetryReporter retryReporter = RetryReporter.forLogger(LOGGER);
 
         try {
-          final BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
+          final BulkResponse bulkResponse = client.modernClient().bulk(bulkRequestBuilder.build());
           final long nowNanos = System.nanoTime();
-          final BulkItemResponse[] responses = bulkResponse.getItems();
+          List<BulkResponseItem> responses = bulkResponse.items();
 
-          indexingTookNanos += bulkResponse.getTook().nanos();
+          Long ingestTook = bulkResponse.ingestTook(); // TODO is this ever really null? :-/
+          indexingTookNanos += ingestTook == null ? 0 : ingestTook;
 
-          for (int i = 0; i < responses.length; i++) {
-            final BulkItemResponse response = responses[i];
-            final BulkItemResponse.Failure failure = ElasticsearchHelper.getFailure(response);
-            final EventDocWriteRequest request = requests.get(i);
+          for (int i = 0; i < responses.size(); i++) {
+            final BulkResponseItem response = responses.get(i);
+            final ErrorCause failure = response.error();
+            final Operation request = requests.get(i);
             final Event e = request.getEvent();
 
             if (failure == null) {
@@ -299,27 +293,27 @@ public class ElasticsearchWriter implements Closeable {
               continue;
             }
 
-            if (isRetryable(failure)) {
-              retryReporter.add(e, failure);
+            if (isRetryable(response)) {
+              retryReporter.add(e, response);
               requestsToRetry.add(request);
               DocumentLifecycle.logEsWriteFailedWillRetry(request);
               continue;
             }
 
-            if (request instanceof EventRejectionIndexRequest) {
+            if (request instanceof RejectOperation) {
               // ES rejected the rejection log entry! Total fail.
-              LOGGER.error("Failed to index rejection document for event {}; status code: {} {}", redactUser(e), failure.getStatus(), failure.getMessage());
+              LOGGER.error("Failed to index rejection document for event {}; status code: {} {}", redactUser(e), response.status(), failure.reason());
               Metrics.rejectionLogFailureCounter().increment();
               updateLatencyMetrics(e, nowNanos);
               e.release();
 
             } else {
-              LOGGER.warn("Permanent failure to index event {}; status code: {} {}", redactUser(e), failure.getStatus(), failure.getMessage());
+              LOGGER.warn("Permanent failure to index event {}; status code: {} {}", redactUser(e), response.status(), failure.reason());
               Metrics.rejectionCounter().increment();
-              DocumentLifecycle.logEsWriteRejected(request, failure.getStatus().getStatus(), failure.getMessage());
+              DocumentLifecycle.logEsWriteRejected(request, response.status(), failure.toString());
 
               // don't release event; the request factory assumes ownership
-              final EventRejectionIndexRequest rejectionLogRequest = requestFactory.newRejectionLogRequest(request, failure);
+              final RejectOperation rejectionLogRequest = requestFactory.newRejectionLogRequest(request, response);
               if (rejectionLogRequest != null) {
                 requestsToRetry.add(rejectionLogRequest);
               }
@@ -332,14 +326,15 @@ public class ElasticsearchWriter implements Closeable {
 
           requests = requestsToRetry;
 
-        } catch (ElasticsearchStatusException e) {
-          if (e.status() == RestStatus.UNAUTHORIZED) {
-            LOGGER.warn("Elasticsearch credentials no longer valid.");
-            // todo coordinator.awaitNewConfig("Elasticsearch credentials no longer valid.")
-          }
-
-          // Anything else probably means the cluster topology is in transition. Retry!
-          LOGGER.warn("Bulk request failed with status {}", e.status(), e);
+          // TODO es8
+//        } catch (ElasticsearchStatusException e) {
+//          if (e.status() == RestStatus.UNAUTHORIZED) {
+//            LOGGER.warn("Elasticsearch credentials no longer valid.");
+//            // todo coordinator.awaitNewConfig("Elasticsearch credentials no longer valid.")
+//          }
+//
+//          // Anything else probably means the cluster topology is in transition. Retry!
+//          LOGGER.warn("Bulk request failed with status {}", e.status(), e);
 
         } catch (IOException e) {
           // Could indicate timeout, connection failure, or maybe something else.
@@ -364,7 +359,7 @@ public class ElasticsearchWriter implements Closeable {
 
         if (requests.isEmpty()) {
           // EXIT!
-          for (Map.Entry<Integer, EventDocWriteRequest> entry : vbucketToLastEvent.entrySet()) {
+          for (Map.Entry<Integer, Operation> entry : vbucketToLastEvent.entrySet()) {
             final int vbucket = entry.getKey();
             Checkpoint checkpoint = entry.getValue().getEvent().getCheckpoint();
             checkpoint = adjustForIgnoredEvents(vbucket, checkpoint);
@@ -385,7 +380,7 @@ public class ElasticsearchWriter implements Closeable {
 
           if (LOGGER.isInfoEnabled()) {
             final long elapsedMillis = NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-            final ByteSizeValue prettySize = new ByteSizeValue(totalEstimatedBytes, ByteSizeUnit.BYTES);
+            final StorageSize prettySize = StorageSize.ofBytes(totalEstimatedBytes);
             LOGGER.info("Wrote {} actions ~{} in {} ms",
                 totalActionCount, prettySize, elapsedMillis);
           }
@@ -396,10 +391,10 @@ public class ElasticsearchWriter implements Closeable {
         // retry!
         retryReporter.report();
         Metrics.bulkRetriesCounter().increment();
-        final TimeValue retryDelay = waitIntervals.next(); // todo check for hasNext? bail out or continue?
+        final Duration retryDelay = waitIntervals.next(); // todo check for hasNext? bail out or continue?
         LOGGER.info("Retrying bulk request in {}", retryDelay);
-        MILLISECONDS.sleep(retryDelay.millis());
-        totalRetryDelayMillis += retryDelay.millis();
+        MILLISECONDS.sleep(retryDelay.toMillis());
+        totalRetryDelayMillis += retryDelay.toMillis();
       }
     } finally {
       synchronized (this) {
@@ -422,23 +417,31 @@ public class ElasticsearchWriter implements Closeable {
     bufferBytes = 0;
   }
 
-  private static final Set<RestStatus> fatalStatuses = Collections.unmodifiableSet(
-      EnumSet.of(
-          RestStatus.BAD_REQUEST, // indexing failed due to field mapping issues; not transient
-          RestStatus.NOT_FOUND // index does not exist (auto-creation disabled, or deleting from non-existent index)
-      ));
+  private static boolean isRetryable(BulkResponseItem f) {
+    if (f.error() == null) {
+      throw new IllegalArgumentException("bulk response item didn't fail");
+    }
 
-  private static boolean isRetryable(BulkItemResponse.Failure f) {
-    return !fatalStatuses.contains(f.getStatus());
+    switch (f.status()) {
+      case 400: // (BAD REQUEST) indexing failed due to field mapping issues; not transient
+      case 404: // (NOT_FOUND) index does not exist (auto-creation disabled, or deleting from non-existent index)
+        return false;
+      default:
+        return true;
+    }
     // todo Auth failures are also permanent. Need to see how they're surfaced, and decide how to handle.
   }
 
-  private BulkRequest newBulkRequest(Iterable<EventDocWriteRequest> requests) {
-    final BulkRequest bulkRequest = new BulkRequest();
-    for (EventDocWriteRequest r : requests) {
-      bulkRequest.add(r);
-    }
-    return bulkRequest;
+  private static <T1, T2> List<T2> map(Iterable<T1> source, Function<T1, T2> transform) {
+    return Streams.stream(source)
+        .map(transform)
+        .collect(Collectors.toList());
+  }
+
+  private BulkRequest.Builder newBulkRequest(Iterable<Operation> requests) {
+    List<BulkOperation> bulkOps = map(requests, Operation::toBulkOperation);
+    return new BulkRequest.Builder()
+        .operations(bulkOps);
   }
 
   private static void runQuietly(String description, Runnable r) {
