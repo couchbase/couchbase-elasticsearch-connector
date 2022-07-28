@@ -21,25 +21,31 @@ Windows is completely untested and unsupported.
 
 Elasticsearch version support is informed by https://www.elastic.co/support/eol[Elastic product end of life dates].
 
-[%autowidth,cols="^,5*^"]
+[%autowidth,cols="^,6*^"]
 |===
- |             5+h| Connector
-h| Elasticsearch↓ | 4.1 | 4.2.0 - 4.2.1 | 4.2.2 - 4.2.7 | 4.2.8 - 4.2.15 | 4.3
- | 7.12 - 7.16    | ✖   | ✖             | ✖             | ✖              | ✔
- | 7.8 - 7.11     | ✖   | ✖             | ✖             | ✔              | ✔
- | 7.6 - 7.7      | ✖   | ✖             | ◎             | ◎              | ◎
- | 7.4 - 7.5      | ✖   | ◎             | ◎             | ◎              | ◎
- | 6.8.17         | ✔   | ✔             | ✔             | ✔              | ✔
- | 5.6.16         | ◎   | ◎             | ◎             | ◎              | ✖
+ |             6+h| Connector
+h| Elasticsearch↓ | 4.1 | 4.2.0 - 4.2.1 | 4.2.2 - 4.2.7 | 4.2.8 - 4.2.15 | 4.3 | 4.4
+ | 8.0 - 8.3      | ✖   | ✖             | ✖             | ✖              | ✖   | ✔
+ | 7.14 - 7.17    | ✖   | ✖             | ✖             | ✖              | ✔   | ✔
+ | 7.12 - 7.13    | ✖   | ✖             | ✖             | ✖              | ✔   | ✖
+ | 7.8 - 7.11     | ✖   | ✖             | ✖             | ✔              | ✔   | ✖
+ | 7.6 - 7.7      | ✖   | ✖             | ◎             | ◎              | ◎   | ✖
+ | 7.4 - 7.5      | ✖   | ◎             | ◎             | ◎              | ◎   | ✖
+ | 6.8.17         | ✔   | ✔             | ✔             | ✔              | ✔   | ✖
+ | 5.6.16         | ◎   | ◎             | ◎             | ◎              | ✖   | ✖
 |===
 
 == Amazon OpenSearch Service
 
-Direct connection to Amazon OpenSearch Service instances is supported by connector versions 4.2 and later.
+Direct connection to Amazon OpenSearch Service instances is supported by connector versions 4.2 and 4.3.
+
+WARNING: Version 4.4 of the Couchbase Elasticsearch Connector is not compatible with Amazon OpenSearch.
+We are investigating restoring compatibility in a future version.
 
 == Couchbase Capella
 
 Connector versions 4.2.4 and later are compatible with Couchbase Capella.
+You will need to enable xref:secure-connections.adoc[Secure Connections] in the `[couchbase]` config section.
 
 == Couchbase Server
 
@@ -48,8 +54,8 @@ The connector is compatible with Couchbase Server Enterprise Edition and Couchba
 [%autowidth,cols="^,3*^"]
 |===
  |                   3+h| Connector
-h| Couchbase↓           | 4.1.0 - 4.2.1 | 4.2.2 - 4.3.0 | 4.3.1+
- | 7.0.2+               | ◎ *           | ✖             | ✔
+h| Couchbase↓           | 4.1.0 - 4.2.1 | 4.2.2 - 4.3.0 | 4.3.1 and later
+ | 7.0.2 and later      | ◎ *           | ✖             | ✔
  | 7.0.0 - 7.0.1        | ◎ *           | ✔             | ✔
  | 6.x                  | ✔             | ✔             | ✔
  | 5.x                  | ✔             | ◎             | ◎
@@ -63,7 +69,7 @@ To take advantage of the Scopes and Collections introduced in Couchbase 7, pleas
 [%autowidth,cols="^,2*^"]
 |===
  |                 2+h| Connector
-h| Java↓            | 4.1 - 4.2 | 4.3
+h| Java↓            | 4.1 - 4.2 | 4.3 - 4.4
  | AdoptOpenJDK 11  | ✔         | ✔
  | AdoptOpenJDK 8   | ✔         | ✖
  | Oracle JDK 8     | ✔         | ✖
@@ -77,7 +83,7 @@ Only required for Autonomous Operations mode.
 [%autowidth,cols="^,2*^"]
 |===
  |         2+h| Connector
-h| Consul↓    | 4.1 - 4.2.6  | 4.2.7+
+h| Consul↓    | 4.1 - 4.2.6  | 4.2.7 and later
  | 1.5.3      | ✔            | ✔
  | 1.9.1      | ✖            | ✔
 |===

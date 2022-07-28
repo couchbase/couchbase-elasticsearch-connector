@@ -4,7 +4,7 @@
 Configure the connector to encrypt data in transit.
 
 By default, the connector talks to Couchbase and Elasticsearch over unencrypted socket connections.
-If encryption is required, you can configure the connector to use TLS/SSL.
+If encryption is required, you can configure the connector to use TLS.
 
 == Overview
 
@@ -12,52 +12,46 @@ Couchbase Server and Elasticsearch both use a root certificate to generate a cer
 
 This guide shows how to obtain the root certificates, and how to tell the connector it should trust these certificates when establishing secure connections.
 
-== Pre-requisites
+== Before You Start
 
-During the setup process you'll need access to the Java `keytool` command.
-This command is included in standard Java distributions under `$JAVA_HOME/bin`.
+You will need:
 
-Couchbase Server *Enterprise Edition* is required in order to connect to Couchbase over an encrypted connection.
-Enterprise Edition may be downloaded and evaluated for free.
-During the download process, see the license agreement for details about commercial use.
+* Couchbase Server *Enterprise Edition* if you're connecting securely to a self-hosted Couchbase Server cluster.
+You can download and evaluate Enterprise Edition for free.
 
-Similarly, versions of Elasticsearch prior to 6.8 and 7.1 require an additional license in order to support secure connections.
-A trial license can be activated by modifying a configuration setting, as explained in the Elasticsearch documentation linked below.
+* The Certificate Authority (CA) certificates used by your Couchbase Server and/or Elasticsearch clusters.
 
+TIP: The Couchbase Capella CA certificate is included in the connector.
 
 [#get-couchbase-cert]
 == Get the Couchbase CA Certificate
 
 The steps for getting the Couchbase certificate are different depending on whether you are hosting your own Couchbase Server cluster or using xref:cloud:ROOT:index.adoc[Couchbase Capella].
 
-[#get-couchbase-cert-server]
-=== Couchbase Server (Self-hosted)
-[abstract]
-How to get the certificate for a Couchbase Server cluster you have deployed yourself.
+[{tabs}]
+====
+Couchbase Capella::
++
+--
+TIP: The Capella CA certificate is included in the connector, and the connector trusts it by default unless you specify another trust source.
+If you're connecting to a Capella cluster, all you have to do is enable TLS by setting the `secureConnection` property in the `[couchbse]` config section to `true`.
+You can skip the rest of this section, or continue reading to learn how to trust a Capella CA certificate other than the one included in the connector.
 
-Open the Couchbase Admin Console web UI and click on *Security* in the navigation sidebar.
-Then click *Root Certificate* in the sub-section navigation bar along the top of the page.
+Log into the Capella admin website and navigate to your cluster.
+Click on the "Connect" tab and scroll down to "Security Certificates."
+Download the "Root Certificate."
+--
+Couchbase Server::
++
+--
+Log into the admin console and navigate to menu:Security[Certificates].
+Copy the "Trusted Root Certificates" (there might be only one).
+Create a new text file called `couchbase-ca.pem` and paste the certificates into this file.
 
-NOTE: You might see a warning that Couchbase is using a self-signed certificate.
-That's fine.
-This certificate will be added to the connector's trust store, so it will be trusted regardless of who signed it.
-
-Copy the certificate into a plain text file.
-The filename does not matter, but let's call it `couchbase.pem`.
-
-To use a different root certificate, you can follow instructions on the xref:server:manage:manage-security/configure-server-certificates.adoc[Configure Server Certificates] page.
-
-[#get-couchbase-cert-cloud]
-=== Couchbase Capella
-
-[abstract]
-How to get the certificate for a Couchbase Capella cluster.
-
-Once you have created a Cluster in Couchbase Capella, navigate to the `Connect` tab and download the security certificate.
-
-image::cloud-ui.png[Cloud UI]
-
-Rename the downloaded file to `couchbase.pem`. (The name doesn't really matter, but the rest of this guide refers to the Couchbase certificate file by that name.)
+TIP: Unless you're working in a local development environment, it's important to transfer the CA certificate using a secure channel, so you know you're getting the correct certificate.
+If you are unable to access the admin console securely over HTTPS, copy the CA certificate from a server node using SSH or some other secure mechanism.
+--
+====
 
 [#get-elasticsearch-cert]
 == Get the Elasticsearch CA Certificate
@@ -66,54 +60,28 @@ Elasticsearch must first be configured to require TLS/SSL.
 Please refer to the Elasticsearch documentation, specifically https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html[Encrypting communications in Elasticsearch].
 Make sure you also follow the steps for https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html#tls-http[Encrypting HTTP Client Communications].
 
-CAUTION: Enabling X-Pack on versions of Elasticsearch prior to 6.8 and 7.1 starts a trial period.
-When the trial period expires, functionality is degraded unless a license is purchased from Elastic.
-See https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-security.html[Configuring security in Elasticsearch] for details.
-
-As you follow the instructions in the Elasticsearch documentation, you'll generate a CA certificate for your Elasticsearch cluster (or you might decide to use a well-known public CA, or an internal CA managed by your organization).
-This CA certificate is the one you'll add to the connector's trust store in the next step.
+As you follow the instructions in the Elasticsearch documentation, you'll generate a CA certificate for your Elasticsearch cluster.
+(Alternatively, you might decide to use a well-known public CA, or an internal CA managed by your organization).
+This CA certificate is the one you'll configure the connector to use in the next step.
 
 Verify Elasticsearch requires secure connections by opening `https://localhost:9200` in your web browser.
 (You might get a warning about an untrusted or self-signed certificate).
-You should be prompted for your Elasticsearch credentials, which default to username `elastic` with password `changeme`.
-
-[#aws-cert]
-=== Amazon OpenSearch Service
-
-The certificates generated by the Amazon OpenSearch Service are signed by a well-known certificate authority.
-When connecting to an instance of the Amazon OpenSearch Service, you may use the default trust store included with the Java runtime (assuming your Java installation is up-to-date).
-This trust store file is usually named `cacerts` and lives somewhere under `$JAVA_HOME`.
-
-Alternatively, the Amazon CA certificate may be downloaded from https://www.amazontrust.com/repository/[Amazon Trust Services].
-
-[#trust-store]
-== Add Certificates to the Trust Store
-
-The connector's trust store is a Java keystore file or PKCS12 bundle containing the certificates the connector should trust.
-We'll use the Java `keytool` command to create a keystore and populate it with the root certificates for Couchbase and/or Elasticsearch.
-
-To add the Couchbase root certificate:
-
-    keytool -importcert -keystore truststore.jks -file couchbase.pem
-
-If the keystore file `truststore.jks` does not yet exist, you will be prompted to choose a password for the new keystore.
-Otherwise, you will be prompted for the password of the existing keystore.
-
-You will then be presented with a summary of the information in the certificate, and asked if you want to trust the certificate.
-If the information is correct, enter `y` to confirm.
-
-Run the `keytool` command again, replacing `couchbase.pem` with the path to the Elasticsearch root certificate.
+If Elasticsearch is configured correctly, you should be prompted for your Elasticsearch credentials.
 
 == Configure the Connector
 
-You're almost done. Now that you have a keystore file containing the CA certificates used by Couchbase and Elasticsearch, you need to tell the connector where to find it.
+In this final step, you'll tell the connector where to locate the files containing the CA certificates for Couchbase and/or Elasticsearch.
 
-Edit your connector configuration file and search for the `[truststore]` section. Change the associated `path` property to match the path to the keystore file.
+Search for the `[couchbase]` section and set the `secureConnection` property to `true`.
+Then set the `pathToCaCertificate` property to the path of the file containing the Couchbase CA certificate.
 
-TIP: A relative path will be resolved using the connector installation directory as the base.
-This means you can put the `truststore.jks` file into the connector installation's `config` subdirectory, and set the `path` property to `'config/truststore.jks'`.
+A relative path is resolved using the connector installation directory as the base.
+This means you can put the `couchbase-ca.pem` file into the connector installation's `config` subdirectory, and set the `[couchbase]` config section's `pathToCaCertificate` property to `'config/couchbase-ca.pem'`.
 
-Next, search for the `[couchbase]` section and set the `secureConnection` property to `true`.
-Do the same thing in the `[elasticsearch]` section.
+TIP: If you're connecting to Couchbase Capella, leave the `pathToCaCertificate` property blank to trust the Capella CA certificate bundled with the connector.
 
-Finally, in your connector installation directory, edit the file `secrets/truststore-password.toml` and update it with the password you chose.
+Now search for the `[elasticsearch]` section and do the same thing, only this time set the `pathToCaCertificate` property to the path of the file containing the Elasticsearch CA certificate.
+
+NOTE: Previous versions of the connector required the certificates to be in a Java keystore file.
+This is no longer required.
+The `[truststore]` config section is deprecated, and will be removed in a future version of the connector.

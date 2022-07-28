@@ -96,9 +96,10 @@ The location and retention policy can be changed by editing `$CBES_HOME/config/l
 [#truststore]
 == Trust Store for Secure Connections
 
-This is where you tell the connector which certificates to trust when establishing TLS/SSL connections.
-For more details, see xref:secure-connections.adoc[Setting Up Secure Connections].
-If you decide not to enable secure connections, you can ignore this section.
+Here you can specify the location of a Java keystore containing the CA certificates for the Couchbase and/or Elasticsearch clusters.
+
+CAUTION: This config section is DEPRECATED and will be removed in a future version of the connector.
+Please use the `pathToCaCertificate` properties in the `[couchbase]` and/or `[elasticsearch]` sections instead.
 
 [source,toml]
 ----
@@ -140,7 +141,7 @@ Here's where the Couchbase connection parameters and credentials are specified.
 [source,toml]
 ----
 [couchbase]
-  hosts = ['localhost'] <1>
+  hosts = ['127.0.0.1'] <1>
   network = 'auto' <2>
   bucket = 'travel-sample' <3>
   metadataBucket = '' <4>
@@ -148,9 +149,10 @@ Here's where the Couchbase connection parameters and credentials are specified.
   username = 'Administrator' <6>
   pathToPassword = 'secrets/couchbase-password.toml' <7>
   secureConnection = false <8>
-  hostnameVerification = true <9>
-  scope = '' <10>
-  collections = ['myScope.widgets','myScope.invoices'] <11>
+  pathToCaCertificate = '' <9>
+  hostnameVerification = true <10>
+  scope = '' <11>
+  collections = ['myScope.widgets','myScope.invoices'] <12>
 ----
 <1> A list of bootstrap nodes for the Couchbase cluster.
 Multiple nodes can be specified like `['host1','host2']`.
@@ -168,12 +170,15 @@ This collection must already exist; it will not be created by the connector.
 Empty string means store metadata in the default collection: `_default._default`.
 <6> At a minimum, the Couchbase user must have the "Data DCP Reader" role for the source bucket, and "Data Reader" & "Data Writer" roles for the metadata bucket.
 <7> Path to a separate TOML file with a single 'password' key.
-<8> If you have configured the <<truststore,Trust Store>> section, set this to `true` to encrypt the Couchbase connections.
-<9> Set this to `false` if you are using a secure connection to Couchbase but for whatever reason need to disable TLS hostname verification.
+<8> To encrypt the Couchbase connections, set `secureConnection` to `true` and also configure the `pathToCaCertificate` property.
+<9> Path to a separate file containing the trusted Couchbase CA certificate(s) in PEM format.
+For more details, see xref:secure-connections.adoc[Setting Up Secure Connections].
+If you decide not to enable secure connections, you can ignore this property.
+<10> Set this to `false` if you are using a secure connection to Couchbase but for whatever reason need to disable TLS hostname verification.
 Note that disabling hostname verification will cause the TLS connection to not verify that the hostname/ip is actually associated with the certificate and as a result not detect certain kinds of attacks.
 Only disable if you understand the impact and can accept the risks.
-<10> If you want to replicate from only one scope, name it here.
-<11> If you want to replicate from a subset of collections within a scope, or collections in different scopes, name the collections here.
+<11> If you want to replicate from only one scope, name it here.
+<12> If you want to replicate from a subset of collections within a scope, or collections in different scopes, name the collections here.
 Qualify each collection name with its parent scope, like `'scope.collection'`.
 
 NOTE: The `scope` and `collections` properties are mutually exclusive.
@@ -240,10 +245,11 @@ This is the amount of memory required for the flow control buffer (not counting 
 [source,toml]
 ----
 [elasticsearch]
-  hosts = ['localhost'] <1>
+  hosts = ['127.0.0.1'] <1>
   username = 'elastic' <2>
   pathToPassword = 'secrets/elasticsearch-password.toml' <3>
   secureConnection = false <4>
+  pathToCaCertificate = '' <5>
 ----
 
 <1> A list of bootstrap nodes for the Elasticsearch cluster.
@@ -252,22 +258,10 @@ Specify a custom port like `['host:19002']`.
 <2> Elasticsearch user to authenticate as.
 Username and password are only required if Elasticsearch is set up to require authentication.
 <3> Path to a separate TOML file with a single 'password' key.
-<4> If your Elasticsearch cluster requires secure connections, configure the <<truststore,Trust Store>> section and then set this to `true` to encrypt the Elasticsearch connections.
-
-=== Amazon OpenSearch Service
-
-If connecting directly to an instance of the Amazon OpenSearch Service, all Elasticsearch requests must be signed with AWS credentials.
-Specifying the AWS region of the service tells the connector to sign the requests.
-Credentials are obtained from the https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html[Default Credential Provider Chain].
-
-[source,toml]
-----
-[elasticsearch.aws]
-  region = 'us-east-2' <1>
-----
-
-<1> Activates request signing for the specified AWS region.
-Leave this blank unless you're connecting directly to an instance of the Amazon OpenSearch Service.
+<4> If your Elasticsearch cluster requires secure connections, set `secureConnection` to `true` and also configure the `pathToCaCertificate` property.
+<5> Path to a separate file containing the trusted Elasticsearch CA certificate(s) in PEM format.
+For more details, see xref:secure-connections.adoc[Setting Up Secure Connections].
+If you decide not to enable secure connections, you can ignore this property.
 
 === Bulk Request Limits
 
@@ -343,19 +337,17 @@ The default values can be overridden by specific type definitions, which we'll l
 [elasticsearch.typeDefaults]
   index = '' <1>
   pipeline = '' <2>
-  typeName = '_doc' <3>
-  ignore = false <4>
-  ignoreDeletes = false <5>
-  matchOnQualifiedKey = false <6>
+  ignore = false <3>
+  ignoreDeletes = false <4>
+  matchOnQualifiedKey = false <5>
 ----
 <1> Write matching documents to this index.
 Empty string (`''`) means "no default".
 <2> Send matching documents though this pipeline.
 Empty string (`''`) means "no pipeline".
-<3> Assign this Elasticsearch type to matching documents.
-<4> If `true`, ignore matching documents entirely.
-<5> If `true`, never delete matching documents from Elasticsearch.
-<6> If `true`, the `prefix` and `regex` properties described in the next section match against the qualified document ID, which includes the document's scope and collection.
+<3> If `true`, ignore matching documents entirely.
+<4> If `true`, never delete matching documents from Elasticsearch.
+<5> If `true`, the `prefix` and `regex` properties described in the next section match against the qualified document ID, which includes the document's scope and collection.
 Otherwise, they match against just the document ID.
 For example, "scope.collection.documentId" versus just "documentId".
 
@@ -513,10 +505,8 @@ Related configuration properties:
 ----
 [elasticsearch.rejectionLog]
   index = 'cbes-rejects' <1>
-  typeName = '_doc' <2>
 ----
 <1> Rejection log entries are written to this index.
-<2> This Elasticsearch type will be assigned to the documents.
 
 TIP: If you're running multiple connector groups, you may wish to use a separate rejection log index for each group.
 

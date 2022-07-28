@@ -8,6 +8,45 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.4.0]]
+== Version 4.4.0 (2022-08-01)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.4.0/couchbase-elasticsearch-connector-4.4.0.zip[Download]
+
+The connector now supports Elasticsearch 8, and it's easier to configure the trusted Certificate Authority (CA) certificates.
+
+=== Breaking Changes
+
+* The minimum required version of Elasticsearch is now `7.14.0`.
+
+* Amazon OpenSearch is not supported.
+If you're using a previous version of the connector with OpenSearch, please remain on that version for now.
+We're investigating restoring support in a future version.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-254[CBES-254]:
+Added support for Elasticsearch 8.
+
+* https://issues.couchbase.com/browse/CBES-258[CBES-258]:
+When using secure connections, the connector can now read the Couchbase and Elasticsearch CA certificates from separate PEM files instead of a single Java keystore.
+The `[couchbase]` and `[elasticsearch]` config sections each have a new `pathToCaCertificate` property that points to the respective PEM file.
+
+* https://issues.couchbase.com/browse/CBES-257[CBES-257]:
+When connecting to Couchbase Capella, it's no longer necessary to configure the CA certificate.
+Just make sure not to configure the deprecated `[truststore]` config section, and make sure to leave the `pathToCaCertificate` property in the `[couchbase]` config section blank.
+
+* https://issues.couchbase.com/browse/CBES-259[CBES-259]:
+Upgraded Couchbase Java SDK from `3.3.1` to `3.3.2`.
+
+=== Deprecations
+
+* The `[truststore]` config section is deprecated, and will be removed in a future version.
+Instead, please use the new `pathToCaCertificate` config properties added by https://issues.couchbase.com/browse/CBES-258[CBES-258].
+
+* The `typeName` property in the `[elasticsearch.typeDefaults]`, `\[[elasticsearch.type]]`, and `[elasticsearch.rejectionLog]` config sections is deprecated, and will be removed in a future version.
+Specifying this property has no effect, since the concept of document types was removed in Elasticsearch 7.
+
 [[v4.3.8]]
 == Version 4.3.8 (2022-06-21)
 
