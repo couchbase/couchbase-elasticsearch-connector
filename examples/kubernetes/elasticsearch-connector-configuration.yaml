@@ -48,14 +48,6 @@ data:
       httpPort = 31415 # Positive = fixed, 0 = ephemeral, -1 = disable HTTP server
       logInterval = '5m' # Set to '0m' to disable metrics logging
 
-    # Required if secure connections are enabled (SSL/TLS).
-    [truststore]
-      # Use the Java keytool command to create this file and import the root
-      # certificate from the Security section of the Couchbase admin console
-      # and/or the CA certificate used by Elasticsearch.
-      path = 'path/to/truststore'
-      pathToPassword = 'secrets/truststore-password.toml'
-
     [couchbase]
       hosts = ['couchbase-couchbase-cluster']
       network = 'auto'
@@ -81,9 +73,14 @@ data:
       pathToPassword = 'secrets/couchbase-password.toml'
 
       # Optionally use SSL/TLS to encrypt the connection between Couchbase and
-      # the connector. Requires Couchbase Enterprise Edition, and requires the
-      # [truststore] section to be configured.
+      # the connector. Requires Couchbase Enterprise Edition, and requires
+      # configuring `pathToCaCertificate`.
       secureConnection = false
+
+      # Path to a file containing the Couchbase cluster's Certificate Authority (CA)
+      # certificate(s) in PEM format. If connecting to Couchbase Capella, you can
+      # leave this blank to trust the connector's bundled Capella CA certificate.
+      pathToCaCertificate = ''
 
       # Set this to `false` to disable TLS hostname verification for Couchbase
       # connections. Less secure, but might be required if for some reason you
@@ -148,9 +145,13 @@ data:
       pathToPassword = 'secrets/elasticsearch-password.toml'
 
       # Optionally use SSL/TLS to encrypt the connection between Elasticsearch and
-      # the connector. Requires the [truststore] section to be configured. See also:
-      # https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html
+      # the connector. If true, you must also configure `pathToCaCertificate`.
+      # See also: https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html
       secureConnection = false
+
+      # Path to a file containing the Elasticsearch cluster's Certificate Authority (CA)
+      # certificate(s) in PEM format.
+      pathToCaCertificate = ''
 
     # When secure connections are enabled, you can optionally authenticate
     # using a client certificate instead of username & password.
