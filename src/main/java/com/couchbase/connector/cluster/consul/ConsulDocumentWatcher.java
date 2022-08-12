@@ -16,53 +16,34 @@
 
 package com.couchbase.connector.cluster.consul;
 
-import com.google.common.primitives.Longs;
-import com.orbitz.consul.Consul;
-import com.orbitz.consul.async.ConsulResponseCallback;
-import com.orbitz.consul.model.ConsulResponse;
-import com.orbitz.consul.model.kv.Value;
-import com.orbitz.consul.option.ImmutableQueryOptions;
-import com.orbitz.consul.option.QueryOptions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.couchbase.consul.ConsulOps;
+import com.couchbase.consul.KvReadResult;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 
-import java.math.BigInteger;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static com.couchbase.connector.cluster.consul.ReactorHelper.await;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.MINUTES;
 
 public class ConsulDocumentWatcher {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ConsulDocumentWatcher.class);
+  private final ConsulOps consul;
+  private final ConsulResourceWatcher resourceWatcher;
 
-  // Build a new Consul client for each watch so the watch can be cancelled by destroying the client.
-  // See https://github.com/rickfast/consul-client/issues/307
-  private final Consul.Builder consulBuilder;
-
-  private final String pollingIntervalString;
-
-  public ConsulDocumentWatcher(Consul.Builder consulBuilder) {
-    this(consulBuilder, Duration.ofMinutes(5));
+  public ConsulDocumentWatcher(ConsulOps consul) {
+    this(consul, Duration.ofMinutes(5));
   }
 
-  private ConsulDocumentWatcher(Consul.Builder consulBuilder, Duration pollingInterval) {
-    this.consulBuilder = requireNonNull(consulBuilder);
-    final long requestedPollingIntervalSeconds = MILLISECONDS.toSeconds(pollingInterval.toMillis());
-    this.pollingIntervalString = Longs.constrainToRange(requestedPollingIntervalSeconds, 1, MINUTES.toSeconds(5)) + "s";
+  private ConsulDocumentWatcher(ConsulOps consul, Duration pollingInterval) {
+    this.consul = requireNonNull(consul);
+    this.resourceWatcher = new ConsulResourceWatcher().withPollingInterval(pollingInterval);
   }
 
   public ConsulDocumentWatcher withPollingInterval(Duration pollingInterval) {
-    return new ConsulDocumentWatcher(this.consulBuilder, pollingInterval);
+    return new ConsulDocumentWatcher(this.consul, pollingInterval);
   }
 
   public Optional<String> awaitCondition(String key, Predicate<Optional<String>> valueCondition) throws InterruptedException {
@@ -86,7 +67,7 @@ public class ConsulDocumentWatcher {
    * @throws InterruptedException if the current thread is interrupted while waiting for document state to change.
    */
   public void awaitAbsence(String key) throws InterruptedException {
-    awaitCondition(key, doc -> !doc.isPresent());
+    awaitCondition(key, Optional::isEmpty);
   }
 
   public Optional<String> awaitValueChange(String key, String valueBeforeChange) throws InterruptedException {
@@ -94,95 +75,9 @@ public class ConsulDocumentWatcher {
   }
 
   public Flux<Optional<String>> watch(String key) {
-    return watch(key, consulResponse -> consulResponse.getResponse()
-        .map(documentBody -> documentBody.getValueAsString(UTF_8).orElse("")));
-  }
-
-  /**
-   * Returns a flux whose values are published on one of the async I/O threads owned by the Consul library.
-   */
-  private <T> Flux<T> watch(String key, Function<ConsulResponse<Optional<Value>>, T> resultExtractor) {
     requireNonNull(key);
-    requireNonNull(resultExtractor);
-
-    return Flux.create(emitter -> {
-      // Build a new instance we can safely terminate to cancel outstanding requests when flux is disposed.
-      final Consul consul = consulBuilder.build();
-
-      final AtomicBoolean done = new AtomicBoolean();
-      final Object cancellationLock = new Object();
-
-      emitter.onDispose(() -> {
-        synchronized (cancellationLock) {
-          LOGGER.debug("Cancelling watch for key {}", key);
-          done.set(true); // advisory flag to prevent starting a new request
-          consul.destroy(); // terminate an in-flight request (but doesn't prevent new ones, oddly!)
-        }
-      });
-
-      try {
-        watchOnce(emitter, consul, key, resultExtractor, BigInteger.ZERO, done, cancellationLock);
-      } catch (Throwable t) {
-        emitter.error(t);
-      }
-
-    }, FluxSink.OverflowStrategy.LATEST);
-  }
-
-  private <T> void watchOnce(FluxSink<T> emitter,
-                             Consul consul,
-                             String key,
-                             Function<ConsulResponse<Optional<Value>>, T> resultExtractor,
-                             BigInteger index,
-                             AtomicBoolean done,
-                             Object cancellationLock) {
-    final QueryOptions options = ImmutableQueryOptions.builder()
-        .index(index)
-        .wait(pollingIntervalString)
-        .build();
-
-    LOGGER.debug("Watching for changes to {} with options {}", key, options);
-
-    consul.keyValueClient().getValue(key, options,
-        new ConsulResponseCallback<Optional<Value>>() {
-          @Override
-          public void onComplete(ConsulResponse<Optional<Value>> consulResponse) {
-            try {
-              final boolean waitTimedOut = consulResponse.getIndex().equals(index);
-              if (!waitTimedOut) {
-                emitter.next(resultExtractor.apply(consulResponse));
-              }
-
-              synchronized (cancellationLock) {
-                if (done.get()) {
-                  // Flux was cancelled in the brief time when there's no in-flight Consul request.
-                  return;
-                }
-
-                watchOnce(emitter, consul, key, resultExtractor, consulResponse.getIndex(), done, cancellationLock);
-              }
-
-            } catch (Throwable t) {
-              LOGGER.error("Failure in key watcher callback onComplete", t);
-              handleError(t);
-            }
-          }
-
-          @Override
-          public void onFailure(Throwable t) {
-            if (!done.get()) {
-              handleError(t);
-            }
-          }
-
-          private void handleError(Throwable t) {
-            try {
-              emitter.error(t);
-            } finally {
-              consul.destroy();
-            }
-          }
-        }
-    );
+    return resourceWatcher.watch(opts -> consul.kv().readOneKey(key, opts))
+        .map(it -> it.body().map(KvReadResult::valueAsString))
+        .distinctUntilChanged();
   }
 }

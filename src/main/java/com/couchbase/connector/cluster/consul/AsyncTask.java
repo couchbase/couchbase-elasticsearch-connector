@@ -22,13 +22,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import static com.google.common.util.concurrent.Uninterruptibles.joinUninterruptibly;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * Helper for running interruptible tasks in a separate thread.
@@ -69,7 +70,7 @@ public class AsyncTask implements Closeable {
       } catch (Throwable t) {
         connectorException.set(t);
         if (t instanceof InterruptedException) {
-          LOGGER.debug("Connector task interrupted", t);
+          LOGGER.debug("Connector task interrupted");
         } else {
           LOGGER.error("Connector task exited early due to failure", t);
           fatalErrorListener.accept(t);
@@ -91,10 +92,13 @@ public class AsyncTask implements Closeable {
 
   public void stop() throws Throwable {
     thread.interrupt();
-    thread.join(SECONDS.toMillis(30));
+
+    Duration timeout = Duration.ofSeconds(30);
+    joinUninterruptibly(thread, timeout);
     if (thread.isAlive()) {
-      throw new TimeoutException("Connector didn't exit in allotted time");
+      throw new TimeoutException("Connector didn't exit within " + timeout);
     }
+
     Throwable t = connectorException.get();
     if (t == null) {
       throw new IllegalStateException("Connector didn't exit by throwing exception");

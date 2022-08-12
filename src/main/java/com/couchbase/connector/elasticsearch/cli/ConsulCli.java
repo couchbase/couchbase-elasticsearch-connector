@@ -19,15 +19,13 @@ package com.couchbase.connector.elasticsearch.cli;
 import com.couchbase.connector.VersionHelper;
 import com.couchbase.connector.cluster.consul.ConsulConnector;
 import com.couchbase.connector.cluster.consul.ConsulContext;
-import com.couchbase.connector.cluster.consul.ConsulClientWorkaround;
 import com.couchbase.connector.cluster.consul.DocumentKeys;
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.common.ConsulConfig;
+import com.couchbase.connector.config.common.ImmutableConsulConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
-import com.google.common.base.Strings;
 import com.google.common.io.Files;
 import com.google.common.net.HostAndPort;
-import com.orbitz.consul.Consul;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.IVersionProvider;
@@ -35,11 +33,16 @@ import picocli.CommandLine.Option;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 
+import static com.couchbase.client.core.util.CbThrowables.hasCause;
+import static com.couchbase.connector.cluster.consul.ReactorHelper.blockSingle;
+import static com.couchbase.connector.elasticsearch.cli.ConsulCli.runWithNiceConnectionFailureMessage;
 import static com.couchbase.connector.elasticsearch.cli.ConsulCli.validateGroup;
 import static com.google.common.base.Throwables.throwIfUnchecked;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -75,23 +78,38 @@ public class ConsulCli implements IVersionProvider {
     }
   }
 
-  public static void validateGroup(ConsulContext ctx) {
-    final Collection<String> configuredGroups = ctx.keys().configuredGroups();
-
-    if (!configuredGroups.contains(ctx.serviceName())) {
-      System.err.println("ERROR: There is no configured group called '" + ctx.serviceName() + "'.");
-      System.err.println("Configure the group first using the 'configure' command, or target an existing configured group:");
-      if (configuredGroups.isEmpty()) {
-        System.err.println("  (there are no existing groups)");
-      } else {
-        configuredGroups.forEach(groupName -> System.err.println("  " + groupName));
+  static void runWithNiceConnectionFailureMessage(ConsulContext ctx, Runnable r) {
+    try {
+      r.run();
+    } catch (Throwable t) {
+      if (hasCause(t, ConnectException.class) ||
+          hasCause(t, UnknownHostException.class)) {
+        System.err.println("ERROR: Failed to connect to Consul at " + ctx.consulAddress() + " ; " + t);
+        System.exit(1);
       }
-      System.exit(1);
+      throw t;
     }
   }
 
+  public static void validateGroup(ConsulContext ctx) {
+    runWithNiceConnectionFailureMessage(ctx, () -> {
+      final Collection<String> configuredGroups = ctx.keys().configuredGroups();
+
+      if (!configuredGroups.contains(ctx.serviceName())) {
+        System.err.println("ERROR: There is no configured group called '" + ctx.serviceName() + "'.");
+        System.err.println("Configure the group first using the 'configure' command, or target an existing configured group:");
+        if (configuredGroups.isEmpty()) {
+          System.err.println("  (there are no existing groups)");
+        } else {
+          configuredGroups.forEach(groupName -> System.err.println("  " + groupName));
+        }
+        System.exit(1);
+      }
+    });
+  }
+
   @Override
-  public String[] getVersion() throws Exception {
+  public String[] getVersion() {
     return new String[]{
         "Couchbase Elasticsearch Connector " + VersionHelper.getVersionString(),
         "Java " + System.getProperty("java.version") + " " + System.getProperty("java.vendor") + " " + System.getProperty("java.vm.name") + " " + System.getProperty("java.vm.version"),
@@ -100,8 +118,6 @@ public class ConsulCli implements IVersionProvider {
   }
 
   public static void main(String[] args) {
-    ConsulClientWorkaround.apply();
-
     CommandLine cmd = new CommandLine(new ConsulCli());
 
     //cmd.getHelpSectionMap().put(SECTION_KEY_COMMAND_LIST, new MyCommandListRenderer());
@@ -152,8 +168,10 @@ public class ConsulCli implements IVersionProvider {
 //class CheckpointCommand {
 //}
 
-@Command(name = "run",
-    description = "Run a connector worker process.")
+@Command(
+    name = "run",
+    description = "Run a connector worker process."
+)
 class RunCommand extends ConsulCommand implements Runnable {
 
   @Option(names = {"-g", "--group"}, required = true,
@@ -166,53 +184,41 @@ class RunCommand extends ConsulCommand implements Runnable {
 
   @Override
   public void run() {
-    try {
-      ConsulContext ctx = new ConsulContext(consulBuilder(), group, serviceId);
+    try (ConsulContext ctx = new ConsulContext(consulAddress(), consulConfig(), group, serviceId)) {
       validateGroup(ctx);
       ConsulConnector.run(ctx);
-    } catch (Exception e) {
-      throwIfUnchecked(e);
-      throw new RuntimeException(e);
+    } catch (Throwable t) {
+      t.printStackTrace();
     }
+    System.exit(1);
   }
 }
 
-@Command(name = "checkpoint-clear",
-    description = "Clears the replication checkpoint for the specified group, causing the connector to replicate from the beginning.")
+@Command(
+    name = "checkpoint-clear",
+    description = "Clears the replication checkpoint for the specified group, causing the connector to replicate from the beginning."
+)
 class CheckpointClearCommand extends ConsulCommand implements Runnable {
 
   @Option(names = {"-g", "--group"}, required = true,
       description = "The name of the connector group to operate on.")
   private String group;
 
-//  @CommandLine.Parameters(index = "0", description = "The name of the connector group to operate on.")
-//  private String group;
-
   @Override
   public void run() {
-    final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
-    validateGroup(ctx);
+    try (ConsulContext ctx = new ConsulContext(consulAddress(), consulConfig(), group, null)) {
+      validateGroup(ctx);
 
-    final Consul consul = ctx.consul();
-    final DocumentKeys documentKeys = ctx.keys();
-    final String configKey = documentKeys.config();
+      final ConnectorConfig config = ctx.readConfigOrExit(ConnectorConfig::from);
 
-    final String configString = consul.keyValueClient().getValueAsString(configKey, UTF_8).orElse(null);
-    if (Strings.isNullOrEmpty(configString)) {
-      System.err.println("ERROR: Failed to clear checkpoint. Connector configuration document does not exist, or is empty.");
-      System.exit(1);
-    }
-
-    final ConnectorConfig config = ConnectorConfig.from(configString);
-    try {
       System.out.println("Pausing connector prior to clearing checkpoints...");
-      final boolean wasPausedAlready = documentKeys.pause();
+      final boolean wasPausedAlready = ctx.pause();
 
       System.out.println("Clearing checkpoints...");
       CheckpointClear.clear(config);
       if (!wasPausedAlready) {
         System.out.println("Resuming connector...");
-        documentKeys.resume();
+        ctx.resume();
       }
 
       System.out.println("Checkpoint cleared.");
@@ -225,64 +231,66 @@ class CheckpointClearCommand extends ConsulCommand implements Runnable {
 }
 
 abstract class ConsulCommand {
-  @Option(names = {"-a", "--consul-agent"}, paramLabel = "host[:port]",
-      description = "The hostname and port of the Consul agent to connect to. Defaults to localhost:8500")
+  @Option(
+      names = {"-a", "--consul-agent"},
+      paramLabel = "host[:port]",
+      description = "The hostname and port of the Consul agent to connect to. Defaults to localhost:8500"
+  )
   protected String consulAgentAddress = "localhost:8500";
 
-  @Option(names = {"-c", "--consul-config"}, paramLabel = "<consul.toml>",
-      description = "File with optional Consul configuration options.")
+  @Option(
+      names = {"-c", "--consul-config"},
+      paramLabel = "<consul.toml>",
+      description = "File with optional Consul configuration options."
+  )
   protected File consulConfig;
 
-  protected Consul.Builder consulBuilder() {
+  protected HostAndPort consulAddress() {
+    return HostAndPort.fromString(consulAgentAddress);
+  }
+
+  protected ConsulConfig consulConfig() {
+    if (consulConfig == null) {
+      System.out.println("Consul config file not specified; using default Consul settings.");
+      return ImmutableConsulConfig.builder().build();
+    }
+
     try {
-      if (consulConfig == null) {
-        System.out.println("Consul config file not specified; will not override Consul agent ACL token.");
-      }
-
-      final ConsulConfig config = consulConfig == null ? null : ConsulConfig.from(consulConfig);
-      Consul.Builder builder = Consul.builder().withHostAndPort(HostAndPort.fromString(consulAgentAddress));
-      if (config != null && !config.aclToken().isEmpty()) {
-        System.out.println("Using Consul ACL token from " + consulConfig);
-        builder.withAclToken(config.aclToken());
-      }
-
-      return builder;
-
+      return ConsulConfig.from(consulConfig);
     } catch (IOException e) {
       throw new ConfigException(e.getMessage());
     }
   }
 }
 
-@Command(name = "checkpoint-catch-up",
-    description = "Set the checkpoint to the current state of the Couchbase bucket.")
+@Command(
+    name = "checkpoint-catch-up",
+    description = "Set the checkpoint to the current state of the Couchbase bucket."
+)
 class CheckpointCatchUpCommand extends ConsulCommand implements Runnable {
 
-  @Option(names = {"-g", "--group"}, required = true,
-      description = "The name of the connector group to operate on.")
+  @Option(
+      names = {"-g", "--group"},
+      required = true,
+      description = "The name of the connector group to operate on."
+  )
   private String group;
 
   @Override
   public void run() {
-    final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
-    validateGroup(ctx);
+    try (ConsulContext ctx = new ConsulContext(consulAddress(), consulConfig(), group, null)) {
+      validateGroup(ctx);
 
-    final ConnectorConfig config = ctx.keys().getConfig(ConnectorConfig::from).orElse(null);
+      final ConnectorConfig config = ctx.readConfigOrExit(ConnectorConfig::from);
 
-    if (config == null) {
-      System.err.println("ERROR: Failed to modify checkpoint. Connector configuration document does not exist, or is empty.");
-      System.exit(1);
-    }
-
-    try {
       System.out.println("Pausing connector prior to modifying checkpoint...");
-      final boolean wasPausedAlready = ctx.keys().pause();
+      final boolean wasPausedAlready = ctx.pause();
 
       System.out.println("Catching up checkpoint...");
       CheckpointClear.catchUp(config);
       if (!wasPausedAlready) {
         System.out.println("Resuming connector...");
-        ctx.keys().resume();
+        ctx.resume();
       }
 
       System.out.println("Connector caught up.");
@@ -294,45 +302,49 @@ class CheckpointCatchUpCommand extends ConsulCommand implements Runnable {
   }
 }
 
-@Command(name = "groups",
-    description = "Prints the name of each configured connector group.")
+@Command(
+    name = "groups",
+    description = "Prints the name of each configured connector group."
+)
 class GroupsCommand extends ConsulCommand implements Runnable {
   @Override
   public void run() {
-    new ConsulContext(consulBuilder(), "", null).keys().configuredGroups().forEach(System.out::println);
+    try (ConsulContext ctx = new ConsulContext(consulAddress(), consulConfig(), "", null)) {
+      runWithNiceConnectionFailureMessage(ctx, () ->
+          ctx.keys().configuredGroups().forEach(System.out::println)
+      );
+    }
   }
 }
 
-@Command(name = "checkpoint-backup",
-    description = "Saves the replication checkpoint to a file on the local filesystem.")
+@Command(
+    name = "checkpoint-backup",
+    description = "Saves the replication checkpoint to a file on the local filesystem."
+)
 class CheckpointBackupCommand extends ConsulCommand implements Runnable {
 
-  @Option(names = {"-g", "--group"}, required = true,
-      description = "The name of the connector group to operate on.")
+  @Option(
+      names = {"-g", "--group"},
+      required = true,
+      description = "The name of the connector group to operate on."
+  )
   private String group;
 
-  @Option(names = {"-o", "--output"}, paramLabel = "<checkpoint.json>", required = true,
+  @Option(
+      names = {"-o", "--output"},
+      paramLabel = "<checkpoint.json>",
+      required = true,
       description = "Checkpoint file to create. Tip: On Unix-like systems," +
-          " include a timestamp like: %n    checkpoint-$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ).json ")
+          " include a timestamp like: %n    checkpoint-$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ).json "
+  )
   private File output;
 
   @Override
   public void run() {
-    final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
-    validateGroup(ctx);
+    try (ConsulContext ctx = new ConsulContext(consulAddress(), consulConfig(), group, null)) {
+      validateGroup(ctx);
 
-    final Consul consul = ctx.consul();
-    final String configKey = ctx.keys().config();
-
-    final String configString = consul.keyValueClient().getValueAsString(configKey, UTF_8).orElse(null);
-    if (Strings.isNullOrEmpty(configString)) {
-      System.err.println("ERROR: Connector configuration document does not exist, or is empty.");
-      System.exit(1);
-    }
-
-    final ConnectorConfig config = ConnectorConfig.from(configString);
-
-    try {
+      final ConnectorConfig config = ctx.readConfigOrExit(ConnectorConfig::from);
       CheckpointBackup.backup(config, output);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -340,43 +352,42 @@ class CheckpointBackupCommand extends ConsulCommand implements Runnable {
   }
 }
 
-@Command(name = "checkpoint-restore",
-    description = "Sets the replication checkpoint from a backup file.")
+@Command(
+    name = "checkpoint-restore",
+    description = "Sets the replication checkpoint from a backup file."
+)
 class CheckpointRestoreCommand extends ConsulCommand implements Runnable {
 
-  @Option(names = {"-g", "--group"}, required = true,
-      description = "The name of the connector group to operate on.")
+  @Option(
+      names = {"-g", "--group"},
+      required = true,
+      description = "The name of the connector group to operate on."
+  )
   private String group;
 
-  @Option(names = {"-i", "--input"}, paramLabel = "<checkpoint.json>", required = true,
-      description = "Checkpoint file to restore.")
+  @Option(
+      names = {"-i", "--input"},
+      paramLabel = "<checkpoint.json>",
+      required = true,
+      description = "Checkpoint file to restore."
+  )
   private File input;
 
   @Override
   public void run() {
-    final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
-    validateGroup(ctx);
+    try (ConsulContext ctx = new ConsulContext(consulAddress(), consulConfig(), group, null)) {
+      validateGroup(ctx);
 
-    final Consul consul = ctx.consul();
-    final String configKey = ctx.keys().config();
+      final ConnectorConfig config = ctx.readConfigOrExit(ConnectorConfig::from);
 
-    final String configString = consul.keyValueClient().getValueAsString(configKey, UTF_8).orElse(null);
-    if (Strings.isNullOrEmpty(configString)) {
-      System.err.println("ERROR: Connector configuration document does not exist, or is empty.");
-      System.exit(1);
-    }
-
-    final ConnectorConfig config = ConnectorConfig.from(configString);
-
-    try {
       System.out.println("Pausing connector prior to restoring checkpoints...");
-      final boolean wasPausedAlready = ctx.keys().pause();
+      final boolean wasPausedAlready = ctx.pause();
 
       CheckpointRestore.restore(config, input);
 
       if (!wasPausedAlready) {
         System.out.println("Resuming connector...");
-        ctx.keys().resume();
+        ctx.resume();
       }
 
     } catch (Exception e) {
@@ -386,23 +397,27 @@ class CheckpointRestoreCommand extends ConsulCommand implements Runnable {
   }
 }
 
-@Command(name = "resume",
-    description = "Resume the connector if it is paused.")
+@Command(
+    name = "resume",
+    description = "Resume the connector if it is paused."
+)
 class ResumeCommand extends ConsulCommand implements Runnable {
 
-  @Option(names = {"-g", "--group"}, required = true,
-      description = "The name of the connector group to operate on.")
+  @Option(
+      names = {"-g", "--group"},
+      required = true,
+      description = "The name of the connector group to operate on."
+  )
   private String group;
 
   @Override
   public void run() {
-    try {
-      final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
+    try (ConsulContext ctx = new ConsulContext(consulAddress(), consulConfig(), group, null)) {
       validateGroup(ctx);
 
       System.out.println("Attempting to resume connector group: " + group);
 
-      ctx.keys().resume();
+      ctx.resume();
       System.out.println("Connector group '" + group + "' is now resumed.");
 
     } catch (Exception e) {
@@ -412,14 +427,19 @@ class ResumeCommand extends ConsulCommand implements Runnable {
   }
 }
 
-
-@Command(name = "configure",
+@Command(
+    name = "configure",
     description = "Define a new connector group by uploading a configuration file." +
-        " The name of the group is determined by the 'group' property in the config file.")
+        " The name of the group is determined by the 'group' property in the config file."
+)
 class ConfigureCommand extends ConsulCommand implements Runnable {
 
-  @Option(names = {"-i", "--input"}, paramLabel = "<config.toml>", required = true,
-      description = "Configuration file to upload.")
+  @Option(
+      names = {"-i", "--input"},
+      paramLabel = "<config.toml>",
+      required = true,
+      description = "Configuration file to upload."
+  )
   private File input;
 
   @Override
@@ -430,13 +450,14 @@ class ConfigureCommand extends ConsulCommand implements Runnable {
       final String group = parsed.group().name();
       System.out.println("Updating config for connector group '" + group + "'...");
 
-      final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
-      final Consul consul = ctx.consul();
-
-      final DocumentKeys keys = ctx.keys();
-      boolean success = consul.keyValueClient().putValue(keys.config(), configString, UTF_8);
-      if (!success) {
-        throw new IOException("Failed to write config document to Consul.");
+      try (ConsulContext ctx = new ConsulContext(consulAddress(), consulConfig(), group, null)) {
+        runWithNiceConnectionFailureMessage(ctx, () -> {
+          final DocumentKeys keys = ctx.keys();
+          boolean success = blockSingle(ctx.client().kv().upsertKey(keys.config(), configString)).body();
+          if (!success) {
+            throw new RuntimeException("Failed to write config document to Consul.");
+          }
+        });
       }
 
       System.out.println("Configuration updated for connector group '" + group + "'.");
@@ -447,34 +468,35 @@ class ConfigureCommand extends ConsulCommand implements Runnable {
   }
 }
 
-@Command(name = "get-config",
-    description = "Retrieve the configuration for a connector group and save it to a file on the local filesystem.")
+@Command(
+    name = "get-config",
+    description = "Retrieve the configuration for a connector group and save it to a file on the local filesystem."
+)
 class GetConfigCommand extends ConsulCommand implements Runnable {
 
-  @Option(names = {"-o", "--output"}, paramLabel = "<config.toml>", required = true,
-      description = "File to create.")
+  @Option(
+      names = {"-o", "--output"},
+      paramLabel = "<config.toml>",
+      required = true,
+      description = "File to create."
+  )
   private File output;
 
-  @Option(names = {"-g", "--group"}, required = true,
-      description = "The name of the connector group to operate on.")
+  @Option(
+      names = {"-g", "--group"},
+      required = true,
+      description = "The name of the connector group to operate on."
+  )
   private String group;
-
 
   @Override
   public void run() {
-    try {
-      final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
+    try (ConsulContext ctx = new ConsulContext(consulAddress(), consulConfig(), group, null)) {
       validateGroup(ctx);
 
-      final Consul consul = ctx.consul();
-      final DocumentKeys keys = ctx.keys();
+      String config = ctx.readConfig();
 
-      String config = consul.keyValueClient().getValueAsString(keys.config(), UTF_8)
-          .orElseThrow(() -> new IOException("missing config document in consul"));
-
-      CheckpointBackup.atomicWrite(output, file -> {
-        Files.write(config.getBytes(UTF_8), file);
-      });
+      CheckpointBackup.atomicWrite(output, file -> Files.write(config.getBytes(UTF_8), file));
 
       System.out.println("Configuration for connector group '" + group + "' written to file " + output.getAbsolutePath());
 
@@ -484,23 +506,26 @@ class GetConfigCommand extends ConsulCommand implements Runnable {
   }
 }
 
-@Command(name = "pause",
-    description = "Pauses the connector.")
+@Command(
+    name = "pause",
+    description = "Pauses the connector."
+)
 class PauseCommand extends ConsulCommand implements Runnable {
 
-  @Option(names = {"-g", "--group"}, required = true,
-      description = "The name of the connector group to operate on.")
+  @Option(
+      names = {"-g", "--group"},
+      required = true,
+      description = "The name of the connector group to operate on."
+  )
   private String group;
 
   @Override
   public void run() {
-    final ConsulContext ctx = new ConsulContext(consulBuilder(), group, null);
-    validateGroup(ctx);
+    try (ConsulContext ctx = new ConsulContext(consulAddress(), consulConfig(), group, null)) {
+      validateGroup(ctx);
+      System.out.println("Attempting to pause connector group: " + group);
 
-    System.out.println("Attempting to pause connector group: " + group);
-
-    try {
-      ctx.keys().pause();
+      ctx.pause();
       System.out.println("Connector group '" + group + "' is now paused.");
 
     } catch (TimeoutException e) {

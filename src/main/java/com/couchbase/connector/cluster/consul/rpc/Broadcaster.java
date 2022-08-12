@@ -48,6 +48,7 @@ public class Broadcaster implements Closeable {
 
   public <S, T> Map<RpcEndpoint, RpcResult<T>> broadcast(String description, List<RpcEndpoint> endpoints, Class<S> serviceInterface, Function<S, T> endpointCallback) {
     LOGGER.info("Broadcasting '{}' request to {} endpoints", description, endpoints.size());
+    LOGGER.debug("Endpoints: {}", endpoints);
 
     final Stopwatch timer = Stopwatch.createStarted();
 

@@ -16,23 +16,21 @@
 
 package com.couchbase.connector.testcontainers;
 
-import java.util.concurrent.TimeUnit;
+import com.couchbase.client.core.util.NanoTimestamp;
+
+import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
-import static java.util.concurrent.TimeUnit.MINUTES;
-import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
  * Useful for blocking the current thread until some condition is met.
  */
 public class Poller {
-  private long timeout = 2;
-  private TimeUnit timeoutUnit = MINUTES;
-
-  private long interval = 2;
-  private TimeUnit intervalUnit = SECONDS;
-
+  private Duration timeout = Duration.ofMinutes(2);
+  private Duration interval = Duration.ofSeconds(2);
   private boolean timeoutIsFatal = true;
 
   public static Poller poll() {
@@ -42,15 +40,13 @@ public class Poller {
   private Poller() {
   }
 
-  public Poller atInterval(long interval, TimeUnit unit) {
-    this.interval = interval;
-    this.intervalUnit = unit;
+  public Poller atInterval(Duration interval) {
+    this.interval = requireNonNull(interval);
     return this;
   }
 
-  public Poller withTimeout(long timeout, TimeUnit unit) {
-    this.timeout = timeout;
-    this.timeoutUnit = unit;
+  public Poller withTimeout(Duration timeout) {
+    this.timeout = requireNonNull(timeout);
     return this;
   }
 
@@ -60,23 +56,36 @@ public class Poller {
   }
 
   public void until(Supplier<Boolean> condition) throws TimeoutException, InterruptedException {
-    final long deadline = System.nanoTime() + timeoutUnit.toNanos(timeout);
+    NanoTimestamp start = NanoTimestamp.now();
+    Throwable suppressed = null;
 
-    if (condition.get()) {
-      return;
-    }
+    boolean first = true;
 
     do {
-      if (System.nanoTime() > deadline) {
-        if (timeoutIsFatal) {
-          throw new TimeoutException();
-        }
-        return;
+      if (first) {
+        first = false;
+      } else {
+        MILLISECONDS.sleep(interval.toMillis());
       }
 
-      intervalUnit.sleep(interval);
+      try {
+        if (condition.get()) {
+          return;
+        }
 
-    } while (!condition.get());
+      } catch (Throwable t) {
+        suppressed = t;
+        System.out.println("Polling condition threw exception: " + t.getMessage());
+      }
+    } while (!start.hasElapsed(timeout));
+
+    if (timeoutIsFatal) {
+      TimeoutException t = new TimeoutException();
+      if (suppressed != null) {
+        t.addSuppressed(suppressed);
+      }
+      throw t;
+    }
   }
 }
 

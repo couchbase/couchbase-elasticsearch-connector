@@ -16,28 +16,30 @@
 
 package com.couchbase.connector.cluster.consul.rpc;
 
+import com.couchbase.client.core.util.CbThrowables;
 import com.couchbase.connector.cluster.consul.AbstractLongPollTask;
 import com.couchbase.connector.cluster.consul.ConsulContext;
 import com.couchbase.connector.cluster.consul.ConsulHelper;
+import com.couchbase.consul.ConsulResponse;
+import com.couchbase.consul.KvReadResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.therapi.jsonrpc.JsonRpcDispatcher;
-import com.orbitz.consul.KeyValueClient;
-import com.orbitz.consul.model.ConsulResponse;
-import com.orbitz.consul.model.kv.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.math.BigInteger;
+import java.io.InterruptedIOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import static com.couchbase.connector.cluster.consul.ConsulHelper.requireModifyIndex;
+import static com.couchbase.connector.cluster.consul.ReactorHelper.blockSingle;
 import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -57,37 +59,37 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
   private final Consumer<Throwable> fatalErrorConsumer;
   private final String endpointId;
   private final String endpointKey;
-  private final KeyValueClient kv;
   private final String sessionId;
   private final JsonRpcDispatcher dispatcher;
+  private final ConsulContext ctx;
 
   public RpcServerTask(JsonRpcDispatcher dispatcher, ConsulContext ctx, String sessionId, String endpointId, Consumer<Throwable> fatalErrorConsumer) {
     super(ctx, "rpc-server-", sessionId);
-    this.kv = requireNonNull(ctx.consul().keyValueClient());
     this.sessionId = requireNonNull(sessionId);
     this.fatalErrorConsumer = requireNonNull(fatalErrorConsumer);
     this.dispatcher = requireNonNull(dispatcher);
 
     this.endpointId = requireNonNull(endpointId);
     this.endpointKey = ctx.keys().rpcEndpoint(endpointId);
+    this.ctx = requireNonNull(ctx);
   }
 
   @Override
   protected void doRun(ConsulContext ctx, String sessionId) {
     try {
       bind();
-
-      BigInteger index = BigInteger.ZERO;
+      long index = 0;
 
       while (!closed()) {
-        final ConsulResponse<Value> response = ConsulHelper.awaitChange(kv, endpointKey, index);
-        if (response == null) {
+        final ConsulResponse<Optional<KvReadResult>> response = ConsulHelper.awaitChange(ctx.client().kv(), endpointKey, index);
+        if (response.body().isEmpty()) {
           LOGGER.warn("RPC endpoint was deleted externally; will attempt to rebind");
           bind();
+          index = 0;
           continue;
         }
 
-        final String json = response.getResponse().getValueAsString(UTF_8).orElse("{}");
+        final String json = response.body().get().valueAsString();
         final EndpointDocument initialEndpoint = mapper.readValue(json, EndpointDocument.class);
 
         final ObjectNode jsonRpcRequest = initialEndpoint.firstRequest().orElse(null);
@@ -96,7 +98,7 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
         } else {
           final ObjectNode invocationResult = execute(jsonRpcRequest);
 
-          ConsulHelper.atomicUpdate(kv, response, document -> {
+          ConsulHelper.atomicUpdate(ctx.client().kv(), endpointKey, response, document -> {
             try {
               final EndpointDocument endpoint = mapper.readValue(document, EndpointDocument.class);
 
@@ -116,14 +118,19 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
           LOGGER.debug("Endpoint update complete");
         }
 
-        index = response.getIndex();
+        index = requireModifyIndex(response);
       }
 
     } catch (Throwable t) {
       if (closed()) {
-        // Closing the task is likely to result in an InterruptedException,
-        // or a ConsulException wrapping an InterruptedIOException.
-        LOGGER.debug("Caught exception in RPC server loop after closing. Don't panic; this is expected.", t);
+        if (CbThrowables.hasCause(t, InterruptedException.class)
+            || CbThrowables.hasCause(t, InterruptedIOException.class)) {
+          // Closing the task is likely to result in an InterruptedException
+          LOGGER.debug("RPC server loop closed due to interruption. Don't panic; this is expected.");
+        } else {
+          LOGGER.warn("Caught unexpected exception in RPC server loop after closing." +
+              " It's probably nothing to worry about, but logging it just in case.", t);
+        }
       } else {
         // Something went horribly, terribly, unrecoverably wrong.
         fatalErrorConsumer.accept(t);
@@ -136,7 +143,7 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
         // but the lock won't be eligible for acquisition until the Consul lock delay has elapsed.
 
         LOGGER.info("Unbinding from RPC endpoint document {}", endpointKey);
-        ctx.runCleanup(tempConsul -> ConsulHelper.unlockAndDelete(tempConsul.keyValueClient(), endpointKey, sessionId));
+        ctx.runCleanup(() -> ctx.unlockAndDelete(endpointKey, sessionId));
 
       } catch (Exception e) {
         LOGGER.warn("Failed to unbind", e);
@@ -156,16 +163,16 @@ public class RpcServerTask extends AbstractLongPollTask<RpcServerTask> {
     while (!closed()) {
       LOGGER.info("Attempting to binding to RPC endpoint document {}", endpointKey);
 
-      final boolean acquired = kv.acquireLock(endpointKey, "{}", sessionId);
+      final boolean acquired = ctx.acquireLock(endpointKey, "{}", sessionId);
       if (acquired) {
         LOGGER.info("Successfully bound to RPC endpoint document {}", endpointKey);
         return;
       }
 
-      final Optional<ConsulResponse<Value>> existing = kv.getConsulResponseWithValue(endpointKey);
-      if (existing.isPresent()) {
+      final ConsulResponse<Optional<KvReadResult>> existing = blockSingle(ctx.client().kv().readOneKey(endpointKey, Map.of()));
+      if (existing.body().isPresent()) {
         // somebody else has acquired the lock
-        final String lockSession = existing.get().getResponse().getSession().orElse(null);
+        final String lockSession = existing.body().get().session().orElse(null);
         throw new EndpointAlreadyInUseException(
             "Failed to lock RPC endpoint document " + endpointKey + " ; already locked by session " + lockSession);
       }

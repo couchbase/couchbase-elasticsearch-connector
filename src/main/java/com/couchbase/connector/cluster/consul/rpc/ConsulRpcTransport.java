@@ -19,46 +19,48 @@ package com.couchbase.connector.cluster.consul.rpc;
 import com.couchbase.connector.cluster.consul.ConsulDocumentWatcher;
 import com.couchbase.connector.cluster.consul.ConsulHelper;
 import com.couchbase.connector.elasticsearch.io.BackoffPolicy;
+import com.couchbase.consul.ConsulOps;
+import com.couchbase.consul.ConsulResponse;
+import com.couchbase.consul.KvReadResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.github.therapi.jsonrpc.client.JsonRpcTransport;
 import com.google.common.base.Strings;
-import com.orbitz.consul.KeyValueClient;
-import com.orbitz.consul.model.ConsulResponse;
-import com.orbitz.consul.model.kv.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.couchbase.client.core.logging.RedactableArgument.redactSystem;
 import static com.couchbase.connector.cluster.consul.ConsulHelper.getWithRetry;
+import static com.couchbase.connector.cluster.consul.ReactorHelper.blockSingle;
 import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.constantBackoff;
 import static java.util.Objects.requireNonNull;
 
 public class ConsulRpcTransport implements JsonRpcTransport {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsulRpcTransport.class);
 
-  private final KeyValueClient kv;
   private final String endpointKey;
   private final Duration timeout;
 
   private final static String requestIdPrefix = UUID.randomUUID() + "#";
   private final static AtomicLong requestCounter = new AtomicLong();
   private final ConsulDocumentWatcher watcher;
+  private final ConsulOps.KvOps kv;
 
-  public ConsulRpcTransport(KeyValueClient kv, ConsulDocumentWatcher watcher, String endpointKey, Duration timeout) {
-    this.kv = requireNonNull(kv);
+  public ConsulRpcTransport(ConsulOps.KvOps kv, ConsulDocumentWatcher watcher, String endpointKey, Duration timeout) {
     this.watcher = requireNonNull(watcher);
     this.endpointKey = requireNonNull(endpointKey);
     this.timeout = requireNonNull(timeout);
+    this.kv = requireNonNull(kv);
   }
 
   public ConsulRpcTransport withTimeout(Duration timeout) {
@@ -74,7 +76,7 @@ public class ConsulRpcTransport implements JsonRpcTransport {
     try {
       // retry getting the endpoint document, because the server node might not have created it yet.
       final BackoffPolicy backoffPolicy = constantBackoff(Duration.ofMillis(500)).timeout(timeout).build();
-      final ConsulResponse<Value> initialEndpointValue = getWithRetry(kv, endpointKey, backoffPolicy);
+      final ConsulResponse<Optional<KvReadResult>> initialEndpointValue = getWithRetry(kv, endpointKey, backoffPolicy);
 
       final ObjectNode requestNode = mapper.valueToTree(jsonRpcRequest);
       final JsonNode id = new TextNode(nextRequestId() + "::" + requestNode.path("method").asText());
@@ -85,7 +87,7 @@ public class ConsulRpcTransport implements JsonRpcTransport {
       final EndpointDocument endpointDocument = watcher
           .awaitCondition(endpointKey,
               json -> readValueUnchecked(mapper, json, EndpointDocument.class),
-              endpoint -> !endpoint.isPresent() || endpoint.get().findResponse(id).isPresent(),
+              endpoint -> endpoint.isEmpty() || endpoint.get().findResponse(id).isPresent(),
               timeout)
           .orElse(null);
 
@@ -116,12 +118,14 @@ public class ConsulRpcTransport implements JsonRpcTransport {
   }
 
   private void removeResponseFromEndpointDocument(ObjectMapper mapper, JsonNode id) throws IOException {
-    final ConsulResponse<Value> initialEndpointValue = kv.getConsulResponseWithValue(endpointKey).orElse(null);
-    if (initialEndpointValue == null) {
+    final ConsulResponse<Optional<KvReadResult>> initialEndpointValue =
+        blockSingle(kv.readOneKey(endpointKey));
+
+    if (initialEndpointValue.body().isEmpty()) {
       return;
     }
 
-    ConsulHelper.atomicUpdate(kv, initialEndpointValue, value -> {
+    ConsulHelper.atomicUpdate(kv, endpointKey, initialEndpointValue, value -> {
       try {
         if (Strings.isNullOrEmpty(value)) {
           return value;
@@ -138,9 +142,8 @@ public class ConsulRpcTransport implements JsonRpcTransport {
     });
   }
 
-  private void sendRequest(ConsulResponse<Value> initialEndpointValue, ObjectMapper mapper, ObjectNode requestNode) throws IOException {
-    // todo add a timeout!!!
-    ConsulHelper.atomicUpdate(kv, initialEndpointValue, document -> {
+  private void sendRequest(ConsulResponse<Optional<KvReadResult>> initialEndpointValue, ObjectMapper mapper, ObjectNode requestNode) throws IOException {
+    ConsulHelper.atomicUpdate(kv, endpointKey, initialEndpointValue, document -> {
       try {
         final EndpointDocument endpoint = mapper.readValue(document, EndpointDocument.class);
         endpoint.addRequest(requestNode);

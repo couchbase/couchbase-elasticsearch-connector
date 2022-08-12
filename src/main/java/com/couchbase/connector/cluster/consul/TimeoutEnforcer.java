@@ -21,22 +21,25 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 class TimeoutEnforcer {
   private final long startNanos = System.nanoTime();
   private final long timeoutNanos;
+  private final String description;
 
-  public TimeoutEnforcer(long timeoutNanos) {
+  private TimeoutEnforcer(String description, long timeoutNanos) {
     checkArgument(timeoutNanos >= 0, "timeout must be positive");
     this.timeoutNanos = timeoutNanos;
+    this.description = requireNonNull(description);
   }
 
   /**
    * @param timeout nullable (for no limit)
    */
-  public TimeoutEnforcer(Duration timeout) {
-    this(toNanos(timeout, Long.MAX_VALUE));
+  public TimeoutEnforcer(String description, Duration timeout) {
+    this(description, toNanos(timeout, Long.MAX_VALUE));
   }
 
   public long remaining(TimeUnit timeUnit) throws TimeoutException {
@@ -44,7 +47,7 @@ class TimeoutEnforcer {
     final long nanosLeft = timeoutNanos - elapsed;
 
     if (nanosLeft <= 0) {
-      throw new TimeoutException("Timed out after " + timeoutNanos + "ns");
+      throw new TimeoutException(description + " timed out after " + timeoutNanos + "ns");
     }
 
     return convertRoundUp(nanosLeft, NANOSECONDS, timeUnit);
@@ -52,6 +55,14 @@ class TimeoutEnforcer {
 
   public void throwIfExpired() throws TimeoutException {
     remaining(TimeUnit.SECONDS);
+  }
+
+  public void throwIfExpiredUnchecked() {
+    try {
+      remaining(TimeUnit.SECONDS);
+    } catch (TimeoutException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static long convertRoundUp(long sourceDuration, TimeUnit sourceUnit, TimeUnit destUnit) {

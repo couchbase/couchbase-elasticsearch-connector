@@ -42,8 +42,14 @@ public interface WorkerService {
     public Membership getMembership() {
       return membership;
     }
-  }
 
+    @Override
+    public String toString() {
+      return "Status{" +
+          "membership=" + membership +
+          '}';
+    }
+  }
 
   void stopStreaming();
 

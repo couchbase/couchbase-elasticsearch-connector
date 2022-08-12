@@ -16,12 +16,13 @@
 
 package com.couchbase.connector.cluster.consul;
 
-import com.orbitz.consul.Consul;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.google.common.util.concurrent.Uninterruptibles.joinUninterruptibly;
 import static java.util.Objects.requireNonNull;
 
 public abstract class AbstractLongPollTask<SELF extends AbstractLongPollTask> implements AutoCloseable {
@@ -38,13 +39,19 @@ public abstract class AbstractLongPollTask<SELF extends AbstractLongPollTask> im
 
   protected abstract void doRun(ConsulContext ctx, String sessionId);
 
-  public void awaitTermination() throws InterruptedException {
+  public void awaitTermination() {
     if (!closed) {
       throw new IllegalStateException("must call close() first");
     }
-    LOGGER.info("Waiting for thread {} to terminate.", thread.getName());
-    thread.join();
-    LOGGER.info("Thread {} terminated.", thread.getName());
+
+    Duration timeout = Duration.ofMinutes(1);
+    LOGGER.info("Waiting for thread {} to terminate.", thread);
+    joinUninterruptibly(thread, timeout);
+    if (thread.isAlive()) {
+      LOGGER.error("Thread {} did not terminate within {}.", thread, timeout);
+    } else {
+      LOGGER.info("Thread {} terminated.", thread.getName());
+    }
   }
 
   /**
@@ -66,23 +73,20 @@ public abstract class AbstractLongPollTask<SELF extends AbstractLongPollTask> im
     return closed;
   }
 
-  /**
-   * Requests a graceful shutdown. After calling this method, the caller should complete the shutdown process
-   * by calling {@link Consul#destroy}, optionally followed by {@link #awaitTermination}.
-   */
-  @Override
-  public void close() {
+  public void close(boolean awaitTermination) {
     closed = true;
 
-    // Interrupting the thread prevents execution of new Consul request.
-    // To cancel requests already in flight, the owner of the Consul client must destroy it.
-    // This little dance is required because destroying the Consul client does not prevent
-    // it from issuing new requests :-p
+    LOGGER.info("Asking thread {} to terminate.", thread.getName());
     thread.interrupt();
 
-    // The thread will exit when it makes a new Consul request, the current in-flight request finishes,
-    // or the Consul client is destroyed (whichever comes first).
-    LOGGER.info("Asking thread {} to terminate.", thread.getName());
+    if (awaitTermination) {
+      awaitTermination();
+    }
+  }
+
+  @Override
+  public void close() {
+    close(true);
   }
 
 }

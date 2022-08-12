@@ -62,20 +62,23 @@ task exhaustiveTest(group: "Verification", description: "Runs the integration te
 }
 
 dependencies {
-  implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.17.2'
+  implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.18.0'
   implementation 'org.slf4j:jcl-over-slf4j:1.7.36'
 
   implementation 'com.couchbase.client:java-client:3.3.2'
   implementation 'com.couchbase.client:dcp-client:0.40.0'
 
-  implementation 'co.elastic.clients:elasticsearch-java:8.3.2'
+  implementation 'com.squareup.okhttp3:okhttp:4.10.0'
+
+  implementation 'co.elastic.clients:elasticsearch-java:8.4.0'
 
   implementation platform("com.fasterxml.jackson:jackson-bom:2.13.3")
+  implementation 'com.fasterxml.jackson.core:jackson-databind'
+  implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
 
   implementation 'io.projectreactor:reactor-core:3.4.17'
 
   implementation 'io.fabric8:kubernetes-client:5.11.1'
-  implementation 'com.orbitz.consul:consul-client:1.3.3'
   implementation 'com.github.therapi:therapi-json-rpc:0.5.0'
 
   implementation 'io.micrometer:micrometer-registry-prometheus:1.8.1'
@@ -97,13 +100,14 @@ dependencies {
   testImplementation('org.assertj:assertj-core:3.23.1')
   integrationTestImplementation 'com.jayway.jsonpath:json-path:2.7.0'
 
-  def testcontainersVersion = '1.17.3'
-  integrationTestImplementation "org.testcontainers:testcontainers:${testcontainersVersion}"
-  integrationTestImplementation "org.testcontainers:couchbase:${testcontainersVersion}"
-  integrationTestImplementation "org.testcontainers:elasticsearch:${testcontainersVersion}"
+  implementation platform('org.testcontainers:testcontainers-bom:1.17.3')
+  integrationTestImplementation 'org.testcontainers:testcontainers'
+  integrationTestImplementation 'org.testcontainers:couchbase'
+  integrationTestImplementation 'org.testcontainers:elasticsearch'
 
-  compileOnly 'org.immutables:value:2.8.8'
-  annotationProcessor 'org.immutables:value:2.8.8'
+  def immutablesVersion = '2.9.1'
+  compileOnly "org.immutables:value:${immutablesVersion}"
+  annotationProcessor "org.immutables:value:${immutablesVersion}"
 }
 
 configurations.all {

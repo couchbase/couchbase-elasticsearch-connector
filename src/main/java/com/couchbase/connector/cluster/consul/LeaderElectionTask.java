@@ -16,7 +16,6 @@
 
 package com.couchbase.connector.cluster.consul;
 
-import com.orbitz.consul.KeyValueClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,11 +43,10 @@ public class LeaderElectionTask extends AbstractLongPollTask<LeaderElectionTask>
     final String leaderKey = ctx.keys().leader();
     LOGGER.info("Leader key: {}", leaderKey);
 
-    final KeyValueClient kv = ctx.consul().keyValueClient();
     try {
       while (!closed()) {
         LOGGER.info("Racing to become new leader.");
-        final boolean acquired = kv.acquireLock(leaderKey, candidateUuid, sessionId);
+        final boolean acquired = ctx.acquireLock(leaderKey, candidateUuid, sessionId);
 
         if (acquired) {
           LOGGER.info("Won the leader election! {}", candidateUuid);
@@ -72,8 +70,7 @@ public class LeaderElectionTask extends AbstractLongPollTask<LeaderElectionTask>
 
     } catch (Throwable t) {
       if (closed()) {
-        // Closing the task is likely to result in an InterruptedException,
-        // or a ConsulException wrapping an InterruptedIOException.
+        // Closing the task is likely to result in an InterruptedException
         LOGGER.debug("Caught exception in leader election loop after closing. Don't panic; this is expected.", t);
       } else {
         // Something went horribly, terribly, unrecoverably wrong.
@@ -87,7 +84,7 @@ public class LeaderElectionTask extends AbstractLongPollTask<LeaderElectionTask>
         // Abdicate (delete leadership document); only succeeds if we own the lock. This lets another node acquire
         // the lock immediately. If we don't do this, the lock will be auto-released when the session ends,
         // but the lock won't be eligible for acquisition until the Consul lock delay has elapsed.
-        ctx.runCleanup(tempConsul -> ConsulHelper.unlockAndDelete(tempConsul.keyValueClient(), leaderKey, sessionId));
+        ctx.runCleanup(() -> ctx.unlockAndDelete(leaderKey, sessionId));
 
       } catch (Exception e) {
         LOGGER.warn("Failed to abdicate", e);

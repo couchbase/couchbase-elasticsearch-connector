@@ -17,21 +17,17 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.google.common.base.Throwables;
-import com.orbitz.consul.model.session.ImmutableSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
-import static java.util.Collections.singletonList;
-import static java.util.Collections.singletonMap;
+import static com.google.common.util.concurrent.Uninterruptibles.awaitTerminationUninterruptibly;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 
 /**
@@ -41,7 +37,6 @@ public class SessionTask implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(SessionTask.class);
 
   private final ConsulContext ctx;
-  private final String serviceUuid = UUID.randomUUID().toString();
   private final String sessionId;
   private final Runnable runWhenHealthCheckPassed;
   private final Consumer<Throwable> fatalErrorConsumer;
@@ -49,7 +44,7 @@ public class SessionTask implements AutoCloseable {
   private final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
   private volatile boolean started = false;
 
-  private static final int HEALTH_CHECK_INTERVAL_SECONDS = 15;
+  private static final Duration HEALTH_CHECK_INTERVAL = Duration.ofSeconds(15);
 
   public SessionTask(ConsulContext consulContext, Runnable runWhenHealthCheckPassed, Consumer<Throwable> fatalErrorConsumer) {
     this.ctx = requireNonNull(consulContext);
@@ -57,29 +52,14 @@ public class SessionTask implements AutoCloseable {
     this.fatalErrorConsumer = requireNonNull(fatalErrorConsumer);
 
     try {
-      final List<String> tags = singletonList("couchbase-elasticsearch-connector");// emptyList();
-      final Map<String, String> meta = singletonMap("uuid", serviceUuid);
-
-      // WORKAROUND a bug in the Consul client; it always expects the service definition JSON server responses
-      // to have a "port" field. Consul 1.10 stopped including this field when it's zero, so we need to either
-      // patch the Consul client or supply a non-zero port when registering the service. For now, let's do the latter!
-      final int ARBITRARY_NON_ZERO_PORT = 31415;
-
       // todo catch exception, retry with backoff (wait for consul agent to start)
-      final int sessionTtlSeconds = HEALTH_CHECK_INTERVAL_SECONDS * 2;
-      ctx.consul().agentClient().register(ARBITRARY_NON_ZERO_PORT, sessionTtlSeconds, ctx.serviceName(), ctx.serviceId(), tags, meta);
+      final Duration ttl = HEALTH_CHECK_INTERVAL.multipliedBy(2);
+      ctx.register(ttl);
 
       passHealthCheck();
 
-      this.sessionId = ctx.consul().sessionClient().createSession(ImmutableSession.builder()
-          .name("couchbase:cbes:" + ctx.serviceId())
-          .behavior("delete")
-          .lockDelay("15s")
-          .addChecks(
-              "serfHealth", // Must include "serfHealth", otherwise session never expires if Consul agent fails.
-              "service:" + ctx.serviceId()) // Consul client library uses this name for the app's pass/fail check.
-          .build()
-      ).getId();
+      this.sessionId = ctx.createSession();
+      LOGGER.info("Registered service {} and started session {}", ctx.serviceId(), sessionId);
 
     } catch (Throwable t) {
       fatalErrorConsumer.accept(t); // todo need to send to fatalErrorConsumer?
@@ -93,23 +73,22 @@ public class SessionTask implements AutoCloseable {
     }
     started = true;
 
-    final int delay = HEALTH_CHECK_INTERVAL_SECONDS;
-    executorService.scheduleWithFixedDelay(this::passHealthCheck, delay, delay, SECONDS);
+    final int delay = Math.toIntExact(HEALTH_CHECK_INTERVAL.toMillis());
+    executorService.scheduleWithFixedDelay(this::passHealthCheck, delay, delay, MILLISECONDS);
 
     return this;
   }
 
   public synchronized void close() throws Exception {
+    LOGGER.info("Stopping refresh task for session {}", sessionId);
+
     shouldPassHealthCheck = false;
-    executorService.shutdown();
+    executorService.shutdownNow();
 
-    final int shutdownTimeoutSeconds = 10;
-    if (!executorService.awaitTermination(shutdownTimeoutSeconds, SECONDS)) {
-      LOGGER.warn("Consul health check executor failed to shut down within {} seconds.", shutdownTimeoutSeconds);
+    final Duration shutdownTimeout = Duration.ofSeconds(30);
+    if (!awaitTerminationUninterruptibly(executorService, shutdownTimeout)) {
+      LOGGER.warn("Consul health check executor for session {} failed to shut down within {}.", sessionId, shutdownTimeout);
     }
-
-    // todo think some more about whether it would be good to de-register the service,
-    // or if it's better for the service to remain in the Consul UI in "critical" status.
   }
 
   public synchronized void passHealthCheck() {
@@ -119,7 +98,7 @@ public class SessionTask implements AutoCloseable {
     }
 
     try {
-      ctx.consul().agentClient().pass(ctx.serviceId(), "(" + ctx.serviceId() + ") OK");
+      ctx.passHealthCheck();
 
       try {
         runWhenHealthCheckPassed.run();

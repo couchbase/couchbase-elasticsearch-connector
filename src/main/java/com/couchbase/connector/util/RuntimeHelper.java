@@ -17,6 +17,7 @@
 package com.couchbase.connector.util;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -55,7 +56,7 @@ public class RuntimeHelper {
             t.join(remainingMillis);
             if (t.isAlive()) {
               // logging has likely been shut down by this point, so use stderr
-              System.err.println("Shutdown hook failed to terminate within " + shutdownHookTimeout + " : " + t);
+              System.err.println(Instant.now() + " Shutdown hook failed to terminate within " + shutdownHookTimeout + " : " + t);
               halt();
             }
           }

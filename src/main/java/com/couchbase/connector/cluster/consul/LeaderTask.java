@@ -22,7 +22,6 @@ import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.cluster.consul.rpc.Broadcaster;
 import com.couchbase.connector.cluster.consul.rpc.RpcEndpoint;
 import com.couchbase.connector.cluster.consul.rpc.RpcResult;
-import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +44,6 @@ import static com.couchbase.connector.cluster.consul.LeaderEvent.RESUME;
 import static com.couchbase.connector.cluster.consul.ReactorHelper.asCloseable;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -90,7 +88,6 @@ public class LeaderTask {
     boolean paused = false;
 
     final BlockingQueue<LeaderEvent> leaderEvents = new LinkedBlockingQueue<>();
-
 
     try (Closeable configWatch = asCloseable(subscribeConfig(leaderEvents::add));
          Closeable controlWatch = asCloseable(subscribeControl(leaderEvents::add));
@@ -174,7 +171,7 @@ public class LeaderTask {
     while (true) {
       throwIfDone();
 
-      final List<RpcEndpoint> endpoints = ctx.keys().listRpcEndpoints(Duration.ofSeconds(15));
+      final List<RpcEndpoint> endpoints = ctx.rpcEndpoints();
       final Map<RpcEndpoint, RpcResult<Void>> stopResults = broadcaster.broadcast("stop", endpoints, WorkerService.class, WorkerService::stopStreaming);
 
       if (stopResults.entrySet().stream()
@@ -196,7 +193,7 @@ public class LeaderTask {
   }
 
   private static void sleep(Duration d) throws InterruptedException {
-    MILLISECONDS.sleep(d.toMillis() + 1);
+    MILLISECONDS.sleep(Math.max(1, d.toMillis()));
   }
 
   /**
@@ -206,7 +203,7 @@ public class LeaderTask {
     while (true) {
       throwIfDone();
 
-      final List<RpcEndpoint> allEndpoints = ctx.keys().listRpcEndpoints(Duration.ofSeconds(15));
+      final List<RpcEndpoint> allEndpoints = ctx.rpcEndpoints();
 
       final List<RpcEndpoint> readyEndpoints = allEndpoints.stream()
           .filter(rpcEndpoint -> {
@@ -229,13 +226,7 @@ public class LeaderTask {
   }
 
   private void rebalance() throws InterruptedException {
-    final String configLocation = ctx.keys().config();
-    LOGGER.info("Reading connector config from Consul key: {}", configLocation);
-
-    final String config = ctx.consul().keyValueClient().getValue(configLocation)
-        .orElseThrow(() -> new ConfigException("missing Consul config key: " + configLocation))
-        .getValueAsString(UTF_8)
-        .orElseThrow(() -> new ConfigException("missing value for Consul key: " + configLocation));
+    final String config = ctx.readConfig();
 
     // Sanity check, validate the config.
     ConnectorConfig.from(config);

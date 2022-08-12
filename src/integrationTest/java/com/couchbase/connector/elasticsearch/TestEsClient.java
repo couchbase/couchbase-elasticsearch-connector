@@ -71,7 +71,7 @@ class TestEsClient implements AutoCloseable {
     this(ConnectorConfig.from(config));
   }
 
-  private static <T> T retryUntilSuccess(BackoffPolicy backoffPolicy, Callable<T> lambda) {
+  static <T> T retryUntilSuccess(BackoffPolicy backoffPolicy, Callable<T> lambda) {
     Iterator<Duration> delays = backoffPolicy.iterator();
     while (true) {
       try {
@@ -168,7 +168,7 @@ class TestEsClient implements AutoCloseable {
     final Map<String, JsonNode> idToDocument = new LinkedHashMap<>();
     final List<String> remaining = new ArrayList<>(new HashSet<>(ids));
 
-    poll().atInterval(500, MILLISECONDS).until(() -> {
+    poll().atInterval(Duration.ofMillis(500)).until(() -> {
       try {
         final MgetResponse<JsonNode> response = client.modernClient().mget(
             builder -> builder

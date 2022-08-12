@@ -17,9 +17,9 @@
 package com.couchbase.connector.cluster.consul.rpc;
 
 import com.couchbase.connector.cluster.consul.ConsulDocumentWatcher;
+import com.couchbase.consul.ConsulOps;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.therapi.jsonrpc.client.ServiceFactory;
-import com.orbitz.consul.KeyValueClient;
 
 import java.time.Duration;
 
@@ -35,7 +35,7 @@ public class RpcEndpoint {
   private final ConsulRpcTransport transport;
   private final ServiceFactory serviceFactory;
 
-  public RpcEndpoint(KeyValueClient kv, ConsulDocumentWatcher watcher, String endpointKey, Duration timeout) {
+  public RpcEndpoint(ConsulOps.KvOps kv, ConsulDocumentWatcher watcher, String endpointKey, Duration timeout) {
     this(new ConsulRpcTransport(kv, watcher, endpointKey, timeout));
   }
 

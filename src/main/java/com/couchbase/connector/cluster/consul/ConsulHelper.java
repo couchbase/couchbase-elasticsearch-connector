@@ -17,43 +17,35 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.couchbase.connector.elasticsearch.io.BackoffPolicy;
+import com.couchbase.consul.ConsulHttpClient;
+import com.couchbase.consul.ConsulOps;
+import com.couchbase.consul.ConsulResponse;
+import com.couchbase.consul.KvReadResult;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
-import com.orbitz.consul.Consul;
-import com.orbitz.consul.ConsulException;
-import com.orbitz.consul.KeyValueClient;
-import com.orbitz.consul.cache.ServiceHealthCache;
-import com.orbitz.consul.model.ConsulResponse;
-import com.orbitz.consul.model.agent.Member;
-import com.orbitz.consul.model.health.ServiceHealth;
-import com.orbitz.consul.model.kv.ImmutableOperation;
-import com.orbitz.consul.model.kv.Value;
-import com.orbitz.consul.model.kv.Verb;
-import com.orbitz.consul.option.ImmutablePutOptions;
-import com.orbitz.consul.option.ImmutableQueryOptions;
-import com.orbitz.consul.option.PutOptions;
+import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import java.time.Duration;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
+import java.util.Optional;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
+import static com.couchbase.connector.cluster.consul.ConsulContext.formatEndpointId;
+import static com.couchbase.connector.cluster.consul.ReactorHelper.blockSingle;
+import static com.couchbase.connector.cluster.consul.ReactorHelper.logOnChange;
+import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.truncatedExponentialBackoff;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
-import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class ConsulHelper {
@@ -66,57 +58,98 @@ public class ConsulHelper {
   /**
    * Returns {@code true} if the given session owned the lock, otherwise {@code false}.
    */
-  public static boolean unlockAndDelete(KeyValueClient kv, String key, String sessionId) {
-    try {
-      kv.performTransaction(
-          ImmutableOperation.builder(Verb.UNLOCK).key(key).session(sessionId).build(),
-          ImmutableOperation.builder(Verb.DELETE).key(key).build());
-      return true;
+  public static boolean unlockAndDelete(ConsulHttpClient httpClient, String key, String sessionId) {
+    List<Map<String, Object>> transaction = List.of(
+        Map.of("KV", Map.of(
+                "Verb", "unlock",
+                "Key", key,
+                "Session", sessionId
+            )
+        ),
+        Map.of("KV", Map.of(
+                "Verb", "delete",
+                "Key", key
+            )
+        )
+    );
 
-    } catch (ConsulException e) {
-      if (e.getCode() == HTTP_CONFLICT) {
-        return false; // didn't own lock; no worries
-      }
-      throw e;
+    ConsulResponse<ObjectNode> response = blockSingle(
+        httpClient.put("/txn")
+            .bodyJson(transaction)
+            .buildWithResponseType(ObjectNode.class)
+    );
+
+    if (response.httpStatusCode() == HTTP_CONFLICT) {
+      return false;
     }
+
+    response.requireSuccess();
+    return true;
   }
 
   private static final String missingDocumentValue = "";
 
-  private static void atomicUpdate(KeyValueClient kv, String key, Function<String, String> mutator) throws IOException {
+  public static long requireModifyIndex(ConsulResponse<Optional<KvReadResult>> response) {
+    return response.body().map(KvReadResult::modifyIndex)
+        .orElseThrow(() -> new RuntimeException("KV read response missing index"));
+  }
+
+  public static void atomicUpdate(ConsulOps.KvOps kv, String key, Function<String, String> mutator) throws IOException {
+    final Duration timeout = Duration.ofSeconds(15);
+    BackoffPolicy backoffPolicy =
+        truncatedExponentialBackoff(Duration.ofMillis(10), Duration.ofSeconds(1))
+            .fullJitter()
+            .timeout(timeout)
+            .build();
+
+    final Iterator<Duration> waitIntervals = backoffPolicy.iterator();
+
+    int attempt = 1;
+
     while (true) {
-      final ConsulResponse<Value> r = kv.getConsulResponseWithValue(key).orElse(null);
-      if (r == null) {
+      final ConsulResponse<Optional<KvReadResult>> r = blockSingle(kv.readOneKey(key));
+      if (r.body().isEmpty()) {
         // Don't automatically create the document, because it might need to be associated with another node's session.
         // For example, an RPC endpoint doc is updated by both client and server, but is tied to the server session.
         throw new IOException("Can't update non-existent document: " + key);
       }
 
-      final BigInteger index = r.getIndex();
-      final String oldValue = r.getResponse().getValueAsString(UTF_8).orElse(missingDocumentValue);
+      final long index = requireModifyIndex(r);
+      final String oldValue = r.body().get().valueAsString();
       final String newValue = mutator.apply(oldValue);
 
       if (Objects.equals(newValue, oldValue)) {
+        LOGGER.debug("Atomic update of key {} would be a no-op; skipping!", key);
         return;
       }
 
-      final PutOptions options = ImmutablePutOptions.builder().cas(index.longValue()).build();
-      boolean success = kv.putValue(key, newValue, 0, options, UTF_8);
+      boolean success = blockSingle(kv.upsertKey(key, newValue, Map.of("cas", index))).body();
       if (success) {
+        LOGGER.debug("Atomic update of key {} completed successfully", key);
         return;
       }
 
-      // todo truncated exponential backoff, please! Die if timeout!
-      //MILLISECONDS.sleep(100);
+      if (!waitIntervals.hasNext()) {
+        throw new RuntimeException("Atomic update of key '" + key + "' could not complete after " + attempt + " attempts within " + Duration.ofMinutes(1));
+      }
+      final Duration retryDelay = waitIntervals.next();
+      attempt++;
+      LOGGER.debug("Retrying atomic update of key {} in {} (attempt {})", key, retryDelay, attempt);
+      try {
+        MILLISECONDS.sleep(retryDelay.toMillis());
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
     }
   }
 
-  public static ConsulResponse<Value> getWithRetry(KeyValueClient kv, String key, BackoffPolicy backoffPolicy) throws TimeoutException {
+  public static ConsulResponse<Optional<KvReadResult>> getWithRetry(ConsulOps.KvOps kv, String key, BackoffPolicy backoffPolicy) throws TimeoutException {
     final Iterator<Duration> retryDelays = backoffPolicy.iterator();
 
     while (true) {
-      final ConsulResponse<Value> response = kv.getConsulResponseWithValue(key).orElse(null);
-      if (response != null) {
+      final ConsulResponse<Optional<KvReadResult>> response = blockSingle(kv.readOneKey(key));
+      if (response.body().isPresent()) {
         return response;
       }
 
@@ -138,22 +171,21 @@ public class ConsulHelper {
     throw new TimeoutException("getWithRetry timed out for key " + key);
   }
 
-  public static void atomicUpdate(KeyValueClient kv, ConsulResponse<Value> initialResponse, Function<String, String> mutator) throws IOException {
-    final Value v = initialResponse.getResponse();
-    final String key = v.getKey();
 
+  public static void atomicUpdate(ConsulOps.KvOps kv, String key, ConsulResponse<Optional<KvReadResult>> initialResponse, Function<String, String> mutator) throws IOException {
     LOGGER.debug("Updating key {}", key);
 
-    final String oldValue = v.getValueAsString(UTF_8).orElse(missingDocumentValue);
+    final String oldValue = initialResponse.body()
+        .map(KvReadResult::valueAsString)
+        .orElse(missingDocumentValue);
     final String newValue = mutator.apply(oldValue);
 
     if (Objects.equals(newValue, oldValue)) {
       return;
     }
 
-    final long index = initialResponse.getIndex().longValue();
-    final PutOptions options = ImmutablePutOptions.builder().cas(index).build();
-    boolean success = kv.putValue(key, newValue, 0, options, UTF_8);
+    final long index = requireModifyIndex(initialResponse);
+    boolean success = blockSingle(kv.upsertKey(key, newValue, Map.of("cas", index))).body();
 
     if (!success) {
       LOGGER.debug("Failed to put new document (optimistic locking failure?); reloading and retrying");
@@ -161,20 +193,20 @@ public class ConsulHelper {
     }
   }
 
-  public static ConsulResponse<Value> awaitChange(KeyValueClient kv, String key, BigInteger index) {
+  public static ConsulResponse<Optional<KvReadResult>> awaitChange(ConsulOps.KvOps kv, String key, long index) {
     while (true) {
-      final ConsulResponse<Value> response = kv.getConsulResponseWithValue(key,
-          ImmutableQueryOptions.builder()
-              .index(index)
-              .wait("5m")
-              .build())
-          .orElse(null);
-      if (response == null) {
-        LOGGER.debug("Document does not exist: {}", key);
-        return null;
-      }
+      final ConsulResponse<Optional<KvReadResult>> response = blockSingle(
+          kv.readOneKey(key, Map.of(
+              "index", index,
+              "wait", "5m"
+          )));
 
-      if (index.equals(response.getIndex())) {
+      if (response.body().isEmpty()) {
+        LOGGER.debug("Document does not exist: {}", key);
+        return response;
+      }
+      long responseIndex = requireModifyIndex(response);
+      if (responseIndex == index) {
         LOGGER.debug("Long poll timed out, polling again for {}", key);
       } else {
         return response;
@@ -182,73 +214,34 @@ public class ConsulHelper {
     }
   }
 
-  public static List<String> listKeys(KeyValueClient kv, String keyPrefix) {
-    try {
-      return kv.getKeys(keyPrefix);
-
-    } catch (ConsulException e) {
-      if (e.getCode() == HTTP_NOT_FOUND) {
-        return new ArrayList<>(0);
-      }
-      throw e;
-    }
-  }
-
-  public static Flux<ImmutableSet<String>> watchServiceHealth(Consul.Builder consulBuilder, String serviceName) {
-    final Flux<ImmutableSet<String>> flux = Flux.create(emitter -> {
-      // Build a new instance we can safely terminate to cancel outstanding requests when flux is disposed.
-      final Consul consul = consulBuilder.build();
-      final ServiceHealthCache svHealth = ServiceHealthCache.newCache(consul.healthClient(), serviceName);
-
-      emitter.onDispose(() -> {
-        try {
-          LOGGER.debug("Cancelling health watch for service {}", serviceName);
-          svHealth.stop();
-        } finally {
-          consul.destroy();
-        }
-      });
-
-      try {
-        svHealth.addListener(newValues -> emitter.next(
-            ImmutableSet.copyOf(
-                newValues.values().stream()
-                    .map(ConsulHelper::endpointId)
-                    .collect(Collectors.toSet()))));
-
-        svHealth.start();
-
-      } catch (Throwable t) {
-        emitter.error(t);
-      }
-    }, FluxSink.OverflowStrategy.LATEST);
-
-    final AtomicReference<ImmutableSet<String>> prev = new AtomicReference<>(ImmutableSet.of());
-
-    return flux
+  public static Flux<ImmutableSet<String>> watchServiceHealth(ConsulOps consul, String serviceName) {
+    Flux<ImmutableSet<String>> flux = new ConsulResourceWatcher()
+        .watch(opts -> {
+          Map<String, Object> options = new HashMap<>(opts);
+          options.put("passing", true);
+          return consul.health().health(serviceName, options);
+        })
+        .map(it -> it.requireSuccess().map(arrayNode ->
+            ImmutableSet.copyOf(Iterables.transform(arrayNode, serviceNode ->
+                formatEndpointId(
+                    requireNonNull(serviceNode.path("Node").path("Node").textValue(), "missing Node.Node"),
+                    requireNonNull(serviceNode.path("Node").path("Address").textValue(), "missing Node.Address"),
+                    requireNonNull(serviceNode.path("Service").path("ID").asText(), "missing Service.ID")
+                )))))
+        .map(ConsulResponse::body)
         .distinctUntilChanged()
-        .doOnNext(currentEndpointIds -> {
-          if (LOGGER.isInfoEnabled()) {
-            final Set<String> joiningNodes = Sets.difference(currentEndpointIds, prev.get());
-            final Set<String> leavingNodes = Sets.difference(prev.get(), currentEndpointIds);
-            prev.set(currentEndpointIds);
-            LOGGER.info("Service health changed; Joining: {} Leaving: {}", joiningNodes, leavingNodes);
-          }
-        });
+        .doFinally(signal ->
+            LOGGER.info("Stopping health watch for service {}; reason: {}", serviceName, signal)
+        );
+
+    return logOnChange(flux, "Service health", LOGGER);
   }
 
-  public static Flux<ImmutableSet<String>> watchServiceHealth(Consul.Builder consulBuilder, String serviceName, Duration quietPeriod) {
-    return watchServiceHealth(consulBuilder, serviceName)
-        .doOnNext(set -> LOGGER.info("Waiting for service health to stabilize before rebalancing, quiet period = {}", quietPeriod))
+  public static Flux<ImmutableSet<String>> watchServiceHealth(ConsulOps consul, String serviceName, Duration quietPeriod) {
+    return watchServiceHealth(consul, serviceName)
+        .doOnNext(set -> LOGGER.info("Waiting {} for service health to stabilize before rebalancing.", quietPeriod))
         .sampleTimeout(s -> Mono.delay(quietPeriod))
-        .distinctUntilChanged();
-  }
-
-  public static String endpointId(Member member, String serviceId) {
-    return member.getName() + "::" + member.getAddress() + "::" + serviceId;
-  }
-
-  public static String endpointId(ServiceHealth health) {
-    return health.getNode().getNode() + "::" + health.getNode().getAddress() + "::" + health.getService().getId();
+        .distinctUntilChanged()
+        .doOnNext(set -> LOGGER.info("Service health stabilized; no changes in last {}.", quietPeriod));
   }
 }

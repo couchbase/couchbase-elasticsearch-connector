@@ -25,18 +25,14 @@ import com.github.therapi.jsonrpc.JsonRpcDispatcher;
 import com.github.therapi.jsonrpc.JsonRpcError;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
-import com.orbitz.consul.Consul;
-import com.orbitz.consul.model.agent.Member;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Instant;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
-import static com.couchbase.connector.cluster.consul.ConsulHelper.endpointId;
 import static com.github.therapi.jackson.ObjectMappers.newLenientObjectMapper;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -51,13 +47,10 @@ public class ConsulConnector {
       fatalErrorQueue.add(e);
     };
 
-    final Consul consul = ctx.consul();
     Thread shutdownHook = null;
 
-    final Member member = consul.agentClient().getAgent().getMember();
-    final String endpointId = endpointId(member, ctx.serviceId());
-
-    final List<AbstractLongPollTask> waitForMe = new ArrayList<>();
+    final String endpointId = ctx.myEndpointId();
+    LOGGER.info("Endpoint ID: {}", endpointId);
 
     final WorkerServiceImpl workerService = new WorkerServiceImpl(e -> {
       LOGGER.error("Got fatal error", e);
@@ -122,24 +115,22 @@ public class ConsulConnector {
          LeaderElectionTask election =
              new LeaderElectionTask(ctx, session.sessionId(), endpointId, errorConsumer, leaderController).start()) {
 
-      waitForMe.add(election);
-      waitForMe.add(rpc);
-
       shutdownHook = new Thread(() -> {
         try {
           LOGGER.info("Shutting down");
 
-          session.close(); // to prevent race with updating (failing) the health check
+          // Close session task first to prevent race with updating (failing) the health check.
+          // Doesn't invalidate session; just stops heartbeat.
+          session.close();
+
           election.close();
           rpc.close();
-          consul.destroy();
-          election.awaitTermination();
-          rpc.awaitTermination();
 
+          // clean termination -- yay!
           reportTermination(ctx, null);
 
         } catch (Exception e) {
-          System.err.println("Exception in connector shutdown hook.");
+          System.err.println(Instant.now() + " ERROR: Exception in connector shutdown hook.");
           e.printStackTrace();
         }
       }, "consul-connector-shutdown");
@@ -152,14 +143,6 @@ public class ConsulConnector {
 
       if (shutdownHook != null) {
         RuntimeHelper.removeShutdownHook(shutdownHook);
-      }
-
-      // Cancel any outstanding I/O operations such as the long polls for leader election;
-      // see https://github.com/rickfast/consul-client/issues/307
-      consul.destroy();
-
-      for (AbstractLongPollTask task : waitForMe) {
-        task.awaitTermination();
       }
 
       reportTermination(ctx, fatalError);
@@ -179,23 +162,9 @@ public class ConsulConnector {
       System.err.println("  --service-id command line option.");
       System.err.println();
     }
-
-    System.exit(1);
   }
 
   private static void reportTermination(ConsulContext ctx, Throwable cause) {
-    ctx.runCleanup(tempConsul -> {
-      try {
-        final StringBuilder message = new StringBuilder("(" + ctx.serviceId() + ") Graceful shutdown complete.");
-        if (cause != null) {
-          message.append(" Shutdown triggered by exception: ").append(Throwables.getStackTraceAsString(cause));
-        }
-        tempConsul.agentClient().fail(ctx.serviceId(), message.toString());
-
-      } catch (Throwable t) {
-        System.err.println("Failed to report termination to Consul agent.");
-        t.printStackTrace();
-      }
-    });
+    ctx.runCleanup(() -> ctx.reportShutdown(cause));
   }
 }

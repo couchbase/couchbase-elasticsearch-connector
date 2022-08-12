@@ -557,8 +557,25 @@ Here's what it looks like:
 ----
 [consul]
   aclToken = '${CBES_CONSUL_ACL_TOKEN:}' <1>
+  deregisterServiceOnGracefulShutdown = true <2>
+  deregisterCriticalServiceAfter = '168h' <3>
 ----
 <1> Access Control List Token to include in all Consul requests.
++
+TIP: You should not typically need to set this value.
+Instead, configure the local Consul agent to use a token when talking to the Consul cluster.
++
 The default value is an empty string, in which case the token sent to the Consul server will be determined by the Consul agent.
 This example configuration shows how to read the token from the `CBES_CONSUL_ACL_TOKEN` environment variable if present, falling back to empty string if the variable is not set.
 If you prefer not to use an environment variable, you can specify the ACL token directly instead.
+<2> *_(Since 4.4.1)_* Whether to automatically remove the service registration from Consul when the connector exits cleanly.
+If not specified, defaults to true.
+<3> *_(Since 4.4.1)_* How long Consul should wait before automatically removing the service definition for a connector that fails its health check or shuts down due to an error.
+Valid time units are "m" for minutes or "h" for hours.
+If not specified, defaults to 168 hours (7 days).
+According to the https://www.consul.io/api-docs/agent/check#register-check[Consul documentation]:
++
+> The minimum timeout is 1 minute, and the process that reaps critical services runs every 30 seconds, so it may take slightly longer than the configured timeout to trigger the deregistration.
+This should generally be configured with a timeout that's much, much longer than any expected recoverable outage for the given service.
+
+

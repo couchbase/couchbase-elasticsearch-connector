@@ -25,13 +25,13 @@ import com.google.common.base.Stopwatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
 import static com.couchbase.connector.testcontainers.Poller.poll;
-import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -50,7 +50,7 @@ class IntegrationTestHelper {
     final int expectedAirlineCount = airlines + routes;
     final int expectedAirportCount = 1968;
 
-    poll().withTimeout(5, MINUTES).until(() -> {
+    poll().withTimeout(Duration.ofMinutes(5)).until(() -> {
       long count = es.getDocumentCount("airlines");
       LOGGER.info("airline count = {} / {}", count, expectedAirlineCount);
       return count >= expectedAirlineCount;

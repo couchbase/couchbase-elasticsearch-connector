@@ -18,7 +18,6 @@ package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.client.dcp.deps.io.netty.util.ResourceLeakDetector;
 import com.couchbase.client.java.Bucket;
-import com.couchbase.connector.cluster.consul.ConsulClientWorkaround;
 import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
 import com.google.common.collect.ImmutableMap;
 import org.junit.AfterClass;
@@ -45,16 +44,15 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class AutonomousOpsTest {
 
-  static final String CONSUL_DOCKER_IMAGE = "consul:1.9.1";
+  static final String CONSUL_DOCKER_IMAGE = "consul:1.13.1";
 
   static {
     ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
-
-    ConsulClientWorkaround.apply();
+    TestConnectorGroup.buildConnector();
   }
 
-  private static final String couchbaseVersion = "enterprise-6.5.1";
-  private static final String elasticsearchVersion = "6.8.17";
+  private static final String couchbaseVersion = "enterprise-7.1.1";
+  private static final String elasticsearchVersion = "7.17.5";
 
   private static CustomCouchbaseContainer couchbase;
   private static ElasticsearchContainer elasticsearch;

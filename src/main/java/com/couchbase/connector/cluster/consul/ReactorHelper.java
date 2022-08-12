@@ -17,15 +17,24 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
+import org.slf4j.Logger;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.SignalType;
 
 import java.io.Closeable;
 import java.io.InterruptedIOException;
 import java.time.Duration;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class ReactorHelper {
   private ReactorHelper() {
@@ -111,4 +120,34 @@ public class ReactorHelper {
     exception.addSuppressed(cause);
     return exception;
   }
+
+  public static <T> Mono<T> toMono(Supplier<CompletableFuture<T>> supplier) {
+    return Mono.defer(() -> {
+      CompletableFuture<T> future = supplier.get();
+      return Mono.fromFuture(future)
+          .doFinally(signal -> {
+            if (signal == SignalType.CANCEL) {
+              future.cancel(true);
+            }
+          })
+          .onErrorMap(t -> t instanceof CompletionException ? t.getCause() : t);
+    });
+  }
+
+  public static <E, T extends Set<E>> Flux<T> logOnChange(Flux<T> flux, String description, Logger log) {
+    return Flux.defer(() -> {
+      final AtomicReference<Set<E>> prev = new AtomicReference<>(ImmutableSet.of());
+
+      return flux
+          .doOnNext(set -> {
+            if (log.isInfoEnabled() && !set.equals(prev.get())) {
+              final Set<E> joiningNodes = Sets.difference(set, prev.get());
+              final Set<E> leavingNodes = Sets.difference(prev.get(), set);
+              prev.set(set);
+              log.info("{} changed; Added: {} Removed: {} Current: {}", description, joiningNodes, leavingNodes, set);
+            }
+          });
+    });
+  }
+
 }

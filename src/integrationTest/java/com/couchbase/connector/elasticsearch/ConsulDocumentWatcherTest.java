@@ -17,16 +17,15 @@
 package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.connector.cluster.consul.ConsulDocumentWatcher;
-import com.orbitz.consul.Consul;
-import com.orbitz.consul.KeyValueClient;
-import org.junit.After;
+import com.couchbase.consul.ConsulOps;
+import com.google.common.net.HostAndPort;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.testcontainers.containers.Network;
 import reactor.core.Disposable;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
@@ -53,45 +52,32 @@ public class ConsulDocumentWatcherTest {
   private static final boolean NATIVE_CONSUL = false;
 
   private static ConsulCluster consulCluster;
-  private static Consul.Builder consulBuilder;
+  private static ConsulOps client;
   private static ConsulDocumentWatcher watcher;
-
-  // volatile because tests with timeouts run in different thread than @Before methods.
-  private volatile Consul consul;
-  private volatile KeyValueClient kv;
 
   private static final AtomicInteger keyCounter = new AtomicInteger();
 
   private static String uniqueKey() {
-    return "key" + keyCounter.incrementAndGet() + "-" + UUID.randomUUID().toString();
-  }
-
-  @Before
-  public void createClient() {
-    this.consul = consulBuilder.build();
-    this.kv = consul.keyValueClient();
-  }
-
-  @After
-  public void destroyClient() {
-    this.consul.destroy();
-    this.consul = null;
+    return "key" + keyCounter.incrementAndGet() + "-" + UUID.randomUUID();
   }
 
   @BeforeClass
   public static void startConsul() {
+    HostAndPort consulAddress;
     if (NATIVE_CONSUL) {
-      consulBuilder = Consul.builder();
+      consulAddress = HostAndPort.fromParts("127.0.0.1", 8500);
     } else {
-      consulCluster = new ConsulCluster(CONSUL_DOCKER_IMAGE, 1, Network.newNetwork()).start();
-      consulBuilder = consulCluster.clientBuilder(0);
+      consulCluster = new ConsulCluster(CONSUL_DOCKER_IMAGE, 3, Network.newNetwork()).start();
+      consulAddress = consulCluster.getHostAndPort(0);
     }
-
-    watcher = new ConsulDocumentWatcher(consulBuilder);
+    client = new ConsulOps(consulAddress, ConsulOps.DEFAULT_CONFIG);
+    watcher = new ConsulDocumentWatcher(client);
   }
 
   @AfterClass
-  public static void stopConsul() {
+  public static void stopConsul() throws IOException {
+    client.close();
+
     if (!NATIVE_CONSUL) {
       consulCluster.stop();
     }
@@ -101,7 +87,6 @@ public class ConsulDocumentWatcherTest {
   public void watchWithInitialStateAbsent() throws Exception {
     final String key = uniqueKey();
 
-    final KeyValueClient kv = consul.keyValueClient();
 
     final BlockingQueue<Optional<String>> result = new LinkedBlockingQueue<>();
     final Disposable watch = watcher.withPollingInterval(ofSeconds(1)).watch(key)
@@ -112,16 +97,16 @@ public class ConsulDocumentWatcherTest {
       // initial state, document does not exist
       assertEquals(Optional.empty(), result.poll(15, SECONDS));
 
-      kv.putValue(key, "");
+      upsert(key, "");
       assertEquals(Optional.of(""), result.poll(15, SECONDS));
 
       // sleep to make sure the watcher's wait timeout isn't inserting empty values
       SECONDS.sleep(5);
 
-      kv.putValue(key, "bar");
+      upsert(key, "bar");
       assertEquals(Optional.of("bar"), result.poll(15, SECONDS));
 
-      kv.deleteKey(key);
+      delete(key);
       assertEquals(Optional.empty(), result.poll(15, SECONDS));
 
       assertNull(result.poll(1, SECONDS));
@@ -135,7 +120,7 @@ public class ConsulDocumentWatcherTest {
   public void watchWithInitialStatePresent() throws Exception {
     final String key = uniqueKey();
 
-    kv.putValue(key, "exists");
+    upsert(key, "exists");
 
     final BlockingQueue<Optional<String>> result = new LinkedBlockingQueue<>();
     final Disposable watch = watcher.watch(key)
@@ -145,13 +130,13 @@ public class ConsulDocumentWatcherTest {
       // initial state
       assertEquals(Optional.of("exists"), result.poll(15, SECONDS));
 
-      kv.putValue(key, "changed");
+      upsert(key, "changed");
       assertEquals(Optional.of("changed"), result.poll(15, SECONDS));
 
       assertNull(result.poll(1, SECONDS));
 
       watch.dispose();
-      kv.putValue(key, "changed again but no longer watching");
+      upsert(key, "changed again but no longer watching");
       assertNull(result.poll(1, SECONDS));
 
     } finally {
@@ -172,7 +157,7 @@ public class ConsulDocumentWatcherTest {
       }
     });
 
-    kv.putValue(key, "foo");
+    upsert(key, "foo");
     t.start();
     SECONDS.sleep(2); // wait for awaitAbsence to start executing
     t.interrupt();
@@ -194,7 +179,7 @@ public class ConsulDocumentWatcherTest {
       }
     });
 
-    kv.putValue(key, "foo");
+    upsert(key, "foo");
     t.start();
     t.join();
     throwIfPresent(exceptionHolder);
@@ -217,12 +202,12 @@ public class ConsulDocumentWatcherTest {
       }
     });
 
-    kv.putValue(key, "foo");
+    upsert(key, "foo");
 
     t.start();
     SECONDS.sleep(3);
     assertFalse(doneWaiting.get());
-    kv.deleteKey(key);
+    delete(key);
     t.join();
     throwIfPresent(exception);
     assertTrue(doneWaiting.get());
@@ -233,18 +218,16 @@ public class ConsulDocumentWatcherTest {
     final String key = uniqueKey();
 
     final AtomicReference<Throwable> exception = new AtomicReference<>();
-    final AtomicBoolean doneWaiting = new AtomicBoolean();
 
     final Thread t = new Thread(() -> {
       try {
         watcher.awaitCondition(key, String::toUpperCase, doc -> doc.equals(Optional.of("BAR")), Duration.ofMillis(3));
-        doneWaiting.set(true);
       } catch (Throwable e) {
         exception.set(e);
       }
     });
 
-    kv.putValue(key, "foo");
+    upsert(key, "foo");
     t.start();
     t.join();
     throwIfPresent(exception);
@@ -255,12 +238,10 @@ public class ConsulDocumentWatcherTest {
     final String key = uniqueKey();
 
     final AtomicReference<Throwable> exception = new AtomicReference<>();
-    final AtomicBoolean doneWaiting = new AtomicBoolean();
 
     final Thread t = new Thread(() -> {
       try {
         watcher.awaitCondition(key, String::toUpperCase, doc -> doc.equals(Optional.of("BAR")), ofSeconds(5));
-        doneWaiting.set(true);
       } catch (Throwable e) {
         exception.set(e);
       }
@@ -270,10 +251,10 @@ public class ConsulDocumentWatcherTest {
 
     for (int i = 0; i < 10; i++) {
       SECONDS.sleep(1);
-      kv.putValue(key, "foo" + i);
+      upsert(key, "foo" + i);
     }
     // this one matches, but it should be too late.
-    kv.putValue(key, "bar");
+    upsert(key, "bar");
 
     t.join();
     throwIfPresent(exception);
@@ -300,11 +281,11 @@ public class ConsulDocumentWatcherTest {
     t.start();
     SECONDS.sleep(2);
     assertFalse(doneWaiting.get());
-    kv.putValue(key, "foo");
+    upsert(key, "foo");
     SECONDS.sleep(2);
     assertFalse(doneWaiting.get());
 
-    kv.putValue(key, "bar");
+    upsert(key, "bar");
     t.join();
     throwIfPresent(exception);
     assertTrue(doneWaiting.get());
@@ -315,5 +296,13 @@ public class ConsulDocumentWatcherTest {
     if (t != null) {
       throw t;
     }
+  }
+
+  private void upsert(String key, String value) {
+    assertTrue(client.kv().upsertKey(key, value).block().body());
+  }
+
+  private void delete(String key) {
+    assertTrue(client.kv().deleteKey(key).block().body());
   }
 }

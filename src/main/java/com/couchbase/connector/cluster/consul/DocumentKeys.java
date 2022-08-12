@@ -17,12 +17,12 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.couchbase.client.dcp.core.utils.DefaultObjectMapper;
+import com.couchbase.client.dcp.deps.com.fasterxml.jackson.databind.node.BooleanNode;
+import com.couchbase.client.dcp.deps.com.fasterxml.jackson.databind.node.ObjectNode;
 import com.couchbase.connector.cluster.consul.rpc.Broadcaster;
 import com.couchbase.connector.cluster.consul.rpc.RpcEndpoint;
 import com.couchbase.connector.cluster.consul.rpc.RpcResult;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
-import com.orbitz.consul.KeyValueClient;
+import com.couchbase.consul.ConsulOps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,12 +32,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.couchbase.connector.cluster.consul.ReactorHelper.blockSingle;
 import static com.google.common.base.Throwables.propagateIfPossible;
 import static com.google.common.base.Throwables.throwIfUnchecked;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toList;
@@ -52,13 +51,13 @@ public class DocumentKeys {
   private static final Duration DEFAULT_ENDPOINT_TIMEOUT = Duration.ofSeconds(15);
 
   private final String serviceName;
-  private KeyValueClient kv;
-  private ConsulDocumentWatcher watcher;
+  private final ConsulOps consul;
+  private final ConsulDocumentWatcher watcher;
 
-  public DocumentKeys(KeyValueClient kv, ConsulDocumentWatcher watcher, String serviceName) {
+  public DocumentKeys(ConsulOps consul, ConsulDocumentWatcher watcher, String serviceName) {
+    this.consul = requireNonNull(consul);
     this.serviceName = requireNonNull(serviceName);
     this.watcher = requireNonNull(watcher);
-    this.kv = requireNonNull(kv);
   }
 
   public String root() {
@@ -89,9 +88,13 @@ public class DocumentKeys {
     return serviceKey("rpc/");
   }
 
+  private List<String> listKeys(String prefix) {
+    return blockSingle(consul.kv().listKeys(prefix, Map.of())).body();
+  }
+
   public List<String> configuredGroups() {
     final String configSuffix = "/config";
-    return ConsulHelper.listKeys(kv, root())
+    return listKeys(root())
         .stream()
         .filter(s -> s.endsWith(configSuffix))
         .map(s -> removeStart(s, root()))
@@ -101,9 +104,9 @@ public class DocumentKeys {
 
   public List<RpcEndpoint> listRpcEndpoints(Duration endpointTimeout) {
     requireNonNull(endpointTimeout);
-    return ConsulHelper.listKeys(kv, rpcEndpointKeyPrefix())
+    return listKeys(rpcEndpointKeyPrefix())
         .stream()
-        .map(endpointKey -> new RpcEndpoint(kv, watcher, endpointKey, endpointTimeout))
+        .map(endpointKey -> new RpcEndpoint(consul.kv(), watcher, endpointKey, endpointTimeout))
         .collect(toList());
   }
 
@@ -112,20 +115,18 @@ public class DocumentKeys {
   }
 
   public Optional<RpcEndpoint> leaderEndpoint() {
-    final String endpointId = kv.getValueAsString(leader(), UTF_8).orElse(null);
+    final String endpointId = blockSingle(consul.kv().readOneKeyAsString(leader())).orElse(null);
     return endpointId == null ? Optional.empty() : Optional.of(
-        new RpcEndpoint(kv, watcher, rpcEndpoint(endpointId), DEFAULT_ENDPOINT_TIMEOUT));
+        new RpcEndpoint(consul.kv(), watcher, rpcEndpoint(endpointId), DEFAULT_ENDPOINT_TIMEOUT));
   }
 
   public boolean pause() throws TimeoutException, IOException {
-    final String previous = kv.getValueAsString(control(), UTF_8).orElse("{}");
-    final boolean alreadyPaused = DefaultObjectMapper.readTree(previous).path("paused").asBoolean(false);
+    final ObjectNode control = readControlDocument();
+    final boolean alreadyPaused = control.path("paused").asBoolean(false);
     if (!alreadyPaused) {
-      final String newValue = DefaultObjectMapper.writeValueAsString(ImmutableMap.of("paused", true));
-      final boolean success = kv.putValue(control(), newValue, UTF_8);
-      if (!success) {
-        throw new IOException("Failed to update control document: " + control());
-      }
+      // todo atomic update?
+      control.set("paused", BooleanNode.valueOf(true));
+      upsertControlDocument(control);
     }
 
     waitForClusterToQuiesce(Duration.ofSeconds(30));
@@ -133,7 +134,7 @@ public class DocumentKeys {
   }
 
   private void waitForClusterToQuiesce(Duration timeout) throws TimeoutException {
-    final TimeoutEnforcer timeoutEnforcer = new TimeoutEnforcer(timeout);
+    final TimeoutEnforcer timeoutEnforcer = new TimeoutEnforcer("Waiting for cluster to quiesce", timeout);
     try (Broadcaster broadcaster = new Broadcaster()) {
       while (true) {
         final List<RpcEndpoint> allEndpoints = listRpcEndpoints();
@@ -166,26 +167,26 @@ public class DocumentKeys {
     }
   }
 
-  public boolean resume() throws IOException {
-    final String previous = kv.getValueAsString(control(), UTF_8).orElse("{}");
-    final boolean wasPaused = DefaultObjectMapper.readTree(previous).path("paused").asBoolean(false);
-    if (!wasPaused) {
-      return false;
-    }
+  private ObjectNode readControlDocument() throws IOException {
+    Optional<String> s = blockSingle(consul.kv().readOneKeyAsString(control()));
+    return (ObjectNode) DefaultObjectMapper.readTree(blockSingle(consul.kv().readOneKeyAsString(control())).orElse("{}"));
+  }
 
-    final String newValue = DefaultObjectMapper.writeValueAsString(ImmutableMap.of("paused", false));
-    final boolean success = kv.putValue(control(), newValue, UTF_8);
+  private void upsertControlDocument(Object value) throws IOException {
+    String json = DefaultObjectMapper.writeValueAsString(value);
+    boolean success = blockSingle(consul.kv().upsertKey(control(), json)).body();
     if (!success) {
       throw new IOException("Failed to update control document: " + control());
     }
-    return true;
   }
 
-  public <T> Optional<T> getConfig(Function<String, T> parser) {
-    final String configString = kv.getValueAsString(config(), UTF_8).orElse(null);
-    if (Strings.isNullOrEmpty(configString)) {
-      return Optional.empty();
+  public void resume() throws IOException {
+    // todo atomic update?
+    ObjectNode control = readControlDocument();
+    final boolean wasPaused = control.path("paused").asBoolean(false);
+    if (wasPaused) {
+      control.set("paused", BooleanNode.valueOf(false));
+      upsertControlDocument(control);
     }
-    return Optional.ofNullable(parser.apply(configString));
   }
 }
