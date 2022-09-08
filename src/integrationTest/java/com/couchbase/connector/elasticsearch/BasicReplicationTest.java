@@ -158,7 +158,9 @@ public class BasicReplicationTest {
     } else {
       close(elasticsearch);
       elasticsearch = new ElasticsearchContainer("docker.elastic.co/elasticsearch/elasticsearch:" + elasticsearchVersion)
-          .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")));
+          .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")))
+          .withStartupTimeout(Duration.ofMinutes(5)); // CI Docker host is sloooooowwwwwwww
+
       elasticsearch.start();
       System.out.println("Elasticsearch listening at http://" + elasticsearch.getHttpHostAddress());
       cachedElasticsearchContainerVersion = elasticsearchVersion;
