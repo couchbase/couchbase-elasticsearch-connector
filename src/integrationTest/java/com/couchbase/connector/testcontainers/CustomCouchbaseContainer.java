@@ -21,6 +21,7 @@ import org.testcontainers.couchbase.CouchbaseContainer;
 import org.testcontainers.couchbase.CouchbaseService;
 import org.testcontainers.utility.DockerImageName;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
 
@@ -35,7 +36,9 @@ public class CustomCouchbaseContainer extends CouchbaseContainer {
   public static CustomCouchbaseContainer newCouchbaseCluster(String dockerImageName) {
     @SuppressWarnings("resource")
     CouchbaseContainer couchbase = new CustomCouchbaseContainer(dockerImageName)
-        .withEnabledServices(CouchbaseService.KV, CouchbaseService.QUERY, CouchbaseService.INDEX);
+        .withEnabledServices(CouchbaseService.KV, CouchbaseService.QUERY, CouchbaseService.INDEX)
+        .withStartupTimeout(Duration.ofMinutes(5)); // CI Docker host is sloooooowwwwwwww
+
     couchbase.start();
 
     return (CustomCouchbaseContainer) couchbase;

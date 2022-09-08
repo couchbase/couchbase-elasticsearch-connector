@@ -31,6 +31,7 @@ import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.couchbase.connector.elasticsearch.BasicReplicationTest.CATCH_ALL_INDEX;
@@ -63,7 +64,9 @@ public class AutonomousOpsTest {
     consulCluster = new ConsulCluster(CONSUL_DOCKER_IMAGE, 3, Network.newNetwork()).start();
 
     elasticsearch = new ElasticsearchContainer("docker.elastic.co/elasticsearch/elasticsearch:" + elasticsearchVersion)
-        .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")));
+        .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")))
+        .withStartupTimeout(Duration.ofMinutes(5)); // CI Docker host is sloooooowwwwwwww
+
     elasticsearch.start();
 
     couchbase = newCouchbaseCluster("couchbase/server:" + couchbaseVersion);
