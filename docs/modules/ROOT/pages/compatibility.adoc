@@ -71,6 +71,7 @@ To take advantage of the Scopes and Collections introduced in Couchbase 7, pleas
 |===
  |                           2+h| Connector
 h| Java↓                        | 4.1 - 4.2 | 4.3 - 4.4
+ | OpenJDK 17 (Eclipse Temurin) | ✔         | ✔
  | OpenJDK 11 (Eclipse Temurin) | ✔         | ✔
  | OpenJDK 8 (AdoptOpenJDK)     | ✔         | ✖
  | Oracle JDK 8                 | ✔         | ✖
