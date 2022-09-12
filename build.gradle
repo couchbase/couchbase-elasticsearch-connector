@@ -65,8 +65,8 @@ dependencies {
   implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.18.0'
   implementation 'org.slf4j:jcl-over-slf4j:1.7.36'
 
-  implementation 'com.couchbase.client:java-client:3.3.3'
-  implementation 'com.couchbase.client:dcp-client:0.40.0'
+  implementation 'com.couchbase.client:java-client:3.3.4'
+  implementation 'com.couchbase.client:dcp-client:0.41.0-SNAPSHOT'
 
   implementation 'com.squareup.okhttp3:okhttp:4.10.0'
 
@@ -76,7 +76,7 @@ dependencies {
   implementation 'com.fasterxml.jackson.core:jackson-databind'
   implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
 
-  implementation 'io.projectreactor:reactor-core:3.4.21'
+  implementation 'io.projectreactor:reactor-core:3.4.22'
 
   implementation 'io.fabric8:kubernetes-client:5.11.1'
   implementation 'com.github.therapi:therapi-json-rpc:0.5.0'
@@ -185,7 +185,7 @@ extraStartScripts.each { scriptName, driverClass ->
   startScripts.dependsOn(t)
 }
 
-def requireFileExists(filename)  {
+def requireFileExists(filename) {
   if (!file(filename).exists()) throw new GradleException("File '$filename' not found")
   return filename
 }
