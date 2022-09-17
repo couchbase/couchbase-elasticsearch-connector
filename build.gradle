@@ -17,7 +17,7 @@ repositories {
 version = "4.4.1-SNAPSHOT"
 
 def targetJavaRelease = 11
-def jvmVersion = System.getProperty("os.arch").equals("aarch64") ? "17" : "11" // Only 17 is available for Apple silicon.
+def jvmVersion = "11"
 def testJvmVersion = project.findProperty("testJvmVersion") ?: jvmVersion
 def jvmVendor = JvmVendorSpec.ADOPTIUM
 println "Compiling for Java ${targetJavaRelease} using JVM ${jvmVersion} (${jvmVendor}), testing using JVM ${testJvmVersion}"
@@ -73,12 +73,13 @@ dependencies {
   implementation 'co.elastic.clients:elasticsearch-java:8.4.1'
 
   implementation platform('com.fasterxml.jackson:jackson-bom:2.13.4')
+  implementation 'org.yaml:snakeyaml:1.32' // to avoid warnings about CVE-2022-38752
   implementation 'com.fasterxml.jackson.core:jackson-databind'
   implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
 
   implementation 'io.projectreactor:reactor-core:3.4.22'
 
-  implementation 'io.fabric8:kubernetes-client:5.11.1'
+  implementation 'io.fabric8:kubernetes-client:5.11.2'
   implementation 'com.github.therapi:therapi-json-rpc:0.5.0'
 
   implementation 'io.micrometer:micrometer-registry-prometheus:1.8.1'
@@ -105,7 +106,7 @@ dependencies {
   integrationTestImplementation 'org.testcontainers:couchbase'
   integrationTestImplementation 'org.testcontainers:elasticsearch'
 
-  def immutablesVersion = '2.9.1'
+  def immutablesVersion = '2.9.2'
   compileOnly "org.immutables:value:${immutablesVersion}"
   annotationProcessor "org.immutables:value:${immutablesVersion}"
 }
