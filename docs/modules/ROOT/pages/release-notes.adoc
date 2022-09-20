@@ -8,6 +8,50 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.4.1]]
+== Version 4.4.1 (2022-09-20)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.4.1/couchbase-elasticsearch-connector-4.4.1.zip[Download]
+
+Adds support for recent versions of HashiCorp Consul, and improves the lifecycle of the connector's Consul service definitions.
+
+Elasticsearch 8.4 joins the list of supported versions.
+
+=== Behavioral Changes
+
+* https://issues.couchbase.com/browse/CBES-240[CBES-240]:
+*Autonomous Operations Mode* When the connector shuts down gracefully in response to an interrupt signal, it now deregisters its Consul service definition before exiting.
+For ungraceful shutdowns, Consul automatically deregisters a service definition that remains in "critical" state for 7 days.
++
+TIP: You can customize these behaviors in the connector's Consul-specific configuration, specified with the command-line option:
++
+[source,shell]
+----
+--consul <path/to/consul.toml>
+----
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-237[CBES-237]:
+*Autonomous Operations Mode* HashiCorp Consul 1.13, 1.12, and 1.11 are now supported.
+
+* https://issues.couchbase.com/browse/CBES-144[CBES-144]:
+*Autonomous Operations Mode* The connector now recovers from transient Consul errors that sometimes occur during leader election.
+When Consul returns HTTP status code 500 or 503, the connector now retries the request instead of immediately terminating.
+
+* https://issues.couchbase.com/browse/CBES-262[CBES-262]:
+Elasticsearch 8.4 is now supported.
+
+* https://issues.couchbase.com/browse/CBES-256[CBES-256]:
+OpenJDK 17 is now supported, and is used by the Docker image.
+The Docker image now refers to its base image by a stable minor version tag (instead of a specific patch version), which should make it easier for us to update the connector image when the base image receives security updates.
+
+* https://issues.couchbase.com/browse/CBES-263[CBES-263]:
+Upgraded Couchbase Java SDK from `3.3.2` to `3.3.4`.
+
+* https://issues.couchbase.com/browse/CBES-266[CBES-266]:
+Upgraded Couchbase DCP client from `0.40.0` to `0.41.0`.
+
 [[v4.4.0]]
 == Version 4.4.0 (2022-08-01)
 

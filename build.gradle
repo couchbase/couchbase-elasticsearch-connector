@@ -14,7 +14,7 @@ repositories {
   maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
 }
 
-version = "4.4.1-SNAPSHOT"
+version = "4.4.1"
 
 def targetJavaRelease = 11
 def jvmVersion = "11"
@@ -66,7 +66,7 @@ dependencies {
   implementation 'org.slf4j:jcl-over-slf4j:1.7.36'
 
   implementation 'com.couchbase.client:java-client:3.3.4'
-  implementation 'com.couchbase.client:dcp-client:0.41.0-SNAPSHOT'
+  implementation 'com.couchbase.client:dcp-client:0.41.0'
 
   implementation 'com.squareup.okhttp3:okhttp:4.10.0'
 
