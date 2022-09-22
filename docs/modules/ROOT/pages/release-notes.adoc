@@ -44,7 +44,7 @@ Elasticsearch 8.4 is now supported.
 
 * https://issues.couchbase.com/browse/CBES-256[CBES-256]:
 OpenJDK 17 is now supported, and is used by the Docker image.
-The Docker image now refers to its base image by a stable minor version tag (instead of a specific patch version), which should make it easier for us to update the connector image when the base image receives security updates.
+The Dockerfile now refers to the base image by a stable minor version tag (instead of a specific patch version), which should make it easier for us to update the connector image when the base image receives security updates.
 
 * https://issues.couchbase.com/browse/CBES-263[CBES-263]:
 Upgraded Couchbase Java SDK from `3.3.2` to `3.3.4`.
