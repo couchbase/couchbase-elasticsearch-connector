@@ -2,14 +2,14 @@
 <Configuration status="INFO">
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{1.} - %msg%n"/>
+            <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHCMM} [%t] %-5level %logger{1.} - %msg%n"/>
         </Console>
 
         <RollingFile name="General"
                      fileName="${env:APP_HOME}/logs/cbes.log"
                      filePattern="${env:APP_HOME}/logs/cbes.%d{yyy-MM-dd}.%i.log.gz"
                      ignoreExceptions="false">
-            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{1.} - %msg%n"/>
+            <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHCMM} [%t] %-5level %logger{1.} - %msg%n"/>
             <Policies>
                 <OnStartupTriggeringPolicy/>
                 <SizeBasedTriggeringPolicy size="250 MB"/>
@@ -27,7 +27,7 @@
                      fileName="${env:APP_HOME}/logs/cbes-metrics.log"
                      filePattern="${env:APP_HOME}/logs/cbes-metrics.%d{yyy-MM-dd}.%i.log.gz"
                      ignoreExceptions="false">
-            <PatternLayout pattern="%d{yyy-MM-dd HH:mm:ss.SSS} %msg%n"/>
+            <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHCMM} %msg%n"/>
             <Policies>
                 <OnStartupTriggeringPolicy/>
                 <SizeBasedTriggeringPolicy size="250 MB"/>
