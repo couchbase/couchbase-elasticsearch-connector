@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.config.common;
 
+import com.couchbase.client.core.annotation.Stability;
 import com.couchbase.client.dcp.config.CompressionMode;
 import com.couchbase.connector.config.StorageSize;
 import com.couchbase.connector.config.toml.ConfigTable;
@@ -34,15 +35,15 @@ public interface DcpConfig {
 
   StorageSize flowControlBuffer();
 
-  default Duration connectTimeout() {
-    return Duration.ofSeconds(10);
-  }
+  @Stability.Volatile
+  Duration connectTimeout();
 
   static ImmutableDcpConfig from(ConfigTable config) {
     return ImmutableDcpConfig.builder()
         .compression(config.getBoolean("compression").orElse(true) ? CompressionMode.ENABLED : CompressionMode.DISABLED)
         .persistencePollingInterval(getTime(config, "persistencePollingInterval").orElse(Duration.ofMillis(100)))
         .flowControlBuffer(getSize(config, "flowControlBuffer").orElse(StorageSize.ofMebibytes(16)))
+        .connectTimeout(getTime(config, "connectTimeout").orElse(Duration.ofSeconds(10)))
         .build();
   }
 }

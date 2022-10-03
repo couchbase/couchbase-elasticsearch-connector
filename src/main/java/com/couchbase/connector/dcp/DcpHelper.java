@@ -114,6 +114,7 @@ public class DcpHelper {
         .meterRegistry(Metrics.registry())
         .userAgent("elasticsearch-connector", VersionHelper.getVersion(), groupName)
         .bootstrapTimeout(config.dcp().connectTimeout())
+        .socketConnectTimeout(config.dcp().connectTimeout().toMillis())
         .seedNodes(seedNodes)
         .networkResolution(NetworkResolution.valueOf(config.network().name()))
         .bucket(config.bucket())
