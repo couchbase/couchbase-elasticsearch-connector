@@ -7,7 +7,7 @@
 
         <RollingFile name="General"
                      fileName="${env:APP_HOME}/logs/cbes.log"
-                     filePattern="${env:APP_HOME}/logs/cbes.%d{yyy-MM-dd}.%i.log.gz"
+                     filePattern="${env:APP_HOME}/logs/cbes.%d{yyyy-MM-dd}.%i.log.gz"
                      ignoreExceptions="false">
             <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHCMM} [%t] %-5level %logger{1.} - %msg%n"/>
             <Policies>
@@ -25,7 +25,7 @@
 
         <RollingFile name="Metrics"
                      fileName="${env:APP_HOME}/logs/cbes-metrics.log"
-                     filePattern="${env:APP_HOME}/logs/cbes-metrics.%d{yyy-MM-dd}.%i.log.gz"
+                     filePattern="${env:APP_HOME}/logs/cbes-metrics.%d{yyyy-MM-dd}.%i.log.gz"
                      ignoreExceptions="false">
             <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHCMM} %msg%n"/>
             <Policies>
