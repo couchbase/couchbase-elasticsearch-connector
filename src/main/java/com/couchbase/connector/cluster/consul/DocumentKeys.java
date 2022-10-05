@@ -17,8 +17,8 @@
 package com.couchbase.connector.cluster.consul;
 
 import com.couchbase.client.dcp.core.utils.DefaultObjectMapper;
-import com.couchbase.client.dcp.deps.com.fasterxml.jackson.databind.node.BooleanNode;
-import com.couchbase.client.dcp.deps.com.fasterxml.jackson.databind.node.ObjectNode;
+import com.couchbase.client.core.deps.com.fasterxml.jackson.databind.node.BooleanNode;
+import com.couchbase.client.core.deps.com.fasterxml.jackson.databind.node.ObjectNode;
 import com.couchbase.connector.cluster.consul.rpc.Broadcaster;
 import com.couchbase.connector.cluster.consul.rpc.RpcEndpoint;
 import com.couchbase.connector.cluster.consul.rpc.RpcResult;

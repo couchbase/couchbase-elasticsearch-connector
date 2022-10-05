@@ -18,7 +18,7 @@ package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.client.core.config.BucketCapabilities;
 import com.couchbase.client.core.msg.kv.MutationToken;
-import com.couchbase.client.dcp.deps.io.netty.util.ResourceLeakDetector;
+import com.couchbase.client.core.deps.io.netty.util.ResourceLeakDetector;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Collection;
 import com.couchbase.client.java.json.JsonObject;
