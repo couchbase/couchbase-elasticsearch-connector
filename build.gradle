@@ -72,7 +72,7 @@ dependencies {
 
   implementation 'co.elastic.clients:elasticsearch-java:8.4.1'
 
-  implementation platform('com.fasterxml.jackson:jackson-bom:2.13.4')
+  implementation platform('com.fasterxml.jackson:jackson-bom:2.13.4.20221013')
   implementation 'org.yaml:snakeyaml:1.32' // to avoid warnings about CVE-2022-38752
   implementation 'com.fasterxml.jackson.core:jackson-databind'
   implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
