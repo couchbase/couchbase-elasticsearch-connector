@@ -66,14 +66,13 @@ dependencies {
   implementation 'org.slf4j:jcl-over-slf4j:1.7.36'
 
   implementation 'com.couchbase.client:java-client:3.3.4'
-  implementation 'com.couchbase.client:dcp-client:0.42.0-SNAPSHOT'
+  implementation 'com.couchbase.client:dcp-client:0.42.0'
 
   implementation 'com.squareup.okhttp3:okhttp:4.10.0'
 
-  implementation 'co.elastic.clients:elasticsearch-java:8.4.1'
+  implementation 'co.elastic.clients:elasticsearch-java:8.4.2'
 
   implementation platform('com.fasterxml.jackson:jackson-bom:2.13.4.20221013')
-  implementation 'org.yaml:snakeyaml:1.32' // to avoid warnings about CVE-2022-38752
   implementation 'com.fasterxml.jackson.core:jackson-databind'
   implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
 
@@ -101,7 +100,7 @@ dependencies {
   testImplementation('org.assertj:assertj-core:3.23.1')
   integrationTestImplementation 'com.jayway.jsonpath:json-path:2.7.0'
 
-  implementation platform('org.testcontainers:testcontainers-bom:1.17.3')
+  implementation platform('org.testcontainers:testcontainers-bom:1.17.4')
   integrationTestImplementation 'org.testcontainers:testcontainers'
   integrationTestImplementation 'org.testcontainers:couchbase'
   integrationTestImplementation 'org.testcontainers:elasticsearch'
