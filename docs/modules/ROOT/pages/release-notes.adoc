@@ -8,6 +8,31 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.4.2]]
+== Version 4.4.2 (2022-10-21)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.4.2/couchbase-elasticsearch-connector-4.4.2.zip[Download]
+
+You can now authenticate with Couchbase as an LDAP user, as long as secure connections are enabled.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/JDCP-224[JDCP-224]:
+Use SASL mechanism `PLAIN` when authenticating with Couchbase on a secure connection.
+`PLAIN` is the fastest mechanism, and the only one that works with LDAP users.
+
+* https://issues.couchbase.com/browse/JDCP-217[JDCP-217]:
+Support Couchbase clusters that advertise only TLS ports.
+
+* https://issues.couchbase.com/browse/CBES-267[CBES-267]:
+Include date and time zone in log message timestamps.
+
+* https://issues.couchbase.com/browse/CBES-268[CBES-268]:
+Increase the DCP connection handshake timeout from 3 seconds to 12 seconds, allowing more time to connect to a remote/overloaded cluster.
+
+* https://issues.couchbase.com/browse/CBES-275[CBES-275]:
+Upgrade Couchbase DCP client from `0.41.0` to `0.42.0`.
+
 [[v4.4.1]]
 == Version 4.4.1 (2022-09-20)
 
