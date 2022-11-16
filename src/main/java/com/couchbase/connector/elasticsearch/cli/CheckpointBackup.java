@@ -50,7 +50,7 @@ public class CheckpointBackup extends AbstractCliCommand {
     final OptionSpec<File> outputFile = parser.accepts("output", "Checkpoint file to create. Pro tip: On Unix-like systems, include a timestamp like: checkpoint-$(date -u +%Y-%m-%dT%H:%M:%SZ).json")
         .withRequiredArg().ofType(File.class).describedAs("checkpoint.json").required();
 
-   // final OptionSpec<Void> forceOverwrite = parser.accepts("force", "Allows overwriting an existing output file.");
+    // final OptionSpec<Void> forceOverwrite = parser.accepts("force", "Allows overwriting an existing output file.");
   }
 
   public static void main(String[] args) throws Exception {

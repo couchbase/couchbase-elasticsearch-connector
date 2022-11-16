@@ -63,7 +63,8 @@ public interface CouchbaseConfig {
 
   boolean secureConnection();
 
-  @Value.Redacted // not secret, but the toString is too verbose
+  // Not secret, but redacted because the toString is too verbose
+  @Value.Redacted
   List<X509Certificate> caCert();
 
   boolean hostnameVerification();

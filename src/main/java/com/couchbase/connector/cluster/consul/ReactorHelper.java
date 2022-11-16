@@ -82,7 +82,7 @@ public class ReactorHelper {
    *
    * @return The first item matching the predicate, or {@code null} if the flux completes without a match.
    * @throws InterruptedException if the thread is interrupted.
-   * @throws TimeoutException     if the flux does not emit a matching item before the timeout expires.
+   * @throws TimeoutException if the flux does not emit a matching item before the timeout expires.
    */
   public static <T> T await(Flux<T> flux, Predicate<? super T> condition, Duration timeout)
       throws InterruptedException, TimeoutException {

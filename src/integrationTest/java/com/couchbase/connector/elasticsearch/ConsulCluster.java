@@ -88,8 +88,8 @@ public class ConsulCluster implements Closeable {
     final BackoffPolicy backoffPolicy = constantBackoff(Duration.ofSeconds(1)).limit(10).build();
     TestEsClient.retryUntilSuccess(backoffPolicy, () -> {
           try (ConsulOps client = client(nodes.size() - 1)) {
-              checkState(client.kv().upsertKey("startup-complete", "true").block().body());
-              return null;
+            checkState(client.kv().upsertKey("startup-complete", "true").block().body());
+            return null;
           }
         }
     );

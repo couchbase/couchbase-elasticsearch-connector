@@ -85,7 +85,7 @@ public class ConsulResponse<T> {
         newBody);
   }
 
-  public <R> ConsulResponse<R> map(Function<T,R> bodyTransform) {
+  public <R> ConsulResponse<R> map(Function<T, R> bodyTransform) {
     return withBody(bodyTransform.apply(this.body));
   }
 
@@ -114,7 +114,7 @@ public class ConsulResponse<T> {
   }
 
   public boolean isSuccessful() {
-    return (httpStatusCode >= 200 &&  httpStatusCode <= 299);
+    return (httpStatusCode >= 200 && httpStatusCode <= 299);
   }
 
   public ConsulResponse<T> requireSuccess() {

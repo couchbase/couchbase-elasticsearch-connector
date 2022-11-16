@@ -18,5 +18,6 @@ package com.couchbase.connector.cluster.consul;
 
 public interface LeaderController {
   void startLeading();
+
   void stopLeading();
 }

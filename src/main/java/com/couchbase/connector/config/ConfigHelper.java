@@ -110,7 +110,7 @@ public class ConfigHelper {
     try (InputStream is = new FileInputStream(file)) {
       //noinspection unchecked
       List<X509Certificate> result = List.copyOf((List<X509Certificate>) getX509CertificateFactory().generateCertificates(is));
-      if (result.isEmpty())  {
+      if (result.isEmpty()) {
         LOGGER.warn("Certificate file contained zero certificates! " + context);
       }
       return result;

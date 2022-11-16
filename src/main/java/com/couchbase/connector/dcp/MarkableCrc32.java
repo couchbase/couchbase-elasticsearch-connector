@@ -26,6 +26,7 @@ import java.util.zip.Checksum;
  * checksum state. Future calls to reset() will restore the saved state
  * instead of clearing the checksum.
  */
+// @formatter:off (Keep original formatting)
 
 /**
  * A pure-java implementation of the CRC32 checksum that uses

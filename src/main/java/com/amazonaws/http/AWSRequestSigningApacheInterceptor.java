@@ -59,7 +59,6 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
   private final AWSCredentialsProvider awsCredentialsProvider;
 
   /**
-   *
    * @param service service that we're connecting to
    * @param signer particular signer implementation
    * @param awsCredentialsProvider source of AWS credentials for signing
@@ -82,7 +81,7 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
     try {
       uriBuilder = new URIBuilder(request.getRequestLine().getUri());
     } catch (URISyntaxException e) {
-      throw new IOException("Invalid URI" , e);
+      throw new IOException("Invalid URI", e);
     }
 
     // Copy Apache HttpRequest to AWS DefaultRequest
@@ -98,7 +97,7 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
     try {
       signableRequest.setResourcePath(uriBuilder.build().getRawPath());
     } catch (URISyntaxException e) {
-      throw new IOException("Invalid URI" , e);
+      throw new IOException("Invalid URI", e);
     }
 
     if (request instanceof HttpEntityEnclosingRequest) {
@@ -128,7 +127,6 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
   }
 
   /**
-   *
    * @param params list of HTTP query params as NameValuePairs
    * @return a multimap of HTTP query params
    */
