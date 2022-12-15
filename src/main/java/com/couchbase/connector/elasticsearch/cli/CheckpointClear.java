@@ -23,7 +23,6 @@ import com.couchbase.client.dcp.state.SessionState;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.Collection;
-import com.couchbase.client.java.env.ClusterEnvironment;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.dcp.Checkpoint;
 import com.couchbase.connector.dcp.CheckpointDao;
@@ -46,7 +45,6 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.createCluster;
-import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
 import static com.couchbase.connector.dcp.CouchbaseHelper.getBucketConfig;
 import static com.couchbase.connector.dcp.CouchbaseHelper.getKvNodes;
 import static com.couchbase.connector.dcp.DcpHelper.allPartitions;
@@ -79,9 +77,7 @@ public class CheckpointClear extends AbstractCliCommand {
   }
 
   private static void run(ConnectorConfig config, boolean catchUp) throws IOException {
-    final ClusterEnvironment env = environmentBuilder(config).build();
-    final Cluster cluster = createCluster(config.couchbase(), env);
-    try {
+    try (Cluster cluster = createCluster(config)) {
       final Bucket metadataBucket = CouchbaseHelper.waitForBucket(cluster, config.couchbase().metadataBucket());
       final Collection metadataCollection = CouchbaseHelper.getMetadataCollection(metadataBucket, config.couchbase());
       final ResolvedBucketConfig bucketConfig = getBucketConfig(config.couchbase(), metadataBucket);
@@ -101,9 +97,6 @@ public class CheckpointClear extends AbstractCliCommand {
 
         System.out.println("Cleared checkpoint for connector '" + config.group().name() + "'.");
       }
-    } finally {
-      cluster.disconnect();
-      env.shutdown();
     }
   }
 

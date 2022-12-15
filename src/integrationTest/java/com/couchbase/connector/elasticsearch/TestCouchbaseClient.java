@@ -19,7 +19,6 @@ package com.couchbase.connector.elasticsearch;
 import com.couchbase.client.core.service.ServiceType;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
-import com.couchbase.client.java.env.ClusterEnvironment;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableConnectorConfig;
 import com.couchbase.connector.dcp.CouchbaseHelper;
@@ -32,10 +31,9 @@ import java.time.Duration;
 
 import static com.couchbase.client.dcp.core.utils.CbCollections.setOf;
 import static com.couchbase.client.java.diagnostics.WaitUntilReadyOptions.waitUntilReadyOptions;
-import static com.couchbase.connector.dcp.CouchbaseHelper.environmentBuilder;
+import static com.couchbase.connector.dcp.CouchbaseHelper.environmentConfigurator;
 
 class TestCouchbaseClient implements Closeable {
-  private final ClusterEnvironment env;
   private final Cluster cluster;
   private final Closer closer = Closer.create();
 
@@ -44,13 +42,16 @@ class TestCouchbaseClient implements Closeable {
   }
 
   public TestCouchbaseClient(ImmutableConnectorConfig config) {
-    ClusterEnvironment.Builder builder = environmentBuilder(config);
-    builder.ioConfig().enableMutationTokens(true);
-    builder.timeoutConfig().connectTimeout(Duration.ofSeconds(15));
-    builder.timeoutConfig().kvTimeout(Duration.ofSeconds(10));
-    this.env = builder.build();
-
-    this.cluster = CouchbaseHelper.createCluster(config.couchbase(), env);
+    this.cluster = CouchbaseHelper.createCluster(
+        config.couchbase(),
+        environmentConfigurator(config).andThen(env -> env
+            .ioConfig(io -> io.enableMutationTokens(true))
+            .timeoutConfig(timeout -> timeout
+                .connectTimeout(Duration.ofSeconds(15))
+                .kvTimeout(Duration.ofSeconds(10))
+            )
+        )
+    );
   }
 
   public Cluster cluster() {
@@ -89,7 +90,6 @@ class TestCouchbaseClient implements Closeable {
   @Override
   public void close() throws IOException {
     cluster.disconnect();
-    env.shutdown();
     closer.close();
   }
 }

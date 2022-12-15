@@ -27,18 +27,14 @@ import com.couchbase.client.dcp.util.Version;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.Collection;
-import com.couchbase.client.java.env.ClusterEnvironment;
 import com.couchbase.connector.cluster.DefaultPanicButton;
 import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.cluster.PanicButton;
 import com.couchbase.connector.cluster.k8s.ReplicaChangeWatcher;
 import com.couchbase.connector.cluster.k8s.StatefulSetInfo;
-import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.common.ImmutableGroupConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
-import com.couchbase.connector.config.es.ElasticsearchConfig;
 import com.couchbase.connector.config.es.ImmutableConnectorConfig;
-import com.couchbase.connector.config.es.TypeConfig;
 import com.couchbase.connector.dcp.CheckpointDao;
 import com.couchbase.connector.dcp.CheckpointService;
 import com.couchbase.connector.dcp.CouchbaseCheckpointDao;
@@ -195,8 +191,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       LogRedaction.setRedactionLevel(config.logging().redactionLevel());
       DcpHelper.setRedactionLevel(config.logging().redactionLevel());
 
-      final ClusterEnvironment env = CouchbaseHelper.environmentBuilder(config).build();
-      final Cluster cluster = CouchbaseHelper.createCluster(config.couchbase(), env);
+      final Cluster cluster = CouchbaseHelper.createCluster(config);
 
       final Version elasticsearchVersion = waitForElasticsearchAndRequireVersion(
           esClient, new Version(7, 14, 0), new Version(7, 17, 5));
@@ -316,7 +311,6 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         workers.close(); // to avoid buffer leak, must close *after* dcp client stops feeding it events
         checkpointExecutor.awaitTermination(10, SECONDS);
         cluster.disconnect();
-        env.shutdown(); // can't reuse, because connector config might have different SSL settings next time
       }
     }
 

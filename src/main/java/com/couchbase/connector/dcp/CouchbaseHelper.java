@@ -19,13 +19,10 @@ package com.couchbase.connector.dcp;
 import com.couchbase.client.core.Core;
 import com.couchbase.client.core.config.BucketConfig;
 import com.couchbase.client.core.config.CouchbaseBucketConfig;
-import com.couchbase.client.core.env.AbstractMapPropertyLoader;
 import com.couchbase.client.core.env.Authenticator;
 import com.couchbase.client.core.env.CertificateAuthenticator;
-import com.couchbase.client.core.env.CoreEnvironment;
-import com.couchbase.client.core.env.IoEnvironment;
 import com.couchbase.client.core.env.PasswordAuthenticator;
-import com.couchbase.client.core.env.SecurityConfig;
+import com.couchbase.client.core.env.PropertyLoader;
 import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.core.service.ServiceType;
 import com.couchbase.client.core.util.ConnectionString;
@@ -45,16 +42,13 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import static com.couchbase.client.core.env.IoConfig.networkResolution;
-import static com.couchbase.client.core.env.TimeoutConfig.connectTimeout;
 import static com.couchbase.client.dcp.core.utils.CbCollections.setOf;
 import static com.couchbase.client.java.ClusterOptions.clusterOptions;
 import static com.couchbase.client.java.diagnostics.WaitUntilReadyOptions.waitUntilReadyOptions;
@@ -69,58 +63,38 @@ public class CouchbaseHelper {
     throw new AssertionError("not instantiable");
   }
 
-  public static ClusterEnvironment.Builder environmentBuilder(ConnectorConfig connectorConfig) {
+  public static Consumer<ClusterEnvironment.Builder> environmentConfigurator(ConnectorConfig connectorConfig) {
+    return env -> configure(env, connectorConfig);
+  }
+
+  private static void configure(ClusterEnvironment.Builder env, ConnectorConfig connectorConfig) {
     CouchbaseConfig config = connectorConfig.couchbase();
-    final ClusterEnvironment.Builder envBuilder = ClusterEnvironment.builder()
-        .ioConfig(networkResolution(config.network()))
-        .timeoutConfig(connectTimeout(Duration.ofSeconds(10)));
+    env
+        .ioConfig(io -> io.networkResolution(config.network()))
+        .timeoutConfig(timeout -> timeout.connectTimeout(Duration.ofSeconds(10)))
+        .securityConfig(security -> {
+          if (config.secureConnection()) {
+            security
+                .enableTls(true)
+                .enableHostnameVerification(config.hostnameVerification());
 
-    if (config.secureConnection()) {
-      SecurityConfig.Builder securityBuilder = SecurityConfig.builder()
-          .enableTls(true)
-          .enableHostnameVerification(config.hostnameVerification());
+            if (!config.caCert().isEmpty()) {
+              // The user specified a CA cert specifically for Couchbase. Trust it and no others!
+              security.trustCertificates(config.caCert());
+            } else {
+              // Use the keystore from the DEPRECATED `[truststore]` config section if present.
+              // Otherwise, don't specify a trust store, and let the SDK use the default CA certificates.
+              connectorConfig.trustStore().ifPresent(it -> security.trustStore(it.get()));
+            }
+          }
+        });
 
-      if (!config.caCert().isEmpty()) {
-        // The user specified a CA cert specifically for Couchbase. Trust it and no others!
-        securityBuilder.trustCertificates(config.caCert());
-      } else {
-        // Use the keystore from the DEPRECATED `[truststore]` config section if present.
-        // Otherwise, don't specify a trust store, and let the SDK use the default CA certificates.
-        connectorConfig.trustStore().ifPresent(it -> securityBuilder.trustStore(it.get()));
-      }
-
-      envBuilder.securityConfig(securityBuilder);
-    }
-
-    applyCustomEnvironmentProperties(envBuilder, config);
-
-    return envBuilder;
+    applyCustomEnvironmentProperties(env, config);
   }
 
   private static void applyCustomEnvironmentProperties(ClusterEnvironment.Builder envBuilder, CouchbaseConfig config) {
-    // Begin workaround for IoEnvironment config.
-    // Prior to Java client 3.1.5, IoEnvironment isn't configurable
-    // via system properties. Until then, handle it manually.
-    Map<String, String> envProps = new HashMap<>(config.env());
-    IoEnvironment.Builder ioEnvBuilder = IoEnvironment.builder();
-    String nativeIoEnabled = envProps.remove("ioEnvironment.enableNativeIo");
-    if (nativeIoEnabled != null) {
-      ioEnvBuilder.enableNativeIo(Boolean.parseBoolean(nativeIoEnabled));
-    }
-    String eventLoopThreadCount = envProps.remove("ioEnvironment.eventLoopThreadCount");
-    if (eventLoopThreadCount != null) {
-      ioEnvBuilder.eventLoopThreadCount(Integer.parseInt(eventLoopThreadCount));
-    }
-    envBuilder.ioEnvironment(ioEnvBuilder);
-    // End workaround for IoEnvironment config.
-
     try {
-      envBuilder.load(new AbstractMapPropertyLoader<CoreEnvironment.Builder>() {
-        @Override
-        protected Map<String, String> propertyMap() {
-          return envProps;
-        }
-      });
+      envBuilder.load(PropertyLoader.fromMap(config.env()));
     } catch (Exception e) {
       throw new ConfigException("Failed to apply Couchbase environment properties; " + e.getMessage());
     }
@@ -155,7 +129,11 @@ public class CouchbaseHelper {
     return portType.name().toLowerCase(Locale.ROOT);
   }
 
-  public static Cluster createCluster(CouchbaseConfig config, ClusterEnvironment env) {
+  public static Cluster createCluster(ConnectorConfig config) {
+    return createCluster(config.couchbase(), environmentConfigurator(config));
+  }
+
+  public static Cluster createCluster(CouchbaseConfig config, Consumer<ClusterEnvironment.Builder> env) {
     List<String> hosts = config.hosts();
 
     // For compatibility with previous 4.2.x versions of the connector,
@@ -178,15 +156,15 @@ public class CouchbaseHelper {
 
   /**
    * CAVEAT: Only suitable for one-shot command-line tools, since this method
-   * leaks a couchbase environment. That's bad, right?
+   * leaks a Cluster. That's bad, right?
    *
-   * @deprecated Leaks the environment. Probably shouldn't use this.
+   * @deprecated Leaks the cluster. Probably shouldn't use this.
    */
   @Deprecated
   public static Bucket openMetadataBucket(ConnectorConfig config) {
-    // xxx caller has no way of shutting down this environment :-/
-    final ClusterEnvironment env = environmentBuilder(config).build();
-    return createCluster(config.couchbase(), env).bucket(config.couchbase().metadataBucket());
+    // xxx caller has no way of shutting down this cluster :-/
+    Cluster cluster = createCluster(config.couchbase(), environmentConfigurator(config));
+    return cluster.bucket(config.couchbase().metadataBucket());
   }
 
   public static int getNumPartitions(Bucket bucket) {
