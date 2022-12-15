@@ -23,6 +23,7 @@ import com.couchbase.client.dcp.Client;
 import com.couchbase.client.dcp.StreamFrom;
 import com.couchbase.client.dcp.StreamTo;
 import com.couchbase.client.dcp.metrics.LogLevel;
+import com.couchbase.client.dcp.util.PartitionSet;
 import com.couchbase.client.dcp.util.Version;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
@@ -244,8 +245,14 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         }
 
         final int numPartitions = dcpClient.numPartitions();
-        LOGGER.info("Bucket has {} partitions. Membership = {}", numPartitions, membership);
         final Set<Integer> partitions = membership.getPartitions(numPartitions);
+
+        LOGGER.info("Bucket has {} partitions. Membership = {}. Assigned partitions: {}",
+            numPartitions,
+            membership,
+            PartitionSet.from(partitions)
+        );
+
         if (partitions.isEmpty()) {
           // need to do this check, because if we started streaming with an empty list, the DCP client would open streams for *all* partitions
           throw new IllegalArgumentException("There are more workers than Couchbase vbuckets; this worker doesn't have any work to do.");
