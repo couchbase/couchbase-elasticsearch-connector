@@ -65,18 +65,18 @@ dependencies {
   implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.19.0'
   implementation 'org.slf4j:jcl-over-slf4j:1.7.36'
 
-  implementation 'com.couchbase.client:java-client:3.3.4'
-  implementation 'com.couchbase.client:dcp-client:0.42.0'
+  implementation 'com.couchbase.client:java-client:3.4.1'
+  implementation 'com.couchbase.client:dcp-client:0.43.0-SNAPSHOT'
 
   implementation 'com.squareup.okhttp3:okhttp:4.10.0'
 
-  implementation 'co.elastic.clients:elasticsearch-java:8.4.2'
+  implementation 'co.elastic.clients:elasticsearch-java:8.5.2'
 
-  implementation platform('com.fasterxml.jackson:jackson-bom:2.13.4.20221013')
+  implementation platform('com.fasterxml.jackson:jackson-bom:2.14.1')
   implementation 'com.fasterxml.jackson.core:jackson-databind'
   implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
 
-  implementation 'io.projectreactor:reactor-core:3.4.22'
+  implementation 'io.projectreactor:reactor-core:3.5.0'
 
   implementation 'io.fabric8:kubernetes-client:5.11.2'
   implementation 'com.github.therapi:therapi-json-rpc:0.5.0'
@@ -100,7 +100,7 @@ dependencies {
   testImplementation('org.assertj:assertj-core:3.23.1')
   integrationTestImplementation 'com.jayway.jsonpath:json-path:2.7.0'
 
-  implementation platform('org.testcontainers:testcontainers-bom:1.17.4')
+  implementation platform('org.testcontainers:testcontainers-bom:1.17.6')
   integrationTestImplementation 'org.testcontainers:testcontainers'
   integrationTestImplementation 'org.testcontainers:couchbase'
   integrationTestImplementation 'org.testcontainers:elasticsearch'

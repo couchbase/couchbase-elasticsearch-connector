@@ -140,9 +140,9 @@ public class CouchbaseHelper {
         .hosts()
         .stream()
         .map(s -> {
-          HostAndPort hap = new HostAndPort(s.hostname(), s.port());
+          HostAndPort hap = new HostAndPort(s.host(), s.port());
           if (s.port() == 0) {
-            return hap.formatHost();
+            return hap.format();
           }
           ConnectionString.PortType portType = s.portType().orElse(defaultPortType);
           return hap.format() + "=" + getAlias(portType);
