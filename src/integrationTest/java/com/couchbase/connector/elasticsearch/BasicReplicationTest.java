@@ -17,8 +17,8 @@
 package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.client.core.config.BucketCapabilities;
-import com.couchbase.client.core.msg.kv.MutationToken;
 import com.couchbase.client.core.deps.io.netty.util.ResourceLeakDetector;
+import com.couchbase.client.core.msg.kv.MutationToken;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Collection;
 import com.couchbase.client.java.json.JsonObject;
@@ -92,8 +92,8 @@ public class BasicReplicationTest {
     final boolean exhaustive = Boolean.parseBoolean(System.getProperty("com.couchbase.integrationTest.exhaustive"));
 
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
-        "enterprise-7.1.1",
-        "community-7.1.1"
+        "enterprise-7.1.3",
+        "community-7.1.3"
 //        "enterprise-6.6.5",
 //        "community-6.6.0"
     );
@@ -101,7 +101,7 @@ public class BasicReplicationTest {
     // This list is informed by https://www.elastic.co/support/eol
     // If possible, we also want to support the last release of the previous major version.
     final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "8.4.1", // latest version
+        "8.5.3", // latest version
         "7.17.5", // latest version of previous major
         "7.14.0" // oldest supported version (first version that sends required "X-Elastic-Product" header)
     ));
