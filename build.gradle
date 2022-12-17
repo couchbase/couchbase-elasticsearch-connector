@@ -14,7 +14,7 @@ repositories {
   maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
 }
 
-version = "4.3.9-SNAPSHOT"
+version = "4.3.9"
 
 def targetJavaRelease = 11
 def jvmVersion = System.getProperty("os.arch").equals("aarch64") ? "17" : "11" // Only 17 is available for Apple silicon.
