@@ -8,6 +8,22 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.4.3]]
+== Version 4.4.3 (2022-12-20)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.4.3/couchbase-elasticsearch-connector-4.4.3.zip[Download]
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-278[CBES-278]:
+Elasticsearch 8.5 and Consul 1.14.3 are now supported.
+
+* https://issues.couchbase.com/browse/CBES-276[CBES-276]:
+Upgrade Couchbase DCP client from `0.42.0` to `0.43.0`.
+
+* https://issues.couchbase.com/browse/CBES-277[CBES-277]:
+Upgrade Couchbase Java SDK from `3.3.4` to `3.4.1`.
+
 [[v4.4.2]]
 == Version 4.4.2 (2022-10-21)
 
