@@ -132,6 +132,21 @@ Instead, please use the new `pathToCaCertificate` config properties added by htt
 * The `typeName` property in the `[elasticsearch.typeDefaults]`, `\[[elasticsearch.type]]`, and `[elasticsearch.rejectionLog]` config sections is deprecated, and will be removed in a future version.
 Specifying this property has no effect, since the concept of document types was removed in Elasticsearch 7.
 
+[[v4.3.9]]
+== Version 4.3.9 (2022-12-20)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.3.9/couchbase-elasticsearch-connector-4.3.9.zip[Download]
+
+This release bumps various dependency versions.
+There are no new features or bug fixes.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-279[CBES-279]:
+Upgrade the Docker base image to the latest version of `ubi8/openjdk-11-runtime`.
+The Dockerfile now uses a floating tag for the base image.
+This makes it easier to refresh the connector image when the base image is updated.
+
 [[v4.3.8]]
 == Version 4.3.8 (2022-06-21)
 
