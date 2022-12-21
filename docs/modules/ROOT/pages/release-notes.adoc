@@ -24,6 +24,12 @@ Upgrade Couchbase DCP client from `0.42.0` to `0.43.0`.
 * https://issues.couchbase.com/browse/CBES-277[CBES-277]:
 Upgrade Couchbase Java SDK from `3.3.4` to `3.4.1`.
 
+=== Bug Fixes
+
+* https://issues.couchbase.com/browse/CBES-281[CBES-281]:
+A regression in version `4.4.0` caused the connector to omit null-valued document fields when writing to Elasticsearch.
+Null-valued fields are now replicated correctly again.
+
 [[v4.4.2]]
 == Version 4.4.2 (2022-10-21)
 
