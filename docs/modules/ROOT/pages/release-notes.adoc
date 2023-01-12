@@ -55,6 +55,10 @@ Increase the DCP connection handshake timeout from 3 seconds to 12 seconds, allo
 * https://issues.couchbase.com/browse/CBES-275[CBES-275]:
 Upgrade Couchbase DCP client from `0.41.0` to `0.42.0`.
 
+* Upgraded `commons-text` from `1.9` to `1.10.0`.
+Please see https://www.couchbase.com/blog/security-vulnerability-text4shell/[our official response to CVE-2022-42889 (also known as Text4Shell)].
+In brief, no version of the Elasticsearch connector is vulnerable.
+
 [[v4.4.1]]
 == Version 4.4.1 (2022-09-20)
 
@@ -152,6 +156,10 @@ There are no new features or bug fixes.
 Upgrade the Docker base image to the latest version of `ubi8/openjdk-11-runtime`.
 The Dockerfile now uses a floating tag for the base image.
 This makes it easier to refresh the connector image when the base image is updated.
+
+* Upgraded `commons-text` from `1.9` to `1.10.0`.
+Please see https://www.couchbase.com/blog/security-vulnerability-text4shell/[our official response to CVE-2022-42889 (also known as Text4Shell)].
+In brief, no version of the Elasticsearch connector is vulnerable.
 
 [[v4.3.8]]
 == Version 4.3.8 (2022-06-21)
