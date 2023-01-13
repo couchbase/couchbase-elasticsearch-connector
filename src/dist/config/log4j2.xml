@@ -1,59 +1,59 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="INFO">
-    <Appenders>
-        <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHCMM} [%t] %-5level %logger{1.} - %msg%n"/>
-        </Console>
+  <Appenders>
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHCMM} [%t] %-5level %logger{1.} - %msg%n"/>
+    </Console>
 
-        <RollingFile name="General"
-                     fileName="${env:APP_HOME}/logs/cbes.log"
-                     filePattern="${env:APP_HOME}/logs/cbes.%d{yyyy-MM-dd}.%i.log.gz"
-                     ignoreExceptions="false">
-            <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHCMM} [%t] %-5level %logger{1.} - %msg%n"/>
-            <Policies>
-                <OnStartupTriggeringPolicy/>
-                <SizeBasedTriggeringPolicy size="250 MB"/>
-                <TimeBasedTriggeringPolicy/>
-            </Policies>
-            <DefaultRolloverStrategy>
-                <Delete basePath="${env:APP_HOME}/logs/">
-                    <IfFileName glob="cbes.*.log.gz"/>
-                    <IfLastModified age="14d"/>
-                </Delete>
-            </DefaultRolloverStrategy>
-        </RollingFile>
+    <RollingFile name="General"
+                 fileName="${env:APP_HOME}/logs/cbes.log"
+                 filePattern="${env:APP_HOME}/logs/cbes.%d{yyyy-MM-dd}.%i.log.gz"
+                 ignoreExceptions="false">
+      <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHCMM} [%t] %-5level %logger{1.} - %msg%n"/>
+      <Policies>
+        <OnStartupTriggeringPolicy/>
+        <SizeBasedTriggeringPolicy size="250 MB"/>
+        <TimeBasedTriggeringPolicy/>
+      </Policies>
+      <DefaultRolloverStrategy>
+        <Delete basePath="${env:APP_HOME}/logs/">
+          <IfFileName glob="cbes.*.log.gz"/>
+          <IfLastModified age="14d"/>
+        </Delete>
+      </DefaultRolloverStrategy>
+    </RollingFile>
 
-        <RollingFile name="Metrics"
-                     fileName="${env:APP_HOME}/logs/cbes-metrics.log"
-                     filePattern="${env:APP_HOME}/logs/cbes-metrics.%d{yyyy-MM-dd}.%i.log.gz"
-                     ignoreExceptions="false">
-            <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHCMM} %msg%n"/>
-            <Policies>
-                <OnStartupTriggeringPolicy/>
-                <SizeBasedTriggeringPolicy size="250 MB"/>
-                <TimeBasedTriggeringPolicy/>
-            </Policies>
-            <DefaultRolloverStrategy>
-                <Delete basePath="${env:APP_HOME}/logs/">
-                    <IfFileName glob="cbes-metrics.*.log.gz"/>
-                    <IfLastModified age="10d"/>
-                </Delete>
-            </DefaultRolloverStrategy>
-        </RollingFile>
-    </Appenders>
+    <RollingFile name="Metrics"
+                 fileName="${env:APP_HOME}/logs/cbes-metrics.log"
+                 filePattern="${env:APP_HOME}/logs/cbes-metrics.%d{yyyy-MM-dd}.%i.log.gz"
+                 ignoreExceptions="false">
+      <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHCMM} %msg%n"/>
+      <Policies>
+        <OnStartupTriggeringPolicy/>
+        <SizeBasedTriggeringPolicy size="250 MB"/>
+        <TimeBasedTriggeringPolicy/>
+      </Policies>
+      <DefaultRolloverStrategy>
+        <Delete basePath="${env:APP_HOME}/logs/">
+          <IfFileName glob="cbes-metrics.*.log.gz"/>
+          <IfLastModified age="10d"/>
+        </Delete>
+      </DefaultRolloverStrategy>
+    </RollingFile>
+  </Appenders>
 
-    <Loggers>
-        <Root level="info">
-            <AppenderRef ref="Console"/>
-            <AppenderRef ref="General"/>
-        </Root>
-        <Logger name="com.couchbase.client.core" level="warn"/>
-        <Logger name="cbes.metrics" level="info" additivity="false">
-            <AppenderRef ref="Metrics"/>
-        </Logger>
+  <Loggers>
+    <Root level="info">
+      <AppenderRef ref="Console"/>
+      <AppenderRef ref="General"/>
+    </Root>
+    <Logger name="com.couchbase.client.core" level="warn"/>
+    <Logger name="cbes.metrics" level="info" additivity="false">
+      <AppenderRef ref="Metrics"/>
+    </Logger>
 
-        <!-- Change level to "debug" to follow each document's path through the connector -->
-        <Logger name="com.couchbase.connector.elasticsearch.DocumentLifecycle" level="info"/>
+    <!-- Change level to "debug" to follow each document's path through the connector -->
+    <Logger name="com.couchbase.connector.elasticsearch.DocumentLifecycle" level="info"/>
 
-    </Loggers>
+  </Loggers>
 </Configuration>

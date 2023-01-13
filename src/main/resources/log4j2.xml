@@ -4,19 +4,19 @@
   For the shipped logging config, see: src/dist/config/log4j2.xml
 -->
 <Configuration status="INFO">
-    <Appenders>
-        <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHCMM} [%t] %-5level %logger - %msg%n"/>
-        </Console>
-    </Appenders>
-    <Loggers>
-        <Root level="info">
-            <AppenderRef ref="Console"/>
-        </Root>
+  <Appenders>
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="%d{ISO8601_OFFSET_DATE_TIME_HHCMM} [%t] %-5level %logger - %msg%n"/>
+    </Console>
+  </Appenders>
+  <Loggers>
+    <Root level="info">
+      <AppenderRef ref="Console"/>
+    </Root>
 
-        <!-- Change level to "debug" to follow each document's path through the connector -->
-        <Logger name="com.couchbase.connector.elasticsearch.DocumentLifecycle" level="info"/>
+    <!-- Change level to "debug" to follow each document's path through the connector -->
+    <Logger name="com.couchbase.connector.elasticsearch.DocumentLifecycle" level="info"/>
 
-        <!--<Logger name="org.testcontainers" level="trace"/>-->
-    </Loggers>
+    <!--<Logger name="org.testcontainers" level="trace"/>-->
+  </Loggers>
 </Configuration>
