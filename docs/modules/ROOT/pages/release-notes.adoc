@@ -30,6 +30,10 @@ Upgrade Couchbase Java SDK from `3.3.4` to `3.4.1`.
 A regression in version `4.4.0` caused the connector to omit null-valued document fields when writing to Elasticsearch.
 Null-valued fields are now replicated correctly again.
 
+* https://issues.couchbase.com/browse/JDCP-232[JDCP-232]:
+Fixed a race condition that sometimes caused the connector to fail on startup with the message:
+`java.lang.IllegalStateException: Tried to add duplicate channel`.
+
 [[v4.4.2]]
 == Version 4.4.2 (2022-10-21)
 
