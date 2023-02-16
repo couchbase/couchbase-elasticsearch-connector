@@ -31,6 +31,9 @@ public class CouchbaseHelperTest {
     fromString.setAccessible(true);
 
     for (ConnectionString.PortType type : ConnectionString.PortType.values()) {
+      if (type == ConnectionString.PortType.PROTOSTELLAR) {
+        continue;
+      }
       String alias = CouchbaseHelper.getAlias(type);
       ConnectionString.PortType roundTrip = (ConnectionString.PortType) fromString.invoke(null, alias);
       assertEquals(type, roundTrip);

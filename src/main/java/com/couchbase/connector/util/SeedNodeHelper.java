@@ -23,6 +23,7 @@ import com.couchbase.client.core.config.NodeInfo;
 import com.couchbase.client.core.env.NetworkResolution;
 import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.core.service.ServiceType;
+import com.couchbase.client.core.util.ConnectionString;
 import com.couchbase.client.core.util.ConnectionStringUtil;
 import com.couchbase.client.dcp.core.CouchbaseException;
 import com.couchbase.client.java.Bucket;
@@ -48,7 +49,7 @@ public class SeedNodeHelper {
   /**
    * Returns complete host and port information for every node running the KV service.
    */
-  public static Set<SeedNode> getKvNodes(Bucket bucket, String connectionString, boolean tls, NetworkResolution networkResolution, Duration timeout) {
+  public static Set<SeedNode> getKvNodes(Bucket bucket, ConnectionString connectionString, boolean tls, NetworkResolution networkResolution, Duration timeout) {
     // Bucket config is most reliable way to determine KV ports
     BucketConfig config = CouchbaseHelper.getConfig(bucket, timeout);
 

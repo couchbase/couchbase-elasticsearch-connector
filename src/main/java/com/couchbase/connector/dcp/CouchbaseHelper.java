@@ -221,7 +221,7 @@ public class CouchbaseHelper {
   }
 
   public static Set<SeedNode> getKvNodes(CouchbaseConfig config, Bucket bucket) {
-    String connectionString = String.join(",", config.hosts());
+    ConnectionString connectionString = ConnectionString.create(String.join(",", config.hosts()));
     Duration timeout = Duration.ofSeconds(30);
     return SeedNodeHelper.getKvNodes(bucket, connectionString, config.secureConnection(), config.network(), timeout);
   }
