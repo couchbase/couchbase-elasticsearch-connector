@@ -53,7 +53,7 @@ public class AutonomousOpsTest {
   }
 
   private static final String couchbaseVersion = "enterprise-7.1.1";
-  private static final String elasticsearchVersion = "7.17.5";
+  private static final String elasticsearchVersion = "7.17.9";
 
   private static CustomCouchbaseContainer couchbase;
   private static ElasticsearchContainer elasticsearch;
