@@ -16,13 +16,17 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
-import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import com.couchbase.connector.config.es.DocStructureConfig;
 import com.couchbase.connector.config.es.RejectLogConfig;
 import com.couchbase.connector.config.es.TypeConfig;
 import com.couchbase.connector.dcp.Event;
 import com.couchbase.connector.elasticsearch.DocumentLifecycle;
 import com.couchbase.connector.elasticsearch.Metrics;
+import com.couchbase.connector.elasticsearch.sink.DeleteOperation;
+import com.couchbase.connector.elasticsearch.sink.IndexOperation;
+import com.couchbase.connector.elasticsearch.sink.Operation;
+import com.couchbase.connector.elasticsearch.sink.RejectOperation;
+import com.couchbase.connector.elasticsearch.sink.SinkBulkResponseItem;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonPointer;
@@ -60,7 +64,7 @@ public class RequestFactory {
   }
 
   @Nullable
-  public RejectOperation newRejectionLogRequest(final Operation origRequest, BulkResponseItem f) {
+  public RejectOperation newRejectionLogRequest(final Operation origRequest, SinkBulkResponseItem f) {
     if (rejectLogConfig.index() == null) {
       origRequest.getEvent().release();
       return null;
@@ -111,7 +115,6 @@ public class RequestFactory {
     return newDeleteRequest(e, matchResult);
   }
 
-  @Nullable
   private DeleteOperation newDeleteRequest(final Event event, final MatchResult matchResult) {
     return new DeleteOperation(matchResult.index(), event);
   }

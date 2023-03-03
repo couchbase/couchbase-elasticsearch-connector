@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.elasticsearch.io;
+package com.couchbase.connector.elasticsearch.sink;
 
-import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import com.couchbase.connector.dcp.Event;
 
 /**
@@ -44,7 +43,7 @@ public interface Operation {
     return REQUEST_OVERHEAD;
   }
 
-  BulkOperation toBulkOperation();
+  void addTo(SinkBulkRequestBuilder bulkRequestBuilder);
 
   Type type();
 }

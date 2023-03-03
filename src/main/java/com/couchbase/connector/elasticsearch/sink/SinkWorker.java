@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.elasticsearch;
+package com.couchbase.connector.elasticsearch.sink;
 
 import com.couchbase.connector.dcp.Event;
-import com.couchbase.connector.elasticsearch.io.ElasticsearchWriter;
+import com.couchbase.connector.elasticsearch.ErrorListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,17 +30,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Objects.requireNonNull;
 
-public class ElasticsearchWorker implements AutoCloseable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchWorker.class);
+public class SinkWorker implements AutoCloseable {
+  private static final Logger LOGGER = LoggerFactory.getLogger(SinkWorker.class);
   private static final AtomicInteger nameCounter = new AtomicInteger();
 
   private final Thread thread;
   private final ErrorListener errorHandler;
-  private final ElasticsearchWriter writer;
+  private final SinkWriter writer;
   private final BlockingQueue<Event> eventQueue = new LinkedBlockingQueue<>();
   private final BlockingQueue<Throwable> fatalErrorQueue;
 
-  private ElasticsearchWorker(ElasticsearchWriter writer, BlockingQueue<Throwable> fatalErrorQueue, @Nullable ErrorListener errorListener) {
+  private SinkWorker(SinkWriter writer, BlockingQueue<Throwable> fatalErrorQueue, @Nullable ErrorListener errorListener) {
     this.writer = requireNonNull(writer);
     this.errorHandler = errorListener == null ? ErrorListener.NOOP : errorListener;
     this.fatalErrorQueue = requireNonNull(fatalErrorQueue);
@@ -51,8 +51,8 @@ public class ElasticsearchWorker implements AutoCloseable {
   /**
    * @param writer The worker assumes ownership of the writer and is responsible for closing it.
    */
-  public static ElasticsearchWorker newWorker(ElasticsearchWriter writer, BlockingQueue<Throwable> fatalErrorQueue, @Nullable ErrorListener errorListener) {
-    ElasticsearchWorker worker = new ElasticsearchWorker(writer, fatalErrorQueue, errorListener);
+  public static SinkWorker newWorker(SinkWriter writer, BlockingQueue<Throwable> fatalErrorQueue, @Nullable ErrorListener errorListener) {
+    SinkWorker worker = new SinkWorker(writer, fatalErrorQueue, errorListener);
     worker.thread.start();
     return worker;
   }

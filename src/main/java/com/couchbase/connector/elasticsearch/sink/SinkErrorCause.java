@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Couchbase, Inc.
+ * Copyright 2023 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,27 +14,11 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.elasticsearch.io;
+package com.couchbase.connector.elasticsearch.sink;
 
-import com.couchbase.connector.dcp.Event;
+import javax.annotation.Nullable;
 
-import static java.util.Objects.requireNonNull;
-
-public abstract class BaseOperation implements Operation {
-  private final String index;
-  private final Event event;
-
-  public BaseOperation(String index, Event event) {
-    this.index = requireNonNull(index);
-    this.event = requireNonNull(event);
-  }
-
-  @Override
-  public Event getEvent() {
-    return event;
-  }
-
-  public String getIndex() {
-    return index;
-  }
+public interface SinkErrorCause {
+  @Nullable
+  String reason();
 }

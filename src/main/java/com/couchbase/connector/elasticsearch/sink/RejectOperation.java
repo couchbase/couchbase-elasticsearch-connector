@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.elasticsearch.io;
+package com.couchbase.connector.elasticsearch.sink;
 
-import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import com.couchbase.connector.dcp.Event;
 import com.google.common.collect.ImmutableMap;
 
@@ -24,7 +23,7 @@ import static java.util.Objects.requireNonNull;
 
 public class RejectOperation extends IndexOperation {
 
-  public RejectOperation(String index, Operation origRequest, BulkResponseItem failure) {
+  public RejectOperation(String index, Operation origRequest, SinkBulkResponseItem failure) {
     this(index,
         origRequest.getEvent(),
         origRequest.getIndex(),
@@ -48,6 +47,6 @@ public class RejectOperation extends IndexOperation {
   @Override
   public int estimatedSizeInBytes() {
     int wildGuess = 64;
-    return REQUEST_OVERHEAD + wildGuess;
+    return Operation.REQUEST_OVERHEAD + wildGuess;
   }
 }

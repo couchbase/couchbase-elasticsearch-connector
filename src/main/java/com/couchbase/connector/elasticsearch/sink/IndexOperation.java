@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.elasticsearch.io;
+package com.couchbase.connector.elasticsearch.sink;
 
-import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import com.couchbase.connector.dcp.Event;
 
 import javax.annotation.Nullable;
@@ -41,20 +40,26 @@ public class IndexOperation extends BaseOperation {
   }
 
   @Override
-  public BulkOperation toBulkOperation() {
-    return new BulkOperation.Builder()
-        .index(op -> op
-            .index(getIndex())
-            .id(getEvent().getKey())
-            .document(document)
-            .pipeline(pipeline)
-            .routing(routing)
-        )
-        .build();
+  public void addTo(SinkBulkRequestBuilder bulkRequestBuilder) {
+    bulkRequestBuilder.add(this);
   }
 
   @Override
   public Type type() {
     return Type.INDEX;
+  }
+
+  @Nullable
+  public String pipeline() {
+    return pipeline;
+  }
+
+  @Nullable
+  public String routing() {
+    return routing;
+  }
+
+  public Object document() {
+    return document;
   }
 }

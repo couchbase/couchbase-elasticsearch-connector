@@ -43,6 +43,7 @@ import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.dcp.DcpHelper;
 import com.couchbase.connector.elasticsearch.cli.AbstractCliCommand;
 import com.couchbase.connector.elasticsearch.io.RequestFactory;
+import com.couchbase.connector.elasticsearch.sink.SinkWorkerGroup;
 import com.couchbase.connector.util.HttpServer;
 import com.couchbase.connector.util.KeyStoreHelper;
 import com.couchbase.connector.util.RuntimeHelper;
@@ -186,7 +187,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
     try (Slf4jReporter metricReporter = newSlf4jReporter(config.metrics().logInterval());
          HttpServer httpServer = new HttpServer(config.metrics().httpPort(), membership);
-         ElasticsearchOps esClient = newElasticsearchClient(config)) {
+         ElasticsearchSinkOps esClient = newElasticsearchClient(config)) {
 
       DocumentLifecycle.setLogLevel(config.logging().logDocumentLifecycle() ? LogLevel.INFO : LogLevel.DEBUG);
       LogRedaction.setRedactionLevel(config.logging().redactionLevel());
@@ -213,7 +214,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       final RequestFactory requestFactory = new RequestFactory(
           config.elasticsearch().types(), config.elasticsearch().docStructure(), config.elasticsearch().rejectLog());
 
-      final ElasticsearchWorkerGroup workers = new ElasticsearchWorkerGroup(
+      final SinkWorkerGroup workers = new SinkWorkerGroup(
           esClient,
           checkpointService,
           requestFactory,
@@ -222,9 +223,9 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
       Metrics.gauge("write.queue",
           "Document events currently buffered in memory.",
-          workers, ElasticsearchWorkerGroup::getQueueSize);
+          workers, SinkWorkerGroup::getQueueSize);
 
-      Metrics.gauge("es.wait.ms", null, workers, ElasticsearchWorkerGroup::getCurrentRequestMillis); // High value indicates the connector has stalled
+      Metrics.gauge("es.wait.ms", null, workers, SinkWorkerGroup::getCurrentRequestMillis); // High value indicates the connector has stalled
 
       // Same as "es.wait.ms" but normalized to seconds for Prometheus
       Metrics.gauge("es.wait.seconds",

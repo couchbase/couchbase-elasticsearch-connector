@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.elasticsearch;
+package com.couchbase.connector.elasticsearch.sink;
 
 import com.couchbase.connector.config.es.BulkRequestConfig;
 import com.couchbase.connector.dcp.CheckpointService;
 import com.couchbase.connector.dcp.Event;
-import com.couchbase.connector.elasticsearch.io.ElasticsearchWriter;
+import com.couchbase.connector.elasticsearch.DocumentLifecycle;
+import com.couchbase.connector.elasticsearch.ErrorListener;
 import com.couchbase.connector.elasticsearch.io.RequestFactory;
 import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
@@ -33,25 +34,25 @@ import java.util.concurrent.LinkedBlockingQueue;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-public class ElasticsearchWorkerGroup implements Closeable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchWorkerGroup.class);
+public class SinkWorkerGroup implements Closeable {
+  private static final Logger LOGGER = LoggerFactory.getLogger(SinkWorkerGroup.class);
 
-  private final ImmutableList<ElasticsearchWorker> workers;
+  private final ImmutableList<SinkWorker> workers;
 
   // Workers communicate failures by writing them to this queue
   private final BlockingQueue<Throwable> fatalErrorQueue = new LinkedBlockingQueue<>();
 
-  public ElasticsearchWorkerGroup(ElasticsearchOps client,
-                                  CheckpointService checkpointService,
-                                  RequestFactory requestFactory,
-                                  ErrorListener errorListener,
-                                  BulkRequestConfig bulkRequestConfig) {
+  public SinkWorkerGroup(SinkOps client,
+                         CheckpointService checkpointService,
+                         RequestFactory requestFactory,
+                         ErrorListener errorListener,
+                         BulkRequestConfig bulkRequestConfig) {
     checkArgument(bulkRequestConfig.concurrentRequests() > 0, "must have at least one worker");
 
-    final ImmutableList.Builder<ElasticsearchWorker> workersBuilder = ImmutableList.builder();
+    final ImmutableList.Builder<SinkWorker> workersBuilder = ImmutableList.builder();
     for (int i = 0; i < bulkRequestConfig.concurrentRequests(); i++) {
-      workersBuilder.add(ElasticsearchWorker.newWorker(
-          new ElasticsearchWriter(client, checkpointService, requestFactory, bulkRequestConfig), fatalErrorQueue, errorListener));
+      workersBuilder.add(SinkWorker.newWorker(
+          new SinkWriter(client, checkpointService, requestFactory, bulkRequestConfig), fatalErrorQueue, errorListener));
     }
     this.workers = workersBuilder.build();
   }
@@ -71,7 +72,7 @@ public class ElasticsearchWorkerGroup implements Closeable {
 
   public long getQueueSize() {
     return workers.stream()
-        .mapToLong(ElasticsearchWorker::getQueueSize)
+        .mapToLong(SinkWorker::getQueueSize)
         .sum();
   }
 
@@ -81,7 +82,7 @@ public class ElasticsearchWorkerGroup implements Closeable {
    */
   public long getCurrentRequestMillis() {
     return NANOSECONDS.toMillis(workers.stream()
-        .mapToLong(ElasticsearchWorker::getCurrentRequestNanos)
+        .mapToLong(SinkWorker::getCurrentRequestNanos)
         .max()
         .orElseThrow(() -> new AssertionError("There should be at least one worker.")));
   }
@@ -89,11 +90,11 @@ public class ElasticsearchWorkerGroup implements Closeable {
   @Override
   public void close() {
     final Duration timeout = Duration.ofSeconds(3);
-    for (ElasticsearchWorker w : workers) {
+    for (SinkWorker w : workers) {
       w.close();
     }
     try {
-      for (ElasticsearchWorker w : workers) {
+      for (SinkWorker w : workers) {
         if (!w.join(Math.max(1, timeout.toMillis()))) {
           LOGGER.warn("Worker {} failed to stop after {}", w, timeout);
         }

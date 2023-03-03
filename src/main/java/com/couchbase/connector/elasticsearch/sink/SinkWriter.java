@@ -14,24 +14,19 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.elasticsearch.io;
+package com.couchbase.connector.elasticsearch.sink;
 
-import co.elastic.clients.elasticsearch._types.ErrorCause;
-import co.elastic.clients.elasticsearch.core.BulkRequest;
-import co.elastic.clients.elasticsearch.core.BulkResponse;
-import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
-import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import com.couchbase.connector.config.StorageSize;
 import com.couchbase.connector.config.es.BulkRequestConfig;
 import com.couchbase.connector.dcp.Checkpoint;
 import com.couchbase.connector.dcp.CheckpointService;
 import com.couchbase.connector.dcp.Event;
 import com.couchbase.connector.elasticsearch.DocumentLifecycle;
-import com.couchbase.connector.elasticsearch.ElasticsearchOps;
 import com.couchbase.connector.elasticsearch.ErrorListener;
 import com.couchbase.connector.elasticsearch.Metrics;
+import com.couchbase.connector.elasticsearch.io.BackoffPolicy;
+import com.couchbase.connector.elasticsearch.io.RequestFactory;
 import com.couchbase.connector.util.ThrowableHelper;
-import com.google.common.collect.Streams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +42,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static com.couchbase.client.core.logging.RedactableArgument.redactUser;
 import static com.couchbase.connector.dcp.DcpHelper.isMetadata;
@@ -63,10 +57,10 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
  * <p>
  * NOT THREAD SAFE.
  */
-public class ElasticsearchWriter implements Closeable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchWriter.class);
+public class SinkWriter implements Closeable {
+  private static final Logger LOGGER = LoggerFactory.getLogger(SinkWriter.class);
 
-  private final ElasticsearchOps client;
+  private final SinkOps client;
   private final RequestFactory requestFactory;
   private final CheckpointService checkpointService;
   private final ErrorListener errorListener = ErrorListener.NOOP;
@@ -89,9 +83,9 @@ public class ElasticsearchWriter implements Closeable {
   @GuardedBy("this")
   private long requestStartNanos;
 
-  public ElasticsearchWriter(ElasticsearchOps client, CheckpointService checkpointService,
-                             RequestFactory requestFactory,
-                             BulkRequestConfig bulkConfig) {
+  public SinkWriter(SinkOps client, CheckpointService checkpointService,
+                    RequestFactory requestFactory,
+                    BulkRequestConfig bulkConfig) {
     this.client = requireNonNull(client);
     this.checkpointService = requireNonNull(checkpointService);
     this.requestFactory = requireNonNull(requestFactory);
@@ -247,7 +241,7 @@ public class ElasticsearchWriter implements Closeable {
       final Map<Integer, Operation> vbucketToLastEvent = lenientIndex(r -> r.getEvent().getVbucket(), requests);
 
       int attemptCounter = 1;
-      long indexingTookNanos = 0;
+      Duration indexingTook = Duration.ZERO;
       long totalRetryDelayMillis = 0;
 
       while (true) {
@@ -267,22 +261,18 @@ public class ElasticsearchWriter implements Closeable {
 
 
         final List<Operation> requestsToRetry = new ArrayList<>(0);
-        final BulkRequest.Builder bulkRequestBuilder = newBulkRequest(requests);
-        bulkRequestBuilder.timeout(time -> time.time(bulkRequestTimeout.toMillis() + "ms"));
-
         final RetryReporter retryReporter = RetryReporter.forLogger(LOGGER);
 
         try {
-          final BulkResponse bulkResponse = client.modernClient().bulk(bulkRequestBuilder.build());
+          final SinkBulkResponse bulkResponse = client.bulk(requests);
           final long nowNanos = System.nanoTime();
-          List<BulkResponseItem> responses = bulkResponse.items();
+          List<SinkBulkResponseItem> responses = bulkResponse.items();
 
-          Long ingestTook = bulkResponse.ingestTook(); // TODO is this ever really null? :-/
-          indexingTookNanos += ingestTook == null ? 0 : ingestTook;
+          indexingTook = indexingTook.plus(bulkResponse.ingestTook());
 
           for (int i = 0; i < responses.size(); i++) {
-            final BulkResponseItem response = responses.get(i);
-            final ErrorCause failure = response.error();
+            final SinkBulkResponseItem response = responses.get(i);
+            final SinkErrorCause failure = response.error();
             final Operation request = requests.get(i);
             final Event e = request.getEvent();
 
@@ -373,7 +363,7 @@ public class ElasticsearchWriter implements Closeable {
           }
 
           Metrics.bytesCounter().increment(totalEstimatedBytes);
-          Metrics.indexTimePerDocument().record(indexingTookNanos / totalActionCount, NANOSECONDS);
+          Metrics.indexTimePerDocument().record(indexingTook.dividedBy(totalActionCount));
           if (totalRetryDelayMillis != 0) {
             Metrics.retryDelayTimer().record(totalRetryDelayMillis, MILLISECONDS);
           }
@@ -417,7 +407,7 @@ public class ElasticsearchWriter implements Closeable {
     bufferBytes = 0;
   }
 
-  private static boolean isRetryable(BulkResponseItem f) {
+  private static boolean isRetryable(SinkBulkResponseItem f) {
     if (f.error() == null) {
       throw new IllegalArgumentException("bulk response item didn't fail");
     }
@@ -430,18 +420,6 @@ public class ElasticsearchWriter implements Closeable {
         return true;
     }
     // todo Auth failures are also permanent. Need to see how they're surfaced, and decide how to handle.
-  }
-
-  private static <T1, T2> List<T2> map(Iterable<T1> source, Function<T1, T2> transform) {
-    return Streams.stream(source)
-        .map(transform)
-        .collect(Collectors.toList());
-  }
-
-  private BulkRequest.Builder newBulkRequest(Iterable<Operation> requests) {
-    List<BulkOperation> bulkOps = map(requests, Operation::toBulkOperation);
-    return new BulkRequest.Builder()
-        .operations(bulkOps);
   }
 
   private static void runQuietly(String description, Runnable r) {

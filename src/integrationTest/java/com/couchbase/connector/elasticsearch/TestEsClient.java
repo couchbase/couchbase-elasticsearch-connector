@@ -61,7 +61,7 @@ class TestEsClient implements AutoCloseable {
 
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
-  private final ElasticsearchOps client;
+  private final ElasticsearchSinkOps client;
 
   public TestEsClient(ConnectorConfig config) throws Exception {
     this.client = newElasticsearchClient(config);

@@ -25,6 +25,7 @@ import com.couchbase.connector.config.common.TrustStoreConfig;
 import com.couchbase.connector.config.es.AwsConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ElasticsearchConfig;
+import com.couchbase.connector.elasticsearch.sink.SinkOps;
 import com.couchbase.connector.util.KeyStoreHelper;
 import com.couchbase.connector.util.ThrowableHelper;
 import com.google.common.collect.Iterables;
@@ -63,7 +64,7 @@ public class ElasticsearchHelper {
     throw new AssertionError("not instantiable");
   }
 
-  public static Version waitForElasticsearchAndRequireVersion(ElasticsearchOps esClient, Version required, Version recommended) throws InterruptedException {
+  public static Version waitForElasticsearchAndRequireVersion(SinkOps esClient, Version required, Version recommended) throws InterruptedException {
     final Iterator<Duration> retryDelays = truncatedExponentialBackoff(
         Duration.ofSeconds(1), Duration.ofMinutes(1)).iterator();
 
@@ -91,7 +92,7 @@ public class ElasticsearchHelper {
     }
   }
 
-  public static ElasticsearchOps newElasticsearchClient(ConnectorConfig config) throws Exception {
+  public static ElasticsearchSinkOps newElasticsearchClient(ConnectorConfig config) throws Exception {
     ElasticsearchConfig elasticsearchConfig = config.elasticsearch();
     TrustStoreConfig trustStoreConfig = config.trustStore().orElse(null);
 
@@ -101,7 +102,7 @@ public class ElasticsearchHelper {
         trustStoreConfig
     );
 
-    return new ElasticsearchOpsImpl(newRestClient(
+    return new ElasticsearchSinkOps(newRestClient(
         elasticsearchConfig.hosts(),
         elasticsearchConfig.username(),
         elasticsearchConfig.password(),
@@ -109,7 +110,9 @@ public class ElasticsearchHelper {
         trustStoreSupplier,
         elasticsearchConfig.clientCert(),
         elasticsearchConfig.aws(),
-        elasticsearchConfig.bulkRequest().timeout()));
+        elasticsearchConfig.bulkRequest().timeout()),
+        elasticsearchConfig.bulkRequest().timeout()
+    );
   }
 
   public static RestClientBuilder newRestClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore, ClientCertConfig clientCert, AwsConfig aws, Duration bulkRequestTimeout) throws Exception {

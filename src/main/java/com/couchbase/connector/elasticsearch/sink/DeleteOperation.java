@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.elasticsearch.io;
+package com.couchbase.connector.elasticsearch.sink;
 
-import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import com.couchbase.connector.dcp.Event;
 
 public class DeleteOperation extends BaseOperation {
@@ -30,13 +29,8 @@ public class DeleteOperation extends BaseOperation {
   }
 
   @Override
-  public BulkOperation toBulkOperation() {
-    return new BulkOperation.Builder()
-        .delete(op -> op
-            .index(getIndex())
-            .id(getEvent().getKey())
-        )
-        .build();
+  public void addTo(SinkBulkRequestBuilder bulkRequestBuilder) {
+    bulkRequestBuilder.add(this);
   }
 
   @Override

@@ -14,19 +14,16 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.elasticsearch;
+package com.couchbase.connector.elasticsearch.sink;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.couchbase.client.dcp.util.Version;
-import org.elasticsearch.client.RestClient;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 
-public interface ElasticsearchOps extends Closeable {
+public interface SinkOps extends Closeable {
   Version version() throws IOException;
 
-  ElasticsearchClient modernClient();
-
-  RestClient lowLevelClient();
+  SinkBulkResponse bulk(List<Operation> operations) throws IOException;
 }

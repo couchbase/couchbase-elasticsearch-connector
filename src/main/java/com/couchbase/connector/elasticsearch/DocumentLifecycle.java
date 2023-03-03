@@ -21,8 +21,8 @@ import com.couchbase.client.dcp.metrics.LogLevel;
 import com.couchbase.connector.config.es.TypeConfig;
 import com.couchbase.connector.dcp.DcpHelper;
 import com.couchbase.connector.dcp.Event;
-import com.couchbase.connector.elasticsearch.io.Operation;
-import com.couchbase.connector.elasticsearch.io.RejectOperation;
+import com.couchbase.connector.elasticsearch.sink.Operation;
+import com.couchbase.connector.elasticsearch.sink.RejectOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

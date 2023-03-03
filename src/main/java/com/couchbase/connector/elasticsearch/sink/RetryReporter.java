@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-package com.couchbase.connector.elasticsearch.io;
+package com.couchbase.connector.elasticsearch.sink;
 
-import co.elastic.clients.elasticsearch._types.ErrorCause;
-import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import com.couchbase.connector.dcp.Event;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
@@ -43,11 +41,11 @@ class RetryReporter {
     return new RetryReporter(logger);
   }
 
-  void add(Event e, BulkResponseItem failure) {
+  void add(Event e, SinkBulkResponseItem failure) {
     if (!logger.isInfoEnabled()) {
       return;
     }
-    ErrorCause cause = failure.error();
+    SinkErrorCause cause = failure.error();
     if (cause == null) {
       throw new IllegalArgumentException("bulk response item did not fail");
     }
