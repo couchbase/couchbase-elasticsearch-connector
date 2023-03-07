@@ -107,7 +107,7 @@ Make sure the Couchbase and Elasticsearch credentials and hostnames match your e
 Note that the passwords are stored separately in the `$CBES_HOME/secrets` directory.
 
 The sample config will replicate documents from the Couchbase `travel-sample` bucket.
-Go ahead and https://developer.couchbase.com/documentation/server/current/settings/install-sample-buckets.html[install the sample buckets] now if you haven't already.
+Go ahead and xref:server:manage:manage-settings/install-sample-buckets.adoc#install-sample-buckets-with-the-ui[install sample buckets] now if you haven't already.
 
 == Controlling the Connector
 
