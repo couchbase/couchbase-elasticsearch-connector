@@ -17,13 +17,58 @@
 package com.couchbase.connector.elasticsearch.sink;
 
 import com.couchbase.client.dcp.util.Version;
+import com.couchbase.connector.config.es.ConnectorConfig;
+import com.couchbase.connector.elasticsearch.ElasticsearchVersionSniffer;
+import com.couchbase.connector.elasticsearch.OpenSearchHelper;
+import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
+import org.apache.hc.core5.io.CloseMode;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 
+import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
+import static com.couchbase.connector.elasticsearch.OpenSearchHelper.newHttpClient;
+import static com.couchbase.connector.elasticsearch.OpenSearchHelper.newOpenSearchClient;
+
 public interface SinkOps extends Closeable {
-  Version version() throws IOException;
+  Version version();
+
+  default void ping() {
+    version();
+  }
 
   SinkBulkResponse bulk(List<Operation> operations) throws IOException;
+
+  static SinkOps create(ConnectorConfig config) {
+    final CloseableHttpAsyncClient httpClient = newHttpClient(config);
+
+    ElasticsearchVersionSniffer.FlavorAndVersion fav = new ElasticsearchVersionSniffer(httpClient).sniff(
+        OpenSearchHelper.hosts(config.elasticsearch()),
+        Duration.ofMinutes(2)
+    );
+
+    if (fav.flavor != ElasticsearchVersionSniffer.Flavor.OPENSEARCH) {
+      // Don't need this HTTP client anymore!
+      httpClient.close(CloseMode.IMMEDIATE);
+    }
+
+    final SinkOps sinkOps;
+    switch (fav.flavor) {
+      case OPENSEARCH:
+        sinkOps = newOpenSearchClient(httpClient, config);
+        break;
+      case ELASTICSEARCH:
+        sinkOps = newElasticsearchClient(config);
+        break;
+      default:
+        throw new RuntimeException("Unrecognized sink: " + fav);
+    }
+
+    // Verify client connectivity
+    sinkOps.ping();
+
+    return sinkOps;
+  }
 }

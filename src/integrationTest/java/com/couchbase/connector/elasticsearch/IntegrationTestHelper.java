@@ -20,6 +20,7 @@ import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.json.JsonObject;
 import com.couchbase.client.java.kv.MutationResult;
 import com.couchbase.connector.dcp.CouchbaseHelper;
+import com.couchbase.connector.elasticsearch.io.BackoffPolicy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Stopwatch;
 import org.slf4j.Logger;
@@ -27,11 +28,14 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
 import static com.couchbase.connector.testcontainers.Poller.poll;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -69,9 +73,9 @@ class IntegrationTestHelper {
     // route documents are routed using airlineid field
     final String routeId = "route_10000";
     final String expectedRouting = "airline_137";
-    JsonNode airline = es.getDocument("airlines", routeId, expectedRouting).orElse(null);
-    assertNotNull(airline);
-    assertEquals(expectedRouting, airline.path("_routing").asText());
+    JsonNode route = es.getDocument("airlines", routeId, expectedRouting).orElse(null);
+    assertNotNull(route);
+    assertEquals(expectedRouting, route.path("_routing").asText());
   }
 
   static MutationResult upsertWithRetry(Bucket bucket, JsonDocument document) throws Exception {
@@ -113,6 +117,28 @@ class IntegrationTestHelper {
       }
     } catch (Exception e) {
       LOGGER.warn("failed to close {}", c, e);
+    }
+  }
+
+  static <T> T retryUntilSuccess(BackoffPolicy backoffPolicy, Callable<T> lambda) {
+    Iterator<Duration> delays = backoffPolicy.iterator();
+    while (true) {
+      try {
+        return lambda.call();
+      } catch (Exception e) {
+        e.printStackTrace();
+
+        if (delays.hasNext()) {
+          try {
+            MILLISECONDS.sleep(delays.next().toMillis());
+          } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(interrupted);
+          }
+        } else {
+          throw new RuntimeException(new TimeoutException());
+        }
+      }
     }
   }
 }

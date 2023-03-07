@@ -19,17 +19,13 @@ package com.couchbase.connector.elasticsearch;
 import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.http.AWSRequestSigningApacheInterceptor;
-import com.couchbase.client.dcp.util.Version;
 import com.couchbase.connector.config.common.ClientCertConfig;
 import com.couchbase.connector.config.common.TrustStoreConfig;
 import com.couchbase.connector.config.es.AwsConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ElasticsearchConfig;
-import com.couchbase.connector.elasticsearch.sink.SinkOps;
 import com.couchbase.connector.util.KeyStoreHelper;
-import com.couchbase.connector.util.ThrowableHelper;
 import com.google.common.collect.Iterables;
-import org.apache.http.ConnectionClosedException;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.AuthScope;
@@ -45,16 +41,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
+import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import static com.couchbase.connector.elasticsearch.io.MoreBackoffPolicies.truncatedExponentialBackoff;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class ElasticsearchHelper {
@@ -64,35 +58,7 @@ public class ElasticsearchHelper {
     throw new AssertionError("not instantiable");
   }
 
-  public static Version waitForElasticsearchAndRequireVersion(SinkOps esClient, Version required, Version recommended) throws InterruptedException {
-    final Iterator<Duration> retryDelays = truncatedExponentialBackoff(
-        Duration.ofSeconds(1), Duration.ofMinutes(1)).iterator();
-
-    while (true) {
-      try {
-        final Version version = esClient.version();
-        if (version.compareTo(required) < 0) {
-          throw new RuntimeException("Elasticsearch version " + required + " or later required; actual version is " + version);
-        }
-        if (version.compareTo(recommended) < 0) {
-          LOGGER.warn("Elasticsearch version " + version + " is lower than recommended version " + recommended + ".");
-        }
-        return version;
-
-      } catch (Exception e) {
-        final Duration delay = retryDelays.next();
-        LOGGER.warn("Failed to connect to Elasticsearch. Retrying in {}", delay, e);
-        if (ThrowableHelper.hasCause(e, ConnectionClosedException.class)) {
-          LOGGER.warn("  Troubleshooting tip: If the Elasticsearch connection failure persists," +
-              " and if Elasticsearch is configured to require TLS/SSL, then make sure the connector is also configured to use secure connections.");
-        }
-
-        MILLISECONDS.sleep(delay.toMillis());
-      }
-    }
-  }
-
-  public static ElasticsearchSinkOps newElasticsearchClient(ConnectorConfig config) throws Exception {
+  public static ElasticsearchSinkOps newElasticsearchClient(ConnectorConfig config) {
     ElasticsearchConfig elasticsearchConfig = config.elasticsearch();
     TrustStoreConfig trustStoreConfig = config.trustStore().orElse(null);
 
@@ -115,7 +81,7 @@ public class ElasticsearchHelper {
     );
   }
 
-  public static RestClientBuilder newRestClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore, ClientCertConfig clientCert, AwsConfig aws, Duration bulkRequestTimeout) throws Exception {
+  public static RestClientBuilder newRestClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore, ClientCertConfig clientCert, AwsConfig aws, Duration bulkRequestTimeout) {
     final int connectTimeoutMillis = (int) SECONDS.toMillis(5);
     final int socketTimeoutMillis = (int) Math.max(SECONDS.toMillis(60), bulkRequestTimeout.toMillis() + SECONDS.toMillis(3));
     LOGGER.info("Elasticsearch client connect timeout = {}ms; socket timeout={}ms", connectTimeoutMillis, socketTimeoutMillis);
@@ -149,23 +115,28 @@ public class ElasticsearchHelper {
     return builder;
   }
 
-  private static SSLContext newSslContext(KeyStore trustStore, ClientCertConfig clientCert) throws Exception {
-    SSLContextBuilder builder = SSLContexts.custom()
-        .loadTrustMaterial(trustStore, null);
+  private static SSLContext newSslContext(KeyStore trustStore, ClientCertConfig clientCert) {
+    try {
+      SSLContextBuilder builder = SSLContexts.custom()
+          .loadTrustMaterial(trustStore, null);
 
-    if (clientCert.use()) {
-      String passwordString = clientCert.password();
-      char[] pw = passwordString == null ? null : passwordString.toCharArray();
-      try {
-        builder.loadKeyMaterial(clientCert.getKeyStore(), pw);
-      } finally {
-        if (pw != null) {
-          Arrays.fill(pw, '\0');
+      if (clientCert.use()) {
+        String passwordString = clientCert.password();
+        char[] pw = passwordString == null ? null : passwordString.toCharArray();
+        try {
+          builder.loadKeyMaterial(clientCert.getKeyStore(), pw);
+        } finally {
+          if (pw != null) {
+            Arrays.fill(pw, '\0');
+          }
         }
       }
-    }
 
-    return builder.build();
+      return builder.build();
+
+    } catch (GeneralSecurityException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static Optional<HttpRequestInterceptor> awsSigner(AwsConfig config) {

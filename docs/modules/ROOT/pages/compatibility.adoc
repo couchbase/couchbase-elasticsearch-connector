@@ -35,12 +35,19 @@ h| Elasticsearch↓ | 4.1 | 4.2.0 - 4.2.1 | 4.2.2 - 4.2.7 | 4.2.8 - 4.2.15 | 4.3
  | 5.6.16         | ◎   | ◎             | ◎             | ◎              | ✖   | ✖
 |===
 
-== Amazon OpenSearch Service
+== OpenSearch
 
-Direct connection to Amazon OpenSearch Service instances is supported by connector versions 4.2 and 4.3.
+OpenSearch version support is informed by the https://opensearch.org/releases.html#maintenance-policy[OpenSearch Maintenance Policy].
 
-WARNING: Version 4.4 of the Couchbase Elasticsearch Connector is not compatible with Amazon OpenSearch.
-We are investigating restoring compatibility in a future version.
+[%autowidth,cols="^,1*^"]
+|===
+ |             1+h| Connector
+h| OpenSearch↓    | 4.4.5 and later
+ | 2.0.0 - 2.6.0  | ✔
+ | 1.3.8          | ✔
+ | 1.3.3 - 1.3.7  | ◎
+ | 1.0.0 - 1.3.2  | ✖
+|===
 
 == Couchbase Capella
 

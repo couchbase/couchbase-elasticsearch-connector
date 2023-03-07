@@ -72,6 +72,16 @@ dependencies {
 
   implementation 'co.elastic.clients:elasticsearch-java:8.6.2'
 
+  implementation("org.opensearch.client:opensearch-java:2.2.0")
+  implementation("org.opensearch.client:opensearch-rest-client:2.6.0")
+  implementation("org.apache.httpcomponents.client5:httpclient5:5.1.4")
+
+//  implementation(platform("software.amazon.awssdk:bom:2.20.15"))
+//  implementation("software.amazon.awssdk:sdk-core")
+//  implementation("software.amazon.awssdk:apache-client")
+//  implementation("software.amazon.awssdk:regions")
+//  implementation("software.amazon.awssdk:auth")
+
   implementation platform('com.fasterxml.jackson:jackson-bom:2.14.2')
   implementation 'com.fasterxml.jackson.core:jackson-databind'
   implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
@@ -103,6 +113,7 @@ dependencies {
   integrationTestImplementation 'org.testcontainers:testcontainers'
   integrationTestImplementation 'org.testcontainers:couchbase'
   integrationTestImplementation 'org.testcontainers:elasticsearch'
+  integrationTestImplementation 'org.opensearch:opensearch-testcontainers:2.0.0'
 
   def immutablesVersion = '2.9.2'
   compileOnly "org.immutables:value:${immutablesVersion}"

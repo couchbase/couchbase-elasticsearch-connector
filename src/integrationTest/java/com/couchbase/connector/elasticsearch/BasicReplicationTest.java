@@ -38,9 +38,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
 import java.math.BigInteger;
 import java.time.Duration;
@@ -54,6 +51,8 @@ import java.util.concurrent.TimeoutException;
 
 import static com.couchbase.client.core.config.BucketCapabilities.COLLECTIONS;
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
+import static com.couchbase.connector.elasticsearch.ElasticsearchVersionSniffer.Flavor.ELASTICSEARCH;
+import static com.couchbase.connector.elasticsearch.ElasticsearchVersionSniffer.Flavor.OPENSEARCH;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.close;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.upsertWithRetry;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.waitForTravelSampleReplication;
@@ -80,13 +79,14 @@ public class BasicReplicationTest {
   static String CATCH_ALL_INDEX = "@default._default";
 
   private static String cachedCouchbaseContainerVersion;
-  private static String cachedElasticsearchContainerVersion;
+  private static String cachedSinkContainerVersion;
+  private static ElasticsearchVersionSniffer.Flavor cachedSinkFlavor;
 
   private static CustomCouchbaseContainer couchbase;
-  private static ElasticsearchContainer elasticsearch;
+  private static SinkContainer sink;
   private static ImmutableConnectorConfig commonConfig;
 
-  @Parameterized.Parameters(name = "cb={0}, es={1}")
+  @Parameterized.Parameters(name = "cb={0}, sink={2} {1}")
   public static Iterable<Object[]> versionsToTest() {
     // Only the first version in each list will be tested, unless this condition is `true`
     final boolean exhaustive = Boolean.parseBoolean(System.getProperty("com.couchbase.integrationTest.exhaustive"));
@@ -106,34 +106,48 @@ public class BasicReplicationTest {
         "7.14.0" // oldest supported version (first version that sends required "X-Elastic-Product" header)
     ));
 
+    // This list is informed by https://opensearch.org/releases.html
+    // If possible, we also want to support the last release of the previous major version.
+    final Set<String> opensearchVersions = new LinkedHashSet<>(Arrays.asList(
+        "2.6.0", // latest version
+        "1.3.8", // latest version of previous major
+        "1.3.3" // oldest supported version (first version compatible with opensearch-java client)
+    ));
+
+    String newestCouchbase = Iterables.get(couchbaseVersions, 0);
+    String newestElasticsearch = Iterables.get(elasticsearchVersions, 0);
+    String newestOpenSearch = Iterables.get(opensearchVersions, 0);
+
     if (!exhaustive) {
       // just test the most recent versions
-      return ImmutableList.of(new Object[]{
-          Iterables.get(couchbaseVersions, 0),
-          Iterables.get(elasticsearchVersions, 0)});
+      return ImmutableList.of(
+              new Object[]{newestCouchbase, newestElasticsearch, ELASTICSEARCH},
+              new Object[]{newestCouchbase, newestOpenSearch, OPENSEARCH}
+      );
     }
 
     // Full cartesian product is overkill; just test every supported version
     // at least once in some combination.
     final List<Object[]> combinations = new ArrayList<>();
 
-    final String newestCb = Iterables.get(couchbaseVersions, 0);
     final Iterable<String> olderCouchbaseVersions = Iterables.skip(couchbaseVersions, 1);
-    final String newestEs = Iterables.get(elasticsearchVersions, 0);
 
     // Prefer repeating Couchbase versions, since the CB container is more expensive to set up than ES.
-    elasticsearchVersions.forEach(es -> combinations.add(new Object[]{newestCb, es}));
-    olderCouchbaseVersions.forEach(cb -> combinations.add(new Object[]{cb, newestEs}));
+    elasticsearchVersions.forEach(es -> combinations.add(new Object[]{newestCouchbase, es, ELASTICSEARCH}));
+    opensearchVersions.forEach(os -> combinations.add(new Object[]{newestCouchbase, os, OPENSEARCH}));
+    olderCouchbaseVersions.forEach(cb -> combinations.add(new Object[]{cb, newestElasticsearch, ELASTICSEARCH}));
 
     return combinations;
   }
 
   private final String couchbaseVersion;
-  private final String elasticsearchVersion;
+  private final String sinkVersion;
+  private final ElasticsearchVersionSniffer.Flavor sinkFlavor;
 
-  public BasicReplicationTest(String couchbaseVersion, String elasticsearchVersion) {
+  public BasicReplicationTest(String couchbaseVersion, String sinkVersion, ElasticsearchVersionSniffer.Flavor flavor) {
     this.couchbaseVersion = requireNonNull(couchbaseVersion);
-    this.elasticsearchVersion = requireNonNull(elasticsearchVersion);
+    this.sinkVersion = requireNonNull(sinkVersion);
+    this.sinkFlavor = requireNonNull(flavor);
   }
 
   @Before
@@ -152,21 +166,21 @@ public class BasicReplicationTest {
       couchbase.loadSampleBucket("travel-sample", 100);
     }
 
-    if (elasticsearchVersion.equals(cachedElasticsearchContainerVersion)) {
-      System.out.println("Using cached Elasticsearch container " + elasticsearch.getDockerImageName() +
-          " listening at http://" + elasticsearch.getHttpHostAddress());
+    if (sinkFlavor == cachedSinkFlavor && sinkVersion.equals(cachedSinkContainerVersion)) {
+      System.out.println("Using cached sink container " + sink.getDockerImageName() +
+          " listening at http://" + sink.getHttpHostAddress());
     } else {
-      close(elasticsearch);
-      elasticsearch = new ElasticsearchContainer("docker.elastic.co/elasticsearch/elasticsearch:" + elasticsearchVersion)
-          .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")))
-          .withStartupTimeout(Duration.ofMinutes(5)); // CI Docker host is sloooooowwwwwwww
+      close(sink);
 
-      elasticsearch.start();
-      System.out.println("Elasticsearch listening at http://" + elasticsearch.getHttpHostAddress());
-      cachedElasticsearchContainerVersion = elasticsearchVersion;
+      sink = SinkContainer.create(sinkFlavor, sinkVersion);
+      sink.start();
+
+      System.out.println("Sink listening at http://" + sink.getHttpHostAddress());
+      cachedSinkContainerVersion = sinkVersion;
+      cachedSinkFlavor = sinkFlavor;
     }
 
-    commonConfig = ConnectorConfig.from(readConfig(couchbase, elasticsearch));
+    commonConfig = ConnectorConfig.from(readConfig(couchbase, sink));
     CheckpointClear.clear(commonConfig);
 
     try (TestEsClient es = new TestEsClient(commonConfig)) {
@@ -176,9 +190,8 @@ public class BasicReplicationTest {
 
   @AfterClass
   public static void cleanup() throws Exception {
-    close(couchbase, elasticsearch);
+    close(couchbase, sink);
   }
-
 
   @Test
   public void createDeleteReject() throws Throwable {

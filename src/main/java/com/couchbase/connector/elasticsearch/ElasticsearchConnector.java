@@ -24,7 +24,6 @@ import com.couchbase.client.dcp.StreamFrom;
 import com.couchbase.client.dcp.StreamTo;
 import com.couchbase.client.dcp.metrics.LogLevel;
 import com.couchbase.client.dcp.util.PartitionSet;
-import com.couchbase.client.dcp.util.Version;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.Collection;
@@ -43,6 +42,7 @@ import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.dcp.DcpHelper;
 import com.couchbase.connector.elasticsearch.cli.AbstractCliCommand;
 import com.couchbase.connector.elasticsearch.io.RequestFactory;
+import com.couchbase.connector.elasticsearch.sink.SinkOps;
 import com.couchbase.connector.elasticsearch.sink.SinkWorkerGroup;
 import com.couchbase.connector.util.HttpServer;
 import com.couchbase.connector.util.KeyStoreHelper;
@@ -65,8 +65,6 @@ import static com.couchbase.client.core.logging.RedactableArgument.redactSystem;
 import static com.couchbase.connector.VersionHelper.getVersionString;
 import static com.couchbase.connector.dcp.DcpHelper.initEventListener;
 import static com.couchbase.connector.dcp.DcpHelper.initSessionState;
-import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
-import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.waitForElasticsearchAndRequireVersion;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -185,19 +183,15 @@ public class ElasticsearchConnector extends AbstractCliCommand {
 
     final ScheduledExecutorService checkpointExecutor = Executors.newSingleThreadScheduledExecutor();
 
+    DocumentLifecycle.setLogLevel(config.logging().logDocumentLifecycle() ? LogLevel.INFO : LogLevel.DEBUG);
+    LogRedaction.setRedactionLevel(config.logging().redactionLevel());
+    DcpHelper.setRedactionLevel(config.logging().redactionLevel());
+
     try (Slf4jReporter metricReporter = newSlf4jReporter(config.metrics().logInterval());
          HttpServer httpServer = new HttpServer(config.metrics().httpPort(), membership);
-         ElasticsearchSinkOps esClient = newElasticsearchClient(config)) {
-
-      DocumentLifecycle.setLogLevel(config.logging().logDocumentLifecycle() ? LogLevel.INFO : LogLevel.DEBUG);
-      LogRedaction.setRedactionLevel(config.logging().redactionLevel());
-      DcpHelper.setRedactionLevel(config.logging().redactionLevel());
-
+         SinkOps esClient = SinkOps.create(config)
+    ) {
       final Cluster cluster = CouchbaseHelper.createCluster(config);
-
-      final Version elasticsearchVersion = waitForElasticsearchAndRequireVersion(
-          esClient, new Version(7, 14, 0), new Version(7, 17, 5));
-      LOGGER.info("Elasticsearch version {}", elasticsearchVersion);
 
       // Wait for couchbase server to come online, then open the bucket.
       final Bucket bucket = CouchbaseHelper.waitForBucket(cluster, config.couchbase().bucket());

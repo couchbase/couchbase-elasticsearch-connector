@@ -16,13 +16,15 @@
 
 package com.couchbase.connector.elasticsearch.io;
 
-import com.couchbase.client.dcp.core.utils.DefaultObjectMapper;
 import com.couchbase.client.dcp.highlevel.Mutation;
 import com.couchbase.connector.config.es.DocStructureConfig;
 import com.couchbase.connector.dcp.Event;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +39,8 @@ import static com.couchbase.client.core.logging.RedactableArgument.redactUser;
 public class DefaultDocumentTransformer implements DocumentTransformer {
   private static final Logger LOGGER = LoggerFactory.getLogger(DefaultDocumentTransformer.class);
 
-  private static final JsonFactory jsonFactory = new JsonFactory();
+  private static final JsonMapper jsonMapper = JsonMapper.builder().build();
+  private static final JsonFactory jsonFactory = jsonMapper.getFactory();
 
   private final boolean documentContentAtTopLevel;
   private final String metadataFieldName;
@@ -50,9 +53,7 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
   }
 
   private static boolean isSingleValidJsonObject(byte[] json) {
-    try {
-      final JsonParser parser = jsonFactory.createParser(json);
-
+    try (JsonParser parser = jsonFactory.createParser(json)) {
       if (parser.nextToken() != JsonToken.START_OBJECT) {
         return false;
       }
@@ -118,13 +119,21 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
       }
     }
 
-    return esDocument;
+    try {
+      // Do our own JSON serialization, so the sink client's JSON mapper settings
+      // can't interfere with how null-valued elements are serialized.
+      return new PreserializedJson(jsonMapper.writeValueAsString(esDocument));
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
   }
+
+  private static final TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE = new TypeReference<>() {};
 
   @Nullable
   private Map<String, Object> getDocumentAsMap(byte[] bytes) {
     try {
-      return DefaultObjectMapper.readValueAsMap(bytes);
+      return jsonMapper.readValue(bytes, MAP_TYPE_REFERENCE);
     } catch (IOException notJsonObject) {
       return wrapCounters ? wrapIfCounter(bytes) : null;
     }

@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import static com.couchbase.connector.elasticsearch.DockerHelper.getDockerHost;
+import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.retryUntilSuccess;
 import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.constantBackoff;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -86,7 +87,7 @@ public class ConsulCluster implements Closeable {
     System.out.println("Waiting for Consul cluster to elect a leader...");
 
     final BackoffPolicy backoffPolicy = constantBackoff(Duration.ofSeconds(1)).limit(10).build();
-    TestEsClient.retryUntilSuccess(backoffPolicy, () -> {
+    retryUntilSuccess(backoffPolicy, () -> {
           try (ConsulOps client = client(nodes.size() - 1)) {
             checkState(client.kv().upsertKey("startup-complete", "true").block().body());
             return null;

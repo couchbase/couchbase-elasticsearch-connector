@@ -24,17 +24,14 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Network;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.couchbase.connector.elasticsearch.BasicReplicationTest.CATCH_ALL_INDEX;
+import static com.couchbase.connector.elasticsearch.ElasticsearchVersionSniffer.Flavor.ELASTICSEARCH;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.close;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.upsertOneDocumentToEachVbucket;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.waitForTravelSampleReplication;
@@ -56,18 +53,15 @@ public class AutonomousOpsTest {
   private static final String elasticsearchVersion = "7.17.9";
 
   private static CustomCouchbaseContainer couchbase;
-  private static ElasticsearchContainer elasticsearch;
+  private static SinkContainer sink;
   private static ConsulCluster consulCluster;
 
   @BeforeClass
   public static void startReusableContainers() {
     consulCluster = new ConsulCluster(CONSUL_DOCKER_IMAGE, 3, Network.newNetwork()).start();
 
-    elasticsearch = new ElasticsearchContainer("docker.elastic.co/elasticsearch/elasticsearch:" + elasticsearchVersion)
-        .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.elasticsearch")))
-        .withStartupTimeout(Duration.ofMinutes(5)); // CI Docker host is sloooooowwwwwwww
-
-    elasticsearch.start();
+    sink = SinkContainer.create(ELASTICSEARCH, elasticsearchVersion);
+    sink.start();
 
     couchbase = newCouchbaseCluster("couchbase/server:" + couchbaseVersion);
 
@@ -77,7 +71,7 @@ public class AutonomousOpsTest {
 
   @AfterClass
   public static void stopReusableContainers() {
-    close(couchbase, elasticsearch, consulCluster);
+    close(couchbase, sink, consulCluster);
   }
 
   @Before
@@ -98,7 +92,7 @@ public class AutonomousOpsTest {
   }
 
   public String defaultConfig(String bucketName) throws IOException {
-    return readConfig(couchbase, elasticsearch, ImmutableMap.of(
+    return readConfig(couchbase, sink, ImmutableMap.of(
         "group.name", newGroupName(),
         "couchbase.bucket", bucketName));
   }

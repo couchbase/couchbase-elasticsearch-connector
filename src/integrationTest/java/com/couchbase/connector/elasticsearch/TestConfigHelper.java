@@ -23,7 +23,6 @@ import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
 import com.github.therapi.core.internal.LangHelper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
-import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,11 +46,11 @@ public class TestConfigHelper {
     return Files.asCharSource(new File("src/dist/config/example-connector.toml"), UTF_8).read();
   }
 
-  public static String readConfig(CustomCouchbaseContainer couchbase, ElasticsearchContainer elasticsearch) throws IOException {
+  public static String readConfig(CustomCouchbaseContainer couchbase, SinkContainer elasticsearch) throws IOException {
     return readConfig(couchbase, elasticsearch, emptyMap());
   }
 
-  public static String readConfig(CustomCouchbaseContainer couchbase, ElasticsearchContainer elasticsearch,
+  public static String readConfig(CustomCouchbaseContainer couchbase, SinkContainer elasticsearch,
                                   Map<String, Object> propertyOverrides) throws IOException {
 
 
