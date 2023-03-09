@@ -16,9 +16,12 @@
 
 package com.couchbase.connector.util;
 
+import com.couchbase.client.core.env.SecurityConfig;
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.common.TrustStoreConfig;
 import com.google.common.hash.Hashing;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -39,6 +42,8 @@ import java.util.stream.Collectors;
 import static com.couchbase.connector.config.ConfigHelper.resolveIfRelative;
 
 public class KeyStoreHelper {
+  private static final Logger log = LoggerFactory.getLogger(KeyStoreHelper.class);
+
   private KeyStoreHelper() {
     throw new AssertionError("not instantiable");
   }
@@ -72,15 +77,20 @@ public class KeyStoreHelper {
       @Nullable TrustStoreConfig trustStoreConfig
   ) {
     if (trustedCertificates.isEmpty()) {
-      // use the global trust store (deprecated)
-      return () -> {
-        if (trustStoreConfig == null) {
-          throw new ConfigException(
-              "Please specify the " + serviceName + " Certificate Authority (CA) certificate to trust" +
-                  " by configuring the `pathToCaCertificate` property in the " + serviceName + " config section.");
-        }
-        return trustStoreConfig.get();
-      };
+      if (trustStoreConfig != null) {
+        // use the global trust store (deprecated)
+        return trustStoreConfig;
+      }
+
+      log.info(
+          "Since no Certificate Authority (CA) certificate(s) were specified for {}," +
+              " the connector will trust the well-known CAs in the JVM's 'cacerts' trust store." +
+              " If the {} service uses a private CA, make sure to configure the 'pathToCaCertificate'" +
+              " connector config property, or add the CA certificate to `cacerts`.",
+          serviceName, serviceName
+      );
+
+      trustedCertificates = SecurityConfig.jvmCaCertificates();
     }
 
     List<X509Certificate> certs = new ArrayList<>(trustedCertificates);
