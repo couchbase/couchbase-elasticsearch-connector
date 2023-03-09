@@ -21,6 +21,8 @@ import com.couchbase.connector.config.toml.ConfigTable;
 import com.couchbase.connector.util.KeyStoreHelper;
 import com.google.common.base.Supplier;
 import org.immutables.value.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.security.KeyStore;
@@ -32,6 +34,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Value.Immutable
 public interface TrustStoreConfig extends Supplier<KeyStore> {
+  Logger log = LoggerFactory.getLogger(TrustStoreConfig.class);
+
   String path();
 
   @Nullable
@@ -55,6 +59,8 @@ public interface TrustStoreConfig extends Supplier<KeyStore> {
     if (isBlank(path) || path.equals("path/to/truststore")) {
       return Optional.empty();
     }
+
+    log.warn("The [truststore] config section is deprecated. Please use the 'pathToCaCertificate' properties instead.");
 
     final String password = readPassword(config, "truststore", "pathToPassword");
 
