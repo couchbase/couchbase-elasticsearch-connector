@@ -102,6 +102,7 @@ Only required for Autonomous Operations mode.
 |===
  |         3+h| Connector
 h| Consul↓    | 4.1 - 4.2.6  | 4.2.7 - 4.4.0 | 4.4.1 and later
+ | 1.15.1     | ✖            | ✖             | ✔
  | 1.14.3     | ✖            | ✖             | ✔
  | 1.13.1     | ✖            | ✖             | ✔
  | 1.12.4     | ✖            | ✖             | ✔
