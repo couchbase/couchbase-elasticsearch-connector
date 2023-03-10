@@ -27,7 +27,7 @@ A connector group is defined by configuring one or more connector instances to u
 [source,toml]
 ----
 [group]
-  name = 'example-group' <1>
+name = 'example-group' <1>
 ----
 <1> Each connector group must be assigned a unique name (in order to keep its replication checkpoints separate).
 The group name is required even if there is only one connector instance in the group.
@@ -45,8 +45,8 @@ The default configuration is not distributed, since it specifies a group with on
 [source,toml]
 ----
 [group.static] <1>
-  memberNumber = 1 <2>
-  totalMembers = 1 <3>
+memberNumber = 1 <2>
+totalMembers = 1 <3>
 ----
 <1> This config section is named "static" because the group membership is predetermined and does not change while the connector is running.
 (See xref:autonomous-operations.adoc[] for an alternative mode where group membership is dynamic.)
@@ -66,8 +66,8 @@ The connector config file has additional options for controlling higher-level lo
 [source,toml]
 ----
 [logging]
-  logDocumentLifecycle = false <1>
-  redactionLevel = 'NONE' <2>
+logDocumentLifecycle = false <1>
+redactionLevel = 'NONE' <2>
 ----
 <1> If true, document lifecycle milestones will be logged at INFO level instead of DEBUG.
 Enabling this feature lets you watch documents flow through the connector without having to edit the Log4j config file.
@@ -84,8 +84,8 @@ Performance metrics may be written to a log file and/or exposed via HTTP to enab
 [source,toml]
 ----
 [metrics]
-  httpPort = 31415 <1>
-  logInterval = '1m' <2>
+httpPort = 31415 <1>
+logInterval = '1m' <2>
 ----
 <1> Set the port number to `-1` to disable the embedded HTTP server.
 <2> "One minute." A value of '0m' disables metrics logging.
@@ -104,8 +104,8 @@ Please use the `pathToCaCertificate` properties in the `[couchbase]` and/or `[el
 [source,toml]
 ----
 [truststore]
-  path = 'path/to/truststore' # <1>
-  pathToPassword = 'secrets/truststore-password.toml' # <2>
+path = 'path/to/truststore' # <1>
+pathToPassword = 'secrets/truststore-password.toml' # <2>
 ----
 <1> The filesystem path to the Java keystore containing the CA certificates for the Couchbase and/or Elasticsearch clusters.
 <2> Path to a separate TOML file with a single 'password' key.
@@ -118,15 +118,14 @@ If secure connections are enabled, you can optionally authenticate using a clien
 [source,toml]
 ----
 [couchbase.clientCertificate]
-  use = false # <1>
-  path = 'path/to/couchbase-client-cert.p12' # <2>
-  pathToPassword = 'secrets/couchbase-client-cert-password.toml' # <3>
+use = false # <1>
+path = 'path/to/couchbase-client-cert.p12' # <2>
+pathToPassword = 'secrets/couchbase-client-cert-password.toml' # <3>
 
 [elasticsearch.clientCertificate] # <4>
-  use = false
-  path = 'path/to/elasticsearch-client-cert.p12'
-  pathToPassword = 'secrets/elasticsearch-client-cert-password.toml'
-
+use = false
+path = 'path/to/elasticsearch-client-cert.p12'
+pathToPassword = 'secrets/elasticsearch-client-cert-password.toml'
 ----
 <1> Use a client certificate for authentication?
 If true, the username and password configured in the `[couchbase]` / `[elasticsearch]` section are ignored.
@@ -141,18 +140,18 @@ Here's where the Couchbase connection parameters and credentials are specified.
 [source,toml]
 ----
 [couchbase]
-  hosts = ['127.0.0.1'] <1>
-  network = 'auto' <2>
-  bucket = 'travel-sample' <3>
-  metadataBucket = '' <4>
-  metadataCollection = '_default._default' <5>
-  username = 'Administrator' <6>
-  pathToPassword = 'secrets/couchbase-password.toml' <7>
-  secureConnection = false <8>
-  pathToCaCertificate = '' <9>
-  hostnameVerification = true <10>
-  scope = '' <11>
-  collections = ['myScope.widgets','myScope.invoices'] <12>
+hosts = ['127.0.0.1'] <1>
+network = 'auto' <2>
+bucket = 'travel-sample' <3>
+metadataBucket = '' <4>
+metadataCollection = '_default._default' <5>
+username = 'Administrator' <6>
+pathToPassword = 'secrets/couchbase-password.toml' <7>
+secureConnection = false <8>
+pathToCaCertificate = '' <9>
+hostnameVerification = true <10>
+scope = '' <11>
+collections = ['myScope.widgets','myScope.invoices'] <12>
 ----
 <1> A list of bootstrap nodes for the Couchbase cluster.
 Multiple nodes can be specified like `['host1','host2']`.
@@ -198,9 +197,9 @@ Here's an example that tunes the checkpoint I/O timeout settings and disables na
 [source,toml]
 ----
 [couchbase.env] <1>
-  timeout.kvTimeout = '2.5s'
-  security.enableNativeTls = false
-  ioEnvironment.enableNativeIo = false
+timeout.kvTimeout = '2.5s'
+security.enableNativeTls = false
+ioEnvironment.enableNativeIo = false
 ----
 <1> Any property name recognized by the Couchbase Java SDK may be specified in this section.
 
@@ -219,9 +218,9 @@ Immediate propagation gives the lowest possible latency, but increases the likel
 [source,toml]
 ----
 [couchbase.dcp]
-  compression = true <1>
-  flowControlBuffer = '16mb' <2>
-  persistencePollingInterval = '100ms' <3>
+compression = true <1>
+flowControlBuffer = '16mb' <2>
+persistencePollingInterval = '100ms' <3>
 ----
 <1> Disabling compression uses more network bandwidth and increases Couchbase Server's CPU usage.
 Enabling compression increases the connector's CPU usage.
@@ -245,11 +244,11 @@ This is the amount of memory required for the flow control buffer (not counting 
 [source,toml]
 ----
 [elasticsearch]
-  hosts = ['127.0.0.1'] <1>
-  username = 'elastic' <2>
-  pathToPassword = 'secrets/elasticsearch-password.toml' <3>
-  secureConnection = false <4>
-  pathToCaCertificate = '' <5>
+hosts = ['127.0.0.1'] <1>
+username = 'elastic' <2>
+pathToPassword = 'secrets/elasticsearch-password.toml' <3>
+secureConnection = false <4>
+pathToCaCertificate = '' <5>
 ----
 
 <1> A list of bootstrap nodes for the Elasticsearch cluster.
@@ -271,10 +270,10 @@ Experiment with these parameters to see what yields the best performance with yo
 [source,toml]
 ----
 [elasticsearch.bulkRequestLimits]
-  bytes = '10mb' <1>
-  actions = 1000 <2>
-  timeout = '1m' <3>
-  concurrentRequests = 2 <4>
+bytes = '10mb' <1>
+actions = 1000 <2>
+timeout = '1m' <3>
+concurrentRequests = 2 <4>
 ----
 
 <1> Limits the size in bytes of a single bulk request.
@@ -299,9 +298,9 @@ NOTE: The connector does not replicate a document's extended attributes (xattrs)
 [source,toml]
 ----
 [elasticsearch.docStructure]
-  metadataFieldName = 'meta' <1>
-  documentContentAtTopLevel = false <2>
-  wrapCounters = false <3>
+metadataFieldName = 'meta' <1>
+documentContentAtTopLevel = false <2>
+wrapCounters = false <3>
 ----
 <1> Name to assign to the metadata field, or empty string (`''`) to omit metadata.
 <2> If `false`, the Elasticsearch document root will have a `doc` field whose value is the Couchbase document.
@@ -335,11 +334,11 @@ The default values can be overridden by specific type definitions, which we'll l
 [source,toml]
 ----
 [elasticsearch.typeDefaults]
-  index = '' <1>
-  pipeline = '' <2>
-  ignore = false <3>
-  ignoreDeletes = false <4>
-  matchOnQualifiedKey = false <5>
+index = '' <1>
+pipeline = '' <2>
+ignore = false <3>
+ignoreDeletes = false <4>
+matchOnQualifiedKey = false <5>
 ----
 <1> Write matching documents to this index.
 Empty string (`''`) means "no default".
@@ -374,8 +373,8 @@ It ignores any Sync Gateway metadata documents based on their ID prefix.
 [source,toml]
 ----
 [[elasticsearch.type]]
-  prefix = '_sync:' <1>
-  ignore = true <2>
+prefix = '_sync:' <1>
+ignore = true <2>
 ----
 <1> This type definition matches any document whose ID begins with the specified case-sensitive string.
 <2> Any matched documents will be ignored completely.
@@ -392,9 +391,9 @@ This time, instead of ignoring the matched documents, the connector will write t
 [source,toml]
 ----
 [[elasticsearch.type]]
-  prefix = 'airline_'
-  index = 'airlines' <1>
-  pipeline = 'audit' <2>
+prefix = 'airline_'
+index = 'airlines' <1>
+pipeline = 'audit' <2>
 ----
 <1> Matching documents will be written to this Elasticsearch index.
 <2> A pipeline lets you apply additional processing to a document before it is indexed.
@@ -408,8 +407,8 @@ Now let's look at a type definition that matches document IDs using a https://do
 [source,toml]
 ----
 [[elasticsearch.type]]
-  regex = '.*port_.*' <1>
-  index = 'ports'
+regex = '.*port_.*' <1>
+index = 'ports'
 ----
 <1> Matches "airport_sfo", "seaport_oakland", etc.
 
@@ -420,7 +419,7 @@ Finally, here's the promised example of using a regular expression with a captur
 [source,toml]
 ----
 [[elasticsearch.type]]
-  regex = '(?<index>.+?)::.*' <1>
+regex = '(?<index>.+?)::.*' <1>
 ----
 <1> Matches IDs that start with one or more characters followed by "::".
 It directs "user::alice" to index "user", and "foo::bar::123" to index "foo".
@@ -435,9 +434,9 @@ You can take advantage of this to create a type rule specific to a collection, o
 [source,toml]
 ----
 [[elasticsearch.type]]
-  matchOnQualifiedKey = true
-  prefix = 'scope.collection.' <1>
-  index = 'foo'
+matchOnQualifiedKey = true
+prefix = 'scope.collection.' <1>
+index = 'foo'
 ----
 <1> Matches any document in collection "scope.collection", and writes it to Elasticsearch index "foo".
 
@@ -445,8 +444,8 @@ You can take advantage of this to create a type rule specific to a collection, o
 [source,toml]
 ----
 [[elasticsearch.type]]
-  matchOnQualifiedKey = true
-  regex = '[^.]+.(?<index>[^.]+).*' <1>
+matchOnQualifiedKey = true
+regex = '[^.]+.(?<index>[^.]+).*' <1>
 ----
 <1> Matches any document.
 Writes a document with qualified key "scope.collection.foo" to Elasticsearch index "collection".
@@ -455,8 +454,8 @@ Writes a document with qualified key "scope.collection.foo" to Elasticsearch ind
 [source,toml]
 ----
 [[elasticsearch.type]]
-  matchOnQualifiedKey = true
-  regex = '(?<index>[^.]+.[^.]+).*' <1>
+matchOnQualifiedKey = true
+regex = '(?<index>[^.]+.[^.]+).*' <1>
 ----
 <1> Matches any document.
 Writes a document with qualified key "scope.collection.foo" to Elasticsearch index "scope.collection".
@@ -472,10 +471,10 @@ For this to work, the connector must save each child document to the same Elasti
 [source,toml]
 ----
 [[elasticsearch.type]]
-  prefix = 'route_' <1>
-  index = 'airlines' <2>
-  routing = '/airlineid' <3>
-  ignoreDeletes = true <4>
+prefix = 'route_' <1>
+index = 'airlines' <2>
+routing = '/airlineid' <3>
+ignoreDeletes = true <4>
 ----
 <1> It's just a coincidence that airline route documents are being used to demonstrate custom routing.
 <2> Must specify the same index as parent document.
@@ -504,7 +503,7 @@ Related configuration properties:
 [source,toml]
 ----
 [elasticsearch.rejectionLog]
-  index = 'cbes-rejects' <1>
+index = 'cbes-rejects' <1>
 ----
 <1> Rejection log entries are written to this index.
 
@@ -556,9 +555,9 @@ Here's what it looks like:
 [source,toml]
 ----
 [consul]
-  aclToken = '${CBES_CONSUL_ACL_TOKEN:}' <1>
-  deregisterServiceOnGracefulShutdown = true <2>
-  deregisterCriticalServiceAfter = '168h' <3>
+aclToken = '${CBES_CONSUL_ACL_TOKEN:}' <1>
+deregisterServiceOnGracefulShutdown = true <2>
+deregisterCriticalServiceAfter = '168h' <3>
 ----
 <1> Access Control List Token to include in all Consul requests.
 +
@@ -577,5 +576,3 @@ According to the https://www.consul.io/api-docs/agent/check#register-check[Consu
 +
 > The minimum timeout is 1 minute, and the process that reaps critical services runs every 30 seconds, so it may take slightly longer than the configured timeout to trigger the deregistration.
 This should generally be configured with a timeout that's much, much longer than any expected recoverable outage for the given service.
-
-

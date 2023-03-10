@@ -15,216 +15,216 @@
 # To preserve the checkpoint, run the `cbes-checkpoint-backup` command
 # before renaming, and `cbes-checkpoint-restore` afterwards.
 [group]
-  name = 'example-group'
+name = 'example-group'
 
 # The simplest way to deploy the connector is "static" mode. In this mode,
 # each worker process is independent of the others, and must be manually
 # configured to know which partitions it is responsible for.
 [group.static]
-  # Each member in a static group must have a unique member number.
-  memberNumber = 1 # A value from 1 to 'totalMembers', inclusive.
+# Each member in a static group must have a unique member number.
+memberNumber = 1 # A value from 1 to 'totalMembers', inclusive.
 
-  # The total number of workers in the static group.
-  #
-  # TIP: To safely add or remove workers from a static group, first stop all
-  # running workers, then reconfigure them with the new 'totalMembers' value,
-  # and finally start all the workers again.
-  totalMembers = 1
+# The total number of workers in the static group.
+#
+# TIP: To safely add or remove workers from a static group, first stop all
+# running workers, then reconfigure them with the new 'totalMembers' value,
+# and finally start all the workers again.
+totalMembers = 1
 
 [logging]
-  # If true, document lifecycle milestones will be logged at INFO level
-  # instead of DEBUG. Enabling this feature lets you watch documents
-  # flow through the connector without having to edit the Log4j config file.
-  # Disabled by default because it generates many log messages.
-  logDocumentLifecycle = false
+# If true, document lifecycle milestones will be logged at INFO level
+# instead of DEBUG. Enabling this feature lets you watch documents
+# flow through the connector without having to edit the Log4j config file.
+# Disabled by default because it generates many log messages.
+logDocumentLifecycle = false
 
-  # Determines which kinds of sensitive log messages from the Couchbase connector
-  # will be tagged for later redaction by the Couchbase log redaction tool.
-  # NONE = no tagging; PARTIAL = user data is tagged; FULL = user, meta, and system data is tagged.
-  # Defaults to NONE.
-  redactionLevel = 'NONE'
+# Determines which kinds of sensitive log messages from the Couchbase connector
+# will be tagged for later redaction by the Couchbase log redaction tool.
+# NONE = no tagging; PARTIAL = user data is tagged; FULL = user, meta, and system data is tagged.
+# Defaults to NONE.
+redactionLevel = 'NONE'
 
 # Performance metrics may be written to a log file and/or exposed via HTTP.
 [metrics]
-  httpPort = 31415 # Positive = fixed, 0 = ephemeral, -1 = disable HTTP server
-  logInterval = '1m' # Set to '0m' to disable metrics logging
+httpPort = 31415 # Positive = fixed, 0 = ephemeral, -1 = disable HTTP server
+logInterval = '1m' # Set to '0m' to disable metrics logging
 
 [couchbase]
-  hosts = ['127.0.0.1']
-  network = 'auto'
-  bucket = 'travel-sample'
+hosts = ['127.0.0.1']
+network = 'auto'
+bucket = 'travel-sample'
 
-  # By default the connector stores replication checkpoint documents
-  # in the source bucket. If you'd rather store those documents in a
-  # separate existing bucket, put that bucket's name here.
-  metadataBucket = ''
+# By default the connector stores replication checkpoint documents
+# in the source bucket. If you'd rather store those documents in a
+# separate existing bucket, put that bucket's name here.
+metadataBucket = ''
 
-  # If you want to store replication checkpoint documents in a specific
-  # collection, name that collection here (qualified by scope, like
-  # 'myScope.cbesCheckpoints'). Otherwise, checkpoints will be stored
-  # in the bucket's default collection. The collection must already exist.
-  metadataCollection=''
+# If you want to store replication checkpoint documents in a specific
+# collection, name that collection here (qualified by scope, like
+# 'myScope.cbesCheckpoints'). Otherwise, checkpoints will be stored
+# in the bucket's default collection. The collection must already exist.
+metadataCollection = ''
 
-  # At a minimum, the Couchbase user must have the "Data DCP Reader"
-  # role for the source bucket, and "Data Reader" & "Data Writer"
-  # roles for the bucket where replication checkpoints are stored.
-  username = 'Administrator'
+# At a minimum, the Couchbase user must have the "Data DCP Reader"
+# role for the source bucket, and "Data Reader" & "Data Writer"
+# roles for the bucket where replication checkpoints are stored.
+username = 'Administrator'
 
-  # Path to a separate TOML file with a single 'password' key.
-  pathToPassword = 'secrets/couchbase-password.toml'
+# Path to a separate TOML file with a single 'password' key.
+pathToPassword = 'secrets/couchbase-password.toml'
 
-  # Optionally use SSL/TLS to encrypt the connection between Couchbase and
-  # the connector. Requires Couchbase Enterprise Edition, and requires
-  # configuring `pathToCaCertificate`.
-  secureConnection = false
+# Optionally use SSL/TLS to encrypt the connection between Couchbase and
+# the connector. Requires Couchbase Enterprise Edition, and requires
+# configuring `pathToCaCertificate`.
+secureConnection = false
 
-  # Path to a file containing the Couchbase cluster's Certificate Authority (CA)
-  # certificate(s) in PEM format. If connecting to Couchbase Capella, you can
-  # leave this blank to trust the connector's bundled Capella CA certificate.
-  pathToCaCertificate = ''
+# Path to a file containing the Couchbase cluster's Certificate Authority (CA)
+# certificate(s) in PEM format. If connecting to Couchbase Capella, you can
+# leave this blank to trust the connector's bundled Capella CA certificate.
+pathToCaCertificate = ''
 
-  # Set this to `false` to disable TLS hostname verification for Couchbase
-  # connections. Less secure, but might be required if for some reason you
-  # can't issue a certificate whose Subject Alternative Names match the
-  # hostname used to connect to the server. Only disable if you understand
-  # the impact and can accept the risks.
-  hostnameVerification = true
+# Set this to `false` to disable TLS hostname verification for Couchbase
+# connections. Less secure, but might be required if for some reason you
+# can't issue a certificate whose Subject Alternative Names match the
+# hostname used to connect to the server. Only disable if you understand
+# the impact and can accept the risks.
+hostnameVerification = true
 
-  # By default the connector examines every document in the bucket.
-  #
-  # Set the 'scope' property if you want to limit the replication to
-  # all collections within a single scope. The value is the name of the
-  # scope to replicate from.
-  # For example:
-  #   scope = 'myScope'
-  #
-  # Set the 'collections' property if you want to limit the replication to
-  # a subset of the collections in a scope, or collections in different scopes.
-  # The value is a list of qualified collections names (scope.collection).
-  # For example:
-  #   collections = ['myScope.widgets','myScope.invoices']
-  #
-  # NOTE: The 'scope' and 'collections' properties are mutually exlcusive.
-  # You can set one OR the other, but not both.
-  scope = ''
-  collections = []
+# By default the connector examines every document in the bucket.
+#
+# Set the 'scope' property if you want to limit the replication to
+# all collections within a single scope. The value is the name of the
+# scope to replicate from.
+# For example:
+#   scope = 'myScope'
+#
+# Set the 'collections' property if you want to limit the replication to
+# a subset of the collections in a scope, or collections in different scopes.
+# The value is a list of qualified collections names (scope.collection).
+# For example:
+#   collections = ['myScope.widgets','myScope.invoices']
+#
+# NOTE: The 'scope' and 'collections' properties are mutually exlcusive.
+# You can set one OR the other, but not both.
+scope = ''
+collections = []
 
 # When secure connections are enabled, you can optionally authenticate
 # using a client certificate instead of username & password.
 [couchbase.clientCertificate]
-  # Authenticate using client certificate? If true, the username
-  # and password configured in the [couchbase] section are ignored.
-  use = false
+# Authenticate using client certificate? If true, the username
+# and password configured in the [couchbase] section are ignored.
+use = false
 
-  # Filesystem path to a Java keystore or PKCS12 bundle holding
-  # the private key and certificate chain.
-  path = 'path/to/couchbase-client-cert.p12'
+# Filesystem path to a Java keystore or PKCS12 bundle holding
+# the private key and certificate chain.
+path = 'path/to/couchbase-client-cert.p12'
 
-  # Filesystem path to a separate TOML file containing the password
-  # for the PKCS12 bundle.
-  pathToPassword = 'secrets/couchbase-client-cert-password.toml'
+# Filesystem path to a separate TOML file containing the password
+# for the PKCS12 bundle.
+pathToPassword = 'secrets/couchbase-client-cert-password.toml'
 
 # Options for the Couchbase Database Change Protocol (DCP).
 [couchbase.dcp]
-  compression = true
-  flowControlBuffer = '16mb'
-  persistencePollingInterval = '100ms'
+compression = true
+flowControlBuffer = '16mb'
+persistencePollingInterval = '100ms'
 
 # Custom environment settings for the Couchbase client.
 # Property name reference:
 #   https://docs.couchbase.com/java-sdk/current/ref/client-settings.html#configuration-options
 [couchbase.env]
-  # Omit the "com.couchbase.env." prefix when specifying a property here.
-  # For example, to set the "com.couchbase.env.timeout.kvTimeout" property:
-  #   timeout.kvTimeout = '2.5s'
+# Omit the "com.couchbase.env." prefix when specifying a property here.
+# For example, to set the "com.couchbase.env.timeout.kvTimeout" property:
+#   timeout.kvTimeout = '2.5s'
 
 [elasticsearch]
-  # If connecting to an Amazon OpenSearch Service domain, specify
-  # the domain's AWS region in the [elasticsearch.aws] section.
-  hosts = ['127.0.0.1']
-  username = 'elastic'
+# If connecting to an Amazon OpenSearch Service domain, specify
+# the domain's AWS region in the [elasticsearch.aws] section.
+hosts = ['127.0.0.1']
+username = 'elastic'
 
-  # Path to a separate TOML file with a single 'password' key.
-  pathToPassword = 'secrets/elasticsearch-password.toml'
+# Path to a separate TOML file with a single 'password' key.
+pathToPassword = 'secrets/elasticsearch-password.toml'
 
-  # Optionally use SSL/TLS to encrypt the connection between Elasticsearch and
-  # the connector. If true, you must also configure `pathToCaCertificate`.
-  # See also: https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html
-  secureConnection = false
+# Optionally use SSL/TLS to encrypt the connection between Elasticsearch and
+# the connector. If true, you must also configure `pathToCaCertificate`.
+# See also: https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html
+secureConnection = false
 
-  # Path to a file containing the Elasticsearch cluster's Certificate Authority (CA)
-  # certificate(s) in PEM format. If blank, the connector trusts the well-known CAs
-  # in the JVM's `cacerts` trust store.
-  pathToCaCertificate = ''
+# Path to a file containing the Elasticsearch cluster's Certificate Authority (CA)
+# certificate(s) in PEM format. If blank, the connector trusts the well-known CAs
+# in the JVM's `cacerts` trust store.
+pathToCaCertificate = ''
 
 # When secure connections are enabled, you can optionally authenticate
 # using a client certificate instead of username & password.
 [elasticsearch.clientCertificate]
-  # Authenticate using client certificate? If true, the username
-  # and password configured in the [elasticsearch] section are ignored.
-  use = false
+# Authenticate using client certificate? If true, the username
+# and password configured in the [elasticsearch] section are ignored.
+use = false
 
-  # Filesystem path to a Java keystore or PKCS12 bundle holding
-  # the private key and certificate chain.
-  path = 'path/to/elasticsearch-client-cert.p12'
+# Filesystem path to a Java keystore or PKCS12 bundle holding
+# the private key and certificate chain.
+path = 'path/to/elasticsearch-client-cert.p12'
 
-  # Filesystem path to a separate TOML file containing the password
-  # for the PKCS12 bundle.
-  pathToPassword = 'secrets/elasticsearch-client-cert-password.toml'
+# Filesystem path to a separate TOML file containing the password
+# for the PKCS12 bundle.
+pathToPassword = 'secrets/elasticsearch-client-cert-password.toml'
 
 # If connecting to an Amazon OpenSearch Service domain, specify the domain's AWS region.
 # The connector gets AWS credentials from the Default Credential Provider Chain.
 # https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials.html
 [elasticsearch.aws]
-  region = ''
+region = ''
 
 [elasticsearch.bulkRequestLimits]
-  bytes = '10mb'
-  actions = 1000
-  timeout = '1m'
-  concurrentRequests = 2
+bytes = '10mb'
+actions = 1000
+timeout = '1m'
+concurrentRequests = 2
 
 [elasticsearch.docStructure]
-  # The Elasticsearch document may optionally contain Couchbase metadata
-  # (cas, revision, expiry, etc). If present, this will be a top-level field
-  # of the Elasticsearch document. If you have configured the connector
-  # to put document content at the top level, choose a field name that will
-  # not conflict with any document fields. To omit the metadata field,
-  # use an empty string.
-  metadataFieldName = 'meta'
+# The Elasticsearch document may optionally contain Couchbase metadata
+# (cas, revision, expiry, etc). If present, this will be a top-level field
+# of the Elasticsearch document. If you have configured the connector
+# to put document content at the top level, choose a field name that will
+# not conflict with any document fields. To omit the metadata field,
+# use an empty string.
+metadataFieldName = 'meta'
 
-  # false means the ES document root will have a 'doc' field whose value is
-  # the Couchbase document.
-  # true means the ES document will be identical to the Couchbase document,
-  # with the possible addition of the metadata field.
-  documentContentAtTopLevel = false
+# false means the ES document root will have a 'doc' field whose value is
+# the Couchbase document.
+# true means the ES document will be identical to the Couchbase document,
+# with the possible addition of the metadata field.
+documentContentAtTopLevel = false
 
-  # false means ignore Couchbase counter documents.
-  # true means replicate them as Object nodes like {"value":<counter>}
-  wrapCounters = false
+# false means ignore Couchbase counter documents.
+# true means replicate them as Object nodes like {"value":<counter>}
+wrapCounters = false
 
 # The values in this section may be overridden by specific type definitions.
 [elasticsearch.typeDefaults]
-  # Write matching documents to this index.
-  # Empty string means "no default".
-  index = ''
+# Write matching documents to this index.
+# Empty string means "no default".
+index = ''
 
-  # If true, the 'prefix' and 'regex' rules operate on the qualified key.
-  # A qualified key includes the Couchbase document's parent scope and
-  # collection, for example: "scope.collection.documentId".
-  # If false, 'prefix' and 'regex' rules operate on the unqualified key,
-  # which is simply the Couchbase document ID.
-  matchOnQualifiedKey = false
+# If true, the 'prefix' and 'regex' rules operate on the qualified key.
+# A qualified key includes the Couchbase document's parent scope and
+# collection, for example: "scope.collection.documentId".
+# If false, 'prefix' and 'regex' rules operate on the unqualified key,
+# which is simply the Couchbase document ID.
+matchOnQualifiedKey = false
 
-  # Send matching documents though this pipeline.
-  # Empty string means "no pipeline".
-  pipeline = ''
+# Send matching documents though this pipeline.
+# Empty string means "no pipeline".
+pipeline = ''
 
-  # If true, ignore matching documents entirely (implies 'ignoreDeletes').
-  ignore = false
+# If true, ignore matching documents entirely (implies 'ignoreDeletes').
+ignore = false
 
-  # If true, never delete matching documents from Elasticsearch.
-  ignoreDeletes = false
+# If true, never delete matching documents from Elasticsearch.
+ignoreDeletes = false
 
 # Sample document type definitions for the travel-sample bucket.
 # Replace these to match your own data model.
@@ -237,25 +237,25 @@
 # more than one type, the assigned type will be the one that occurs first
 # in this configuration. If none match, the document will not be indexed.
 [[elasticsearch.type]]
-  prefix = '_sync:' # Couchbase Sync Gateway metadata
-  ignore = true
+prefix = '_sync:' # Couchbase Sync Gateway metadata
+ignore = true
 
 [[elasticsearch.type]]
-  prefix = 'airline_'
-  index = 'airlines'
-  pipeline = ''
+prefix = 'airline_'
+index = 'airlines'
+pipeline = ''
 
 [[elasticsearch.type]]
-  # Regex just for example. Matches prefixes "airport_", "seaport_", etc.
-  regex = '.*port_.*'
-  index = 'airports'
+# Regex just for example. Matches prefixes "airport_", "seaport_", etc.
+regex = '.*port_.*'
+index = 'airports'
 
 [[elasticsearch.type]]
-  # Index can be inferred from document ID by including a capturing group
-  # named "index". This example matches IDs that start with one or more
-  # characters followed by "::". It directs "user::alice" to index "user",
-  # and "foo::bar::123" to index "foo".
-  regex = '(?<index>.+?)::.*'
+# Index can be inferred from document ID by including a capturing group
+# named "index". This example matches IDs that start with one or more
+# characters followed by "::". It directs "user::alice" to index "user",
+# and "foo::bar::123" to index "foo".
+regex = '(?<index>.+?)::.*'
 
 # In the travel-sample data model, a route is the child of an airline.
 # Each route document has an `airlineid` field that holds the parent ID.
@@ -264,10 +264,10 @@
 # For more information about Elasticsearch parent/join fields, see
 # https://www.elastic.co/guide/en/elasticsearch/reference/current/parent-join.html
 [[elasticsearch.type]]
-  prefix = 'route_'
-  index = 'airlines'
-  routing = '/airlineid' # JSON pointer to the parent ID field.
-  ignoreDeletes = true # Must always be true if `routing` is specified.
+prefix = 'route_'
+index = 'airlines'
+routing = '/airlineid' # JSON pointer to the parent ID field.
+ignoreDeletes = true # Must always be true if `routing` is specified.
 
 # If your couchbase documents are organized into collections, the destination
 # index can be derived from a document's parent scope and/or collection.
@@ -276,21 +276,21 @@
 # For example, a document with the qualified key "scope.collection.foo"
 # is written to index "scope.collection".
 [[elasticsearch.type]]
-  matchOnQualifiedKey = true
-  regex = '(?<index>[^.]+.[^.]+).*'
+matchOnQualifiedKey = true
+regex = '(?<index>[^.]+.[^.]+).*'
 
 # This rule is similar to the previous one, but it ignores the scope component
 # and derives the index name from just the collection name.
 # For example, a document with the qualified key "scope.collection.foo"
 # is written to index "collection".
 [[elasticsearch.type]]
-  matchOnQualifiedKey = true
-  regex = '[^.]+.(?<index>[^.]+).*'
+matchOnQualifiedKey = true
+regex = '[^.]+.(?<index>[^.]+).*'
 
 # This is a "catch-all" rule that matches any document.
 [[elasticsearch.type]]
-  prefix = '' # Empty prefix matches any document ID.
-  index = 'etc'
+prefix = '' # Empty prefix matches any document ID.
+index = 'etc'
 
 # When Elasticsearch rejects a document (usually due to a type mapping error)
 # a rejection log entry document is written to Elasticsearch. The log entry's
@@ -301,4 +301,4 @@
 #   "action" - (string) failed action type ("INDEX" or "DELETE")
 #   "error"  - (string) error message received from Elasticsearch
 [elasticsearch.rejectionLog]
-  index = 'cbes-rejects'
+index = 'cbes-rejects'
