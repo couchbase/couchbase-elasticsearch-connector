@@ -37,7 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
-import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchClient;
+import static com.couchbase.connector.elasticsearch.ElasticsearchHelper.newElasticsearchSinkOps;
 import static com.couchbase.connector.testcontainers.Poller.poll;
 import static java.util.Collections.singletonList;
 
@@ -52,7 +52,7 @@ class TestEsClient implements AutoCloseable {
 
     // For some operations, it's easier to use the Elasticsearch client,
     // because it can easily make ad-hoc HTTP calls.
-    this.elasticsearchSinkOps = newElasticsearchClient(config);
+    this.elasticsearchSinkOps = newElasticsearchSinkOps(config);
   }
 
   public TestEsClient(String config) {

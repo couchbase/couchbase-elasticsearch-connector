@@ -49,6 +49,15 @@ h| OpenSearch↓    | 4.4.5 and later
  | 1.0.0 - 1.3.2  | ✖
 |===
 
+== Amazon OpenSearch Service
+
+Connector versions 4.4.5 and later are compatible with Amazon OpenSearch Service.
+
+To connect to an Amazon OpenSearch Service domain, specify the domain's hostname in the `hosts` property of the connector's `[elasticsearch]` config section.
+Then specify the domain's AWS region in the `[elasticsearch.aws]` connector config section.
+
+The connector gets AWS credentials from the https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials.html[Default Credential Provider Chain].
+
 == Couchbase Capella
 
 Connector versions 4.2.4 and later are compatible with Couchbase Capella.

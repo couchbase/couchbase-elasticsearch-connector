@@ -16,6 +16,7 @@
 
 package com.couchbase.connector.elasticsearch;
 
+import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.common.ClientCertConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ElasticsearchConfig;
@@ -36,9 +37,17 @@ import org.apache.hc.core5.ssl.SSLContexts;
 import org.apache.hc.core5.util.TimeValue;
 import org.opensearch.client.json.jackson.JacksonJsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchClient;
+import org.opensearch.client.transport.OpenSearchTransport;
+import org.opensearch.client.transport.aws.AwsSdk2Transport;
+import org.opensearch.client.transport.aws.AwsSdk2TransportOptions;
 import org.opensearch.client.transport.httpclient5.ApacheHttpClient5Transport;
 import org.opensearch.client.transport.httpclient5.internal.Node;
 import org.opensearch.client.transport.httpclient5.internal.NodeSelector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.regions.Region;
 
 import javax.net.ssl.SSLContext;
 import java.security.GeneralSecurityException;
@@ -46,24 +55,42 @@ import java.security.KeyStore;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import static com.couchbase.client.core.util.CbCollections.transform;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class OpenSearchHelper {
+  private static final Logger log = LoggerFactory.getLogger(OpenSearchHelper.class);
+
   private OpenSearchHelper() {
     throw new AssertionError("not instantiable");
   }
 
-  public static CloseableHttpAsyncClient newHttpClient(ConnectorConfig config) {
+  private static Duration socketTimeout(ConnectorConfig config) {
     Duration bulkRequestTimeout = config.elasticsearch().bulkRequest().timeout();
-    final int socketTimeoutMillis = (int) Math.max(
-        SECONDS.toMillis(60),
-        bulkRequestTimeout.toMillis() + SECONDS.toMillis(3)
+    return Duration.ofMillis(
+        Math.max(
+            SECONDS.toMillis(60),
+            bulkRequestTimeout.toMillis() + SECONDS.toMillis(3)
+        )
     );
+  }
 
+  private static Duration connectTimeout(ConnectorConfig config) {
+    return Duration.ofSeconds(10);
+  }
+
+  private static Duration connectionAcquisitionTimeout(ConnectorConfig config) {
+    return connectTimeout(config).multipliedBy(2);
+  }
+
+  private static Duration connectionIdleTime(ConnectorConfig config) {
+    return Duration.ofSeconds(10);
+  }
+
+  public static CloseableHttpAsyncClient newHttpClient(ConnectorConfig config) {
+    int socketTimeoutMillis = (int) socketTimeout(config).toMillis();
     IOReactorConfig ioReactorConfig = IOReactorConfig.custom()
         .setSoTimeout(socketTimeoutMillis, MILLISECONDS)
         .build();
@@ -85,11 +112,11 @@ public class OpenSearchHelper {
         .setConnectionManager(cm)
         .setIOReactorConfig(ioReactorConfig)
         .evictExpiredConnections()
-        .evictIdleConnections(TimeValue.ofSeconds(10))
+        .evictIdleConnections(TimeValue.ofMilliseconds(connectionIdleTime(config).toMillis()))
         .setDefaultCredentialsProvider((authScope, context) -> credentials)
         .setDefaultRequestConfig(RequestConfig.custom()
-            .setConnectTimeout(10, TimeUnit.SECONDS)
-            .setConnectionRequestTimeout(10, TimeUnit.SECONDS)
+            .setConnectTimeout(connectTimeout(config).toMillis(), MILLISECONDS)
+            .setConnectionRequestTimeout(connectionAcquisitionTimeout(config).toMillis(), MILLISECONDS)
             .build()
         )
         .build();
@@ -101,7 +128,7 @@ public class OpenSearchHelper {
   private static SSLContext sslContext(ConnectorConfig config) {
     try {
       KeyStore trustStore = KeyStoreHelper.trustStoreFrom(
-          "Elasticsearch",
+          "OpenSearch",
           config.elasticsearch().caCert(),
           config.trustStore().orElse(null)
       ).get();
@@ -137,9 +164,57 @@ public class OpenSearchHelper {
     return transform(config.hosts(), it -> toHttpClient5(it));
   }
 
-  public static OpenSearchSinkOps newOpenSearchClient(CloseableHttpAsyncClient httpClient, ConnectorConfig config) {
+  public static OpenSearchSinkOps newAwsOpenSearchSinkOps(ConnectorConfig config) {
+    return new OpenSearchSinkOps(
+        new OpenSearchClient(newAwsTransport(config)),
+        config.elasticsearch().bulkRequest().timeout()
+    );
+  }
+
+  private static OpenSearchTransport newAwsTransport(ConnectorConfig config) {
+    SdkHttpClient awsHttpClient = ApacheHttpClient.builder()
+        .connectionTimeout(connectTimeout(config))
+        .connectionAcquisitionTimeout(connectionAcquisitionTimeout(config))
+        .socketTimeout(socketTimeout(config))
+        .build();
+
+    if (config.elasticsearch().hosts().size() != 1) {
+      throw new ConfigException("Must specify exactly one host when connecting to Amazon OpenSearch Service.");
+    }
+
+    int port = config.elasticsearch().hosts().get(0).getPort();
+    if (port != -1 && port != 443) {
+      // AwsSdk2Transport does not support non-standard ports.
+      log.warn("Ignoring non-standard port ({}) in Amazon OpenSearch Service address.", port);
+    }
+
+    String host = config.elasticsearch().hosts().get(0).getHostName();
+
+    return new AwsSdk2Transport(
+        awsHttpClient,
+        host,
+        Region.of(config.elasticsearch().aws().region()),
+        AwsSdk2TransportOptions.builder().build()
+    );
+  }
+
+  public static OpenSearchSinkOps newOpenSearchSinkOps(
+      CloseableHttpAsyncClient httpClient,
+      ConnectorConfig config
+  ) {
+    return new OpenSearchSinkOps(
+        new OpenSearchClient(newApacheHttpClientTransport(httpClient, config)),
+        config.elasticsearch().bulkRequest().timeout()
+    );
+  }
+
+  private static OpenSearchTransport newApacheHttpClientTransport(
+      CloseableHttpAsyncClient httpClient,
+      ConnectorConfig config
+  ) {
     List<Node> nodes = transform(config.elasticsearch().hosts(), it -> new Node(toHttpClient5(it)));
-    ApacheHttpClient5Transport transport = new ApacheHttpClient5Transport(httpClient,
+    return new ApacheHttpClient5Transport(
+        httpClient,
         new Header[0],
         nodes,
         new JacksonJsonpMapper(),
@@ -154,13 +229,6 @@ public class OpenSearchHelper {
         false,
         true,
         true
-    );
-
-    OpenSearchClient client = new OpenSearchClient(transport);
-
-    return new OpenSearchSinkOps(
-        client,
-        config.elasticsearch().bulkRequest().timeout()
     );
   }
 }

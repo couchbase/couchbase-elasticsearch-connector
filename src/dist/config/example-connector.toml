@@ -139,6 +139,8 @@
   #   timeout.kvTimeout = '2.5s'
 
 [elasticsearch]
+  # If connecting to an Amazon OpenSearch Service domain, specify
+  # the domain's AWS region in the [elasticsearch.aws] section.
   hosts = ['127.0.0.1']
   username = 'elastic'
 
@@ -151,7 +153,8 @@
   secureConnection = false
 
   # Path to a file containing the Elasticsearch cluster's Certificate Authority (CA)
-  # certificate(s) in PEM format.
+  # certificate(s) in PEM format. If blank, the connector trusts the well-known CAs
+  # in the JVM's `cacerts` trust store.
   pathToCaCertificate = ''
 
 # When secure connections are enabled, you can optionally authenticate
@@ -169,9 +172,9 @@
   # for the PKCS12 bundle.
   pathToPassword = 'secrets/elasticsearch-client-cert-password.toml'
 
-# If connecting directly to an Amazon Elasticsearch Service, specify the AWS region.
-# AWS credentials are obtained from the Default Credential Provider Chain.
-# https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html
+# If connecting to an Amazon OpenSearch Service domain, specify the domain's AWS region.
+# The connector gets AWS credentials from the Default Credential Provider Chain.
+# https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials.html
 [elasticsearch.aws]
   region = ''
 

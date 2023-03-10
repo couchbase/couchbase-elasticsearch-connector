@@ -3,7 +3,6 @@ plugins {
   id 'org.unbroken-dome.test-sets' version '4.0.0'
 }
 
-import com.github.jk1.license.importer.XmlReportImporter
 import org.apache.tools.ant.filters.ReplaceTokens
 
 apply plugin: 'java'
@@ -76,11 +75,11 @@ dependencies {
   implementation("org.opensearch.client:opensearch-rest-client:2.6.0")
   implementation("org.apache.httpcomponents.client5:httpclient5:5.1.4")
 
-//  implementation(platform("software.amazon.awssdk:bom:2.20.15"))
-//  implementation("software.amazon.awssdk:sdk-core")
-//  implementation("software.amazon.awssdk:apache-client")
-//  implementation("software.amazon.awssdk:regions")
-//  implementation("software.amazon.awssdk:auth")
+  implementation(platform("software.amazon.awssdk:bom:2.20.15"))
+  implementation("software.amazon.awssdk:sdk-core")
+  implementation("software.amazon.awssdk:apache-client")
+  implementation("software.amazon.awssdk:regions")
+  implementation("software.amazon.awssdk:auth")
 
   implementation platform('com.fasterxml.jackson:jackson-bom:2.14.2')
   implementation 'com.fasterxml.jackson.core:jackson-databind'
@@ -100,8 +99,6 @@ dependencies {
 
   implementation 'net.sf.jopt-simple:jopt-simple:5.0.4'
   implementation 'info.picocli:picocli:4.6.3'
-
-  implementation 'com.amazonaws:aws-java-sdk-core:1.12.213'
 
   testImplementation 'junit:junit:4.13.2'
   testImplementation 'org.apache.commons:commons-lang3:3.12.0'
@@ -123,12 +120,6 @@ dependencies {
 configurations.all {
   exclude group: 'commons-logging' // using jcl-over-slf4j instead
   resolutionStrategy.cacheChangingModulesFor 0, 'seconds' // always update snapshots instead of waiting 24 hrs
-}
-
-// The "aws-request-signing-apache-interceptor" dependency is included in source form
-// because it's not published to a public repo. Include it in the dependency report.
-licenseReport {
-  importers = [new XmlReportImporter('Additional dependencies', file("additional-license-info.xml"))]
 }
 
 // Prohibit snapshot dependencies unless we're building a snapshot

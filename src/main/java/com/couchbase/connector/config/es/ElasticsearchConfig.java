@@ -32,6 +32,7 @@ import static com.couchbase.connector.config.ConfigHelper.readCertificates;
 import static com.couchbase.connector.config.ConfigHelper.readPassword;
 import static com.couchbase.connector.config.ConfigHelper.warnIfDeprecatedTypeNameIsPresent;
 import static java.util.stream.Collectors.toList;
+import static org.apache.commons.lang3.StringUtils.removeEnd;
 
 @Value.Immutable
 public interface ElasticsearchConfig {
@@ -75,14 +76,17 @@ public interface ElasticsearchConfig {
     final AwsConfig aws = AwsConfig.from(config.getTableOrEmpty("aws"));
     final ClientCertConfig clientCert = ClientCertConfig.from(config.getTableOrEmpty("clientCertificate"), "elasticsearch.clientCertificate");
 
-    // Standard ES HTTP port is 9200. Amazon Elasticsearch Service listens on ports 80 & 443.
-    final int defaultPort = aws.region().isEmpty() ? 9200 :
-        secureConnection ? 443 : 80;
+    // Standard ES HTTP port is 9200. Elastic Cloud and Amazon OpenSearch Service listen on port 443.
+    final int defaultPort = aws.region().isEmpty() ? 9200 : 443;
+
     String parentConfigName = "elasticsearch";
     final ImmutableElasticsearchConfig.Builder builder = ImmutableElasticsearchConfig.builder()
         .secureConnection(secureConnection)
         .caCert(readCertificates(config, parentConfigName, "pathToCaCertificate"))
         .hosts(config.getRequiredStrings("hosts").stream()
+            // If copied from AWS dashboard, the "host" might have an irksome trailing slash
+            // that interferes with signature validation and hostname sniffing.
+            .map(h -> removeEnd(h, "/"))
             .map(h -> createHttpHost(h, defaultPort, secureConnection))
             .collect(toList()))
         .username(config.getString("username").orElse(""))

@@ -16,18 +16,13 @@
 
 package com.couchbase.connector.elasticsearch;
 
-import com.amazonaws.auth.AWS4Signer;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.http.AWSRequestSigningApacheInterceptor;
 import com.couchbase.connector.config.common.ClientCertConfig;
 import com.couchbase.connector.config.common.TrustStoreConfig;
-import com.couchbase.connector.config.es.AwsConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ElasticsearchConfig;
 import com.couchbase.connector.util.KeyStoreHelper;
 import com.google.common.collect.Iterables;
 import org.apache.http.HttpHost;
-import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
@@ -46,7 +41,6 @@ import java.security.KeyStore;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Supplier;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -58,7 +52,7 @@ public class ElasticsearchHelper {
     throw new AssertionError("not instantiable");
   }
 
-  public static ElasticsearchSinkOps newElasticsearchClient(ConnectorConfig config) {
+  public static ElasticsearchSinkOps newElasticsearchSinkOps(ConnectorConfig config) {
     ElasticsearchConfig elasticsearchConfig = config.elasticsearch();
     TrustStoreConfig trustStoreConfig = config.trustStore().orElse(null);
 
@@ -75,13 +69,12 @@ public class ElasticsearchHelper {
         elasticsearchConfig.secureConnection(),
         trustStoreSupplier,
         elasticsearchConfig.clientCert(),
-        elasticsearchConfig.aws(),
         elasticsearchConfig.bulkRequest().timeout()),
         elasticsearchConfig.bulkRequest().timeout()
     );
   }
 
-  public static RestClientBuilder newRestClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore, ClientCertConfig clientCert, AwsConfig aws, Duration bulkRequestTimeout) {
+  public static RestClientBuilder newRestClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore, ClientCertConfig clientCert, Duration bulkRequestTimeout) {
     final int connectTimeoutMillis = (int) SECONDS.toMillis(5);
     final int socketTimeoutMillis = (int) Math.max(SECONDS.toMillis(60), bulkRequestTimeout.toMillis() + SECONDS.toMillis(3));
     LOGGER.info("Elasticsearch client connect timeout = {}ms; socket timeout={}ms", connectTimeoutMillis, socketTimeoutMillis);
@@ -92,13 +85,12 @@ public class ElasticsearchHelper {
 
     final SSLContext sslContext = !secureConnection ? null : newSslContext(trustStore.get(), clientCert);
 
-    final RestClientBuilder builder = RestClient.builder(Iterables.toArray(hosts, HttpHost.class))
+    return RestClient.builder(Iterables.toArray(hosts, HttpHost.class))
         .setHttpClientConfigCallback(httpClientBuilder -> {
           httpClientBuilder.setSSLContext(sslContext);
           if (!clientCert.use()) {
             httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
           }
-          awsSigner(aws).ifPresent(httpClientBuilder::addInterceptorLast);
           return httpClientBuilder;
         })
         .setRequestConfigCallback(requestConfigBuilder -> requestConfigBuilder
@@ -111,8 +103,6 @@ public class ElasticsearchHelper {
             Metrics.elasticsearchHostOffline().increment();
           }
         });
-
-    return builder;
   }
 
   private static SSLContext newSslContext(KeyStore trustStore, ClientCertConfig clientCert) {
@@ -137,20 +127,5 @@ public class ElasticsearchHelper {
     } catch (GeneralSecurityException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  private static Optional<HttpRequestInterceptor> awsSigner(AwsConfig config) {
-    if (config.region().isEmpty()) {
-      return Optional.empty();
-    }
-
-    final String serviceName = "es";
-
-    final AWS4Signer signer = new AWS4Signer();
-    signer.setServiceName(serviceName);
-    signer.setRegionName(config.region());
-
-    return Optional.of(new AWSRequestSigningApacheInterceptor(
-        serviceName, signer, new DefaultAWSCredentialsProviderChain()));
   }
 }

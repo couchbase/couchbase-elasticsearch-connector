@@ -27,28 +27,37 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import jakarta.json.stream.JsonGenerator;
+import jakarta.json.stream.JsonParser;
 import org.jetbrains.annotations.Nullable;
 import org.opensearch.client.ResponseException;
+import org.opensearch.client.json.JsonpDeserializer;
+import org.opensearch.client.json.JsonpDeserializerBase;
 import org.opensearch.client.json.JsonpMapper;
 import org.opensearch.client.json.jackson.JacksonJsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchClient;
+import org.opensearch.client.opensearch._types.ErrorResponse;
 import org.opensearch.client.opensearch.core.BulkRequest;
 import org.opensearch.client.opensearch.core.BulkResponse;
 import org.opensearch.client.opensearch.core.CountResponse;
 import org.opensearch.client.opensearch.core.GetResponse;
+import org.opensearch.client.opensearch.core.InfoRequest;
 import org.opensearch.client.opensearch.core.MgetResponse;
 import org.opensearch.client.opensearch.core.mget.MultiGetResponseItem;
+import org.opensearch.client.transport.Endpoint;
+import org.opensearch.client.transport.endpoints.SimpleEndpoint;
 
 import java.io.IOException;
 import java.io.StringWriter;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 import static com.couchbase.client.core.util.CbCollections.transform;
+import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 
 public class OpenSearchSinkOps implements SinkOps, SinkTestOps {
@@ -63,8 +72,34 @@ public class OpenSearchSinkOps implements SinkOps, SinkTestOps {
 
   @Override
   public Version version() {
+    TextNode node = (TextNode) info().at("/version/number");
+    return Version.parseVersion(node.textValue());
+  }
+
+  public ObjectNode info() {
+    // Instead of calling client.info(), make the request "manually" for compatibility with both OpenSearch
+    // and the legacy versions of Elasticsearch hosted by Amazon.
+
     try {
-      return Version.parseVersion(client.info().version().number());
+      JsonpDeserializer<ObjectNode> deserializer = new JsonpDeserializerBase<>(EnumSet.allOf(JsonParser.Event.class)) {
+        @Override
+        public ObjectNode deserialize(JsonParser parser, JsonpMapper mapper, JsonParser.Event event) {
+          return mapper.deserialize(parser, ObjectNode.class);
+        }
+      };
+
+      Endpoint<InfoRequest, ObjectNode, ErrorResponse> infoEndpoint = new SimpleEndpoint<>(
+          request -> "GET", // Request method
+          request -> "/", // Request path
+          request -> emptyMap(), // Request parameters
+          SimpleEndpoint.emptyMap(), // Request headers
+          false, // has request body
+          deserializer
+      );
+
+      return client._transport()
+          .performRequest(InfoRequest._INSTANCE, infoEndpoint, null);
+
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
