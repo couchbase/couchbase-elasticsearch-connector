@@ -24,7 +24,6 @@ import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
-import com.couchbase.client.dcp.util.Version;
 import com.couchbase.connector.elasticsearch.io.BackoffPolicy;
 import com.couchbase.connector.elasticsearch.sink.Operation;
 import com.couchbase.connector.elasticsearch.sink.SinkBulkResponse;
@@ -34,8 +33,7 @@ import com.couchbase.connector.elasticsearch.sink.SinkOps;
 import com.couchbase.connector.elasticsearch.sink.SinkTestOps;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.databind.node.TextNode;
-import com.google.common.annotations.VisibleForTesting;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
@@ -63,6 +61,7 @@ import static com.couchbase.client.core.util.CbCollections.transform;
 import static com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder.constantBackoff;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+@SuppressWarnings("DuplicatedCode") // Same code as OpenSearchSinkOps, but uses classes from different packages.
 public class ElasticsearchSinkOps implements SinkOps, SinkTestOps {
   private static final Logger log = LoggerFactory.getLogger(ElasticsearchSinkOps.class);
 
@@ -83,33 +82,6 @@ public class ElasticsearchSinkOps implements SinkOps, SinkTestOps {
     );
 
     this.client = new ElasticsearchClient(transport);
-  }
-
-  @Override
-  public Version version() {
-    // Can't do it the easy way due to https://github.com/elastic/elasticsearch-java/issues/346
-    // return Version.parseVersion(client.info().version().number());
-
-    // So use low level client instead :-p
-    try {
-      final Response response = lowLevelClient.performRequest(new Request("GET", "/"));
-      try (InputStream is = response.getEntity().getContent()) {
-        TextNode node = (TextNode) jsonMapper.readTree(is).at("/version/number");
-        return Version.parseVersion(node.textValue());
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  @VisibleForTesting
-  public ElasticsearchClient modernClient() {
-    return client;
-  }
-
-  @VisibleForTesting
-  public RestClient lowLevelClient() {
-    return lowLevelClient;
   }
 
   @Override
@@ -151,6 +123,20 @@ public class ElasticsearchSinkOps implements SinkOps, SinkTestOps {
         });
       }
     };
+  }
+
+  @Override
+  public ObjectNode info() {
+    // Can't do it the easy way due to https://github.com/elastic/elasticsearch-java/issues/346
+    // So use low level client instead :-p
+    try {
+      final Response response = lowLevelClient.performRequest(new Request("GET", "/"));
+      try (InputStream is = response.getEntity().getContent()) {
+        return (ObjectNode) jsonMapper.readTree(is);
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override

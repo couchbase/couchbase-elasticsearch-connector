@@ -49,19 +49,25 @@ h| OpenSearch↓    | 4.4.5 and later
  | 1.0.0 - 1.3.2  | ✖
 |===
 
+[[elastic-cloud]]
+== Elastic Cloud
+
+Connector versions 4.4.5 and later are compatible with Elastic Cloud.
+
+See xref:configuration.adoc#elastic-cloud[how to configure the connector for Elastic Cloud].
+
+[[amazon-opensearch-service]]
 == Amazon OpenSearch Service
 
 Connector versions 4.4.5 and later are compatible with Amazon OpenSearch Service.
 
-To connect to an Amazon OpenSearch Service domain, specify the domain's hostname in the `hosts` property of the connector's `[elasticsearch]` config section.
-Then specify the domain's AWS region in the `[elasticsearch.aws]` connector config section.
-
-The connector gets AWS credentials from the https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials.html[Default Credential Provider Chain].
+See xref:configuration.adoc#amazon-opensearch-service[how to configure the connector for Amazon OpenSearch Service].
 
 == Couchbase Capella
 
 Connector versions 4.2.4 and later are compatible with Couchbase Capella.
-You will need to enable xref:secure-connections.adoc[Secure Connections] in the `[couchbase]` config section.
+
+See xref:configuration.adoc#couchbase-capella[how to configure the connector for Couchbase Capella].
 
 == Couchbase Server
 

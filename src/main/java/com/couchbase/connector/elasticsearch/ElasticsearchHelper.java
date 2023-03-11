@@ -19,6 +19,7 @@ package com.couchbase.connector.elasticsearch;
 import com.couchbase.connector.config.common.ClientCertConfig;
 import com.couchbase.connector.config.common.TrustStoreConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
+import com.couchbase.connector.config.es.ElasticCloudConfig;
 import com.couchbase.connector.config.es.ElasticsearchConfig;
 import com.couchbase.connector.util.KeyStoreHelper;
 import com.google.common.collect.Iterables;
@@ -27,6 +28,7 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.message.BasicHeader;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.client.Node;
@@ -69,12 +71,22 @@ public class ElasticsearchHelper {
         elasticsearchConfig.secureConnection(),
         trustStoreSupplier,
         elasticsearchConfig.clientCert(),
+        elasticsearchConfig.elasticCloud(),
         elasticsearchConfig.bulkRequest().timeout()),
         elasticsearchConfig.bulkRequest().timeout()
     );
   }
 
-  public static RestClientBuilder newRestClient(List<HttpHost> hosts, String username, String password, boolean secureConnection, Supplier<KeyStore> trustStore, ClientCertConfig clientCert, Duration bulkRequestTimeout) {
+  public static RestClientBuilder newRestClient(
+      List<HttpHost> hosts,
+      String username,
+      String password,
+      boolean secureConnection,
+      Supplier<KeyStore> trustStore,
+      ClientCertConfig clientCert,
+      ElasticCloudConfig elasticCloud,
+      Duration bulkRequestTimeout
+  ) {
     final int connectTimeoutMillis = (int) SECONDS.toMillis(5);
     final int socketTimeoutMillis = (int) Math.max(SECONDS.toMillis(60), bulkRequestTimeout.toMillis() + SECONDS.toMillis(3));
     LOGGER.info("Elasticsearch client connect timeout = {}ms; socket timeout={}ms", connectTimeoutMillis, socketTimeoutMillis);
@@ -88,9 +100,15 @@ public class ElasticsearchHelper {
     return RestClient.builder(Iterables.toArray(hosts, HttpHost.class))
         .setHttpClientConfigCallback(httpClientBuilder -> {
           httpClientBuilder.setSSLContext(sslContext);
-          if (!clientCert.use()) {
+          if (!clientCert.use() && !elasticCloud.enabled()) {
             httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
           }
+          if (elasticCloud.enabled()) {
+            httpClientBuilder.setDefaultHeaders(List.of(
+                new BasicHeader("Authorization", "ApiKey " + password)
+            ));
+          }
+
           return httpClientBuilder;
         })
         .setRequestConfigCallback(requestConfigBuilder -> requestConfigBuilder

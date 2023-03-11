@@ -23,6 +23,8 @@ import com.couchbase.connector.config.toml.ConfigTable;
 import com.google.common.collect.ImmutableList;
 import org.apache.http.HttpHost;
 import org.immutables.value.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.security.cert.X509Certificate;
 import java.util.List;
@@ -59,6 +61,8 @@ public interface ElasticsearchConfig {
 
   RejectLogConfig rejectLog();
 
+  ElasticCloudConfig elasticCloud();
+
   AwsConfig aws();
 
   @Value.Check
@@ -69,15 +73,21 @@ public interface ElasticsearchConfig {
   }
 
   static ImmutableElasticsearchConfig from(ConfigTable config) {
-    config.expectOnly("hosts", "username", "pathToPassword", "secureConnection", "pathToCaCertificate", "clientCertificate", "aws", "bulkRequestLimits", "docStructure", "typeDefaults", "type", "rejectionLog");
+    config.expectOnly("hosts", "username", "pathToPassword", "secureConnection", "pathToCaCertificate", "clientCertificate", "elasticCloud", "aws", "bulkRequestLimits", "docStructure", "typeDefaults", "type", "rejectionLog");
 
-    final boolean secureConnection = config.getBoolean("secureConnection").orElse(false);
-
+    final ElasticCloudConfig elasticCloud = ElasticCloudConfig.from(config.getTableOrEmpty("elasticCloud"));
     final AwsConfig aws = AwsConfig.from(config.getTableOrEmpty("aws"));
     final ClientCertConfig clientCert = ClientCertConfig.from(config.getTableOrEmpty("clientCertificate"), "elasticsearch.clientCertificate");
 
-    // Standard ES HTTP port is 9200. Elastic Cloud and Amazon OpenSearch Service listen on port 443.
-    final int defaultPort = aws.region().isEmpty() ? 9200 : 443;
+    final boolean isCloudService = elasticCloud.enabled() || !aws.region().isEmpty();
+    final boolean secureConnection = config.getBoolean("secureConnection").orElse(false);
+
+    if (isCloudService && !secureConnection) {
+      throw new ConfigException("The Elasticsearch service specified in the connector config requires `secureConnection = true` in the [elasticsearch] config section.");
+    }
+
+    // Standard ES HTTP(S) port is 9200. Elastic Cloud and Amazon OpenSearch Service listen on port 443.
+    final int defaultPort = isCloudService ? 443 : 9200;
 
     String parentConfigName = "elasticsearch";
     final ImmutableElasticsearchConfig.Builder builder = ImmutableElasticsearchConfig.builder()
@@ -92,6 +102,7 @@ public interface ElasticsearchConfig {
         .username(config.getString("username").orElse(""))
         .password(readPassword(config, parentConfigName, "pathToPassword"))
         .bulkRequest(BulkRequestConfig.from(config.getTableOrEmpty("bulkRequestLimits")))
+        .elasticCloud(elasticCloud)
         .aws(aws)
         .clientCert(clientCert)
         .docStructure(DocStructureConfig.from(config.getTableOrEmpty("docStructure")));
@@ -118,7 +129,34 @@ public interface ElasticsearchConfig {
     builder.types(typeConfigs.build());
 
     builder.rejectLog(RejectLogConfig.from(config.getTableOrEmpty("rejectionLog")));
-    return builder.build();
 
+    ImmutableElasticsearchConfig result = builder.build();
+    warnIfConfigIsSuspect(result);
+    return result;
+  }
+
+  private static void warnIfConfigIsSuspect(ElasticsearchConfig config) {
+    Logger log = LoggerFactory.getLogger(ElasticsearchConfig.class);
+
+    String firstHostname = config.hosts().get(0).getHostName();
+
+    boolean looksLikeAws = firstHostname.endsWith(".es.amazonaws.com");
+    if (looksLikeAws && config.aws().region().isEmpty()) {
+      log.warn(
+          "It looks like you might be trying to connect to an Amazon OpenSearch Service domain." +
+              " If so, please specify the domain's AWS region in the connector's [elasticsearch.aws] config section." +
+              " If you are not connecting to an Amazon OpenSearch Service domain, please ignore this message."
+      );
+    }
+
+    boolean looksLikeElasticCloud = firstHostname.endsWith(".cloud.es.io");
+    if (looksLikeElasticCloud && !config.elasticCloud().enabled()) {
+      log.warn(
+          "It looks like you might be trying to connect to an Elastic Cloud Elasticsearch endpoint." +
+              " If so, please set 'enabled = true' in the connector's [elasticsearch.elasticCloud] config section," +
+              " and use your Elastic Cloud API key as the password." +
+              " If you are not connecting to an Elastic Cloud Elasticsearch endpoint, please ignore this message."
+      );
+    }
   }
 }

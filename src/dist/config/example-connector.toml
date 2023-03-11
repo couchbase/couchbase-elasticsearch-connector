@@ -73,13 +73,14 @@ username = 'Administrator'
 # Path to a separate TOML file with a single 'password' key.
 pathToPassword = 'secrets/couchbase-password.toml'
 
-# Optionally use SSL/TLS to encrypt the connection between Couchbase and
-# the connector. Requires Couchbase Enterprise Edition, and requires
-# configuring `pathToCaCertificate`.
+# Optionally use TLS to encrypt the connection between Couchbase and
+# the connector. Requires Couchbase Enterprise Edition. If testing against
+# a local development cluster, or if your Couchbase cluster uses a private
+# Certificate Authority (CA), make sure to also configure `pathToCaCertificate`.
 secureConnection = false
 
 # Path to a file containing the Couchbase cluster's Certificate Authority (CA)
-# certificate(s) in PEM format. If connecting to Couchbase Capella, you can
+# certificate(s) in PEM format. If connecting to Couchbase Capella,
 # leave this blank to trust the connector's bundled Capella CA certificate.
 pathToCaCertificate = ''
 
@@ -139,22 +140,27 @@ persistencePollingInterval = '100ms'
 #   timeout.kvTimeout = '2.5s'
 
 [elasticsearch]
-# If connecting to an Amazon OpenSearch Service domain, specify
-# the domain's AWS region in the [elasticsearch.aws] section.
+# If connecting to an Elastic Cloud Elasticsearch endpoint,
+# also configure the [elasticsearch.elasticCloud] section.
+#
+# If connecting to an Amazon OpenSearch Service domain,
+# also configure the [elasticsearch.aws] section.
 hosts = ['127.0.0.1']
 username = 'elastic'
 
 # Path to a separate TOML file with a single 'password' key.
 pathToPassword = 'secrets/elasticsearch-password.toml'
 
-# Optionally use SSL/TLS to encrypt the connection between Elasticsearch and
-# the connector. If true, you must also configure `pathToCaCertificate`.
+# Optionally use TLS to encrypt the connection between Elasticsearch and
+# the connector. If true, and your Elasticsearch cluster uses a private
+# Certificate Authority (CA), you must also configure `pathToCaCertificate`.
 # See also: https://www.elastic.co/guide/en/elasticsearch/reference/current/configuring-tls.html
 secureConnection = false
 
 # Path to a file containing the Elasticsearch cluster's Certificate Authority (CA)
 # certificate(s) in PEM format. If blank, the connector trusts the well-known CAs
-# in the JVM's `cacerts` trust store.
+# in the JVM's `cacerts` trust store. Leave this blank if connecting to Elastic Cloud
+# or Amazon OpenSearch Service.
 pathToCaCertificate = ''
 
 # When secure connections are enabled, you can optionally authenticate
@@ -172,9 +178,17 @@ path = 'path/to/elasticsearch-client-cert.p12'
 # for the PKCS12 bundle.
 pathToPassword = 'secrets/elasticsearch-client-cert-password.toml'
 
-# If connecting to an Amazon OpenSearch Service domain, specify the domain's AWS region.
-# The connector gets AWS credentials from the Default Credential Provider Chain.
-# https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials.html
+# If connecting to an Elastic Cloud (EC) Elasticsearch endpoint, set 'enabled' to true.
+# When EC mode is enabled, the username configured in the [elasticsearch] section is ignored.
+# Configure the connector to use your API key as the Elasticsearch password.
+[elasticsearch.elasticCloud]
+enabled = false
+
+# If connecting to an Amazon OpenSearch Service domain, activate AWS mode by specifying
+# the domain's AWS region. When AWS mode is active, the username and password
+# configured in the [elasticsearch] section are ignored.
+# Instead, the connector gets AWS credentials from the Default Credential Provider Chain.
+# See https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials.html
 [elasticsearch.aws]
 region = ''
 

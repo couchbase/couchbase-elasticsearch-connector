@@ -241,6 +241,10 @@ This is the amount of memory required for the flow control buffer (not counting 
 
 == Elasticsearch
 
+This is where you configure the connection to Elasticsearch (or OpenSearch, if you prefer).
+
+TIP: Event though this config section is called "elasticsearch", it also applies to OpenSearch.
+
 [source,toml]
 ----
 [elasticsearch]
@@ -261,6 +265,8 @@ Username and password are only required if Elasticsearch is set up to require au
 <5> Path to a separate file containing the trusted Elasticsearch CA certificate(s) in PEM format.
 For more details, see xref:secure-connections.adoc[Setting Up Secure Connections].
 If you decide not to enable secure connections, you can ignore this property.
+
+TIP: See the <<elastic-cloud>> and <<amazon-opensearch-service>> sections for important information about connecting to those services.
 
 === Bulk Request Limits
 
@@ -508,6 +514,104 @@ index = 'cbes-rejects' <1>
 <1> Rejection log entries are written to this index.
 
 TIP: If you're running multiple connector groups, you may wish to use a separate rejection log index for each group.
+
+[[hosted-services]]
+== Connecting to Hosted Services
+
+[[couchbase-capella]]
+=== Couchbase Capella
+
+The connector supports Couchbase Capella, the Database-as-a-Service from Couchbase.
+
+Couchbase Capella requires secure connections.
+Make sure the `[couchbase]` section has these properties:
+
+[source,toml]
+----
+[couchbase]
+hosts = ['your-couchbase-capella-endpoint']
+secureConnection = true
+username = 'database-account-username' <1>
+# other properties...
+----
+<1> The username of a database user account with read access for the source bucket, and read/write access for the connector's metadata bucket/collection.
+
+Make sure to use the credentials of a database user account, _not_ your Capella website credentials.
+
+NOTE: Couchbase Capella uses a Certificate Authority (CA) whose certificate is bundled with the connector and trusted by default (unless you specify a different certificate to trust).
+It is not necessary to configure `pathToCaCertificate`.
+
+TIP: Couchbase Capella only allows connections from certain IP addresses.
+If you have trouble connecting, make sure the IP address of the machine running the connector has been added to the list of Allowed IP Addresses for your Capella cluster.
+
+[[elastic-cloud]]
+=== Elastic Cloud
+
+Starting with version 4.4.5, the connector supports Elastic Cloud, the Software-as-a-Service offering from Elastic.
+
+[source,toml]
+----
+[elasticsearch.elasticCloud]
+enabled = false <1>
+----
+<1> Elastic Cloud mode is disabled by default.
+To connect to Elastic Cloud, set this to true.
+
+Elastic Cloud requires secure connections.
+Make sure the `[elasticsearch]` section has these properties:
+
+[source,toml]
+----
+[elasticsearch]
+hosts = ['your-elastic-cloud-elasticsearch-endpoint']
+secureConnection = true
+pathToPassword = 'secrets/elasticsearch-password.toml'
+----
+
+NOTE: Elastic Cloud uses a well-known public Certificate Authority (CA).
+It is not necessary to configure `pathToCaCertificate`.
+
+When connecting to Elastic Cloud, the `username` property is ignored.
+Use your Elastic Cloud API key as the password.
+
+.File: secrets/elasticsearch-password.toml
+[source,toml]
+----
+password = 'your-elastic-cloud-api-key'
+----
+
+[[amazon-opensearch-service]]
+=== Amazon OpenSearch Service
+
+Starting with version 4.4.5, the connector supports Amazon OpenSearch Service.
+
+[source,toml]
+----
+[elasticsearch.aws]
+region = '' <1>
+----
+<1> Amazon OpenSearch Service mode is disabled by default.
+To connect to Amazon OpenSearch Service, specify the AWS region of your domain.
+For example: `region = 'us-east-1'`.
+
+Amazon OpenSearch Service requires secure connections.
+Make sure the `[elasticsearch]` section has these properties:
+
+[source,toml]
+----
+[elasticsearch]
+hosts = ['your-amazon-opensearch-service-domain']
+secureConnection = true
+pathToPassword = 'secrets/elasticsearch-password.toml' <1>
+----
+<1> The password specified here is ignored, but the config property must still be present.
+Sorry about that.
+
+NOTE: Amazon OpenSearch Service uses a well-known public Certificate Authority (CA).
+It is not necessary to configure `pathToCaCertificate`.
+
+When connecting to Amazon OpenSearch Service, the `username` property is ignored, and so is the password.
+Instead, the connector gets AWS credentials from the https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials.html[Default Credential Provider Chain].
 
 == Environment Variables
 

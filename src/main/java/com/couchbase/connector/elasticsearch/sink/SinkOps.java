@@ -16,11 +16,9 @@
 
 package com.couchbase.connector.elasticsearch.sink;
 
-import com.couchbase.client.dcp.util.Version;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.elasticsearch.ElasticsearchVersionSniffer;
 import com.couchbase.connector.elasticsearch.OpenSearchHelper;
-import com.couchbase.connector.elasticsearch.OpenSearchSinkOps;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.core5.io.CloseMode;
@@ -39,38 +37,37 @@ import static com.couchbase.connector.elasticsearch.OpenSearchHelper.newHttpClie
 import static com.couchbase.connector.elasticsearch.OpenSearchHelper.newOpenSearchSinkOps;
 
 public interface SinkOps extends Closeable {
-  Logger log = LoggerFactory.getLogger(SinkOps.class);
 
-  Version version();
-
-  default void ping() {
-    version();
-  }
+  ObjectNode info();
 
   SinkBulkResponse bulk(List<Operation> operations) throws IOException;
 
   static SinkOps create(ConnectorConfig config) {
-    boolean looksLikeAws = config.elasticsearch().hosts().get(0).getHostName().endsWith(".es.amazonaws.com");
-    if (looksLikeAws && config.elasticsearch().aws().region().isEmpty()) {
-      log.warn(
-          "It looks like you might be trying to connect to an Amazon OpenSearch Service domain." +
-              " If this is the case, please specify the domain's AWS region" +
-              " in the connector's [elasticsearch.aws] config section." +
-              " If you are not connecting to an Amazon OpenSearch Service domain, please disregard this warning."
-      );
-    }
+    Logger log = LoggerFactory.getLogger(SinkOps.class);
 
     // If an AWS region is specified, we know to use an OpenSearch client.
     // This client works with both OpenSearch and old versions of Elasticsearch.
     if (!config.elasticsearch().aws().region().isEmpty()) {
       log.info("Connector config specifies an AWS region; activating Amazon OpenSearch Service mode.");
-      OpenSearchSinkOps sinkOps = newAwsOpenSearchSinkOps(config);
+      SinkOps sinkOps = newAwsOpenSearchSinkOps(config);
 
       log.info("Verifying connectivity to Amazon OpenSearch Service domain...");
       ObjectNode info = sinkOps.info();
-      log.info("Successfully connected to Amazon OpenSearch Service. Sink info: {}", redactSystem(info));
+      log.info("Successfully connected to Amazon OpenSearch Service domain. Sink info: {}", redactSystem(info));
       return sinkOps;
     }
+
+    if (config.elasticsearch().elasticCloud().enabled()) {
+      log.info("Connector config specifies Elastic Cloud mode is enabled.");
+      SinkOps sinkOps = newElasticsearchSinkOps(config);
+
+      log.info("Verifying connectivity to Elastic Cloud Elasticsearch endpoint...");
+      ObjectNode info = sinkOps.info();
+      log.info("Successfully connected to Elastic Cloud Elasticsearch endpoint. Sink info: {}", redactSystem(info));
+      return sinkOps;
+    }
+
+    // Don't know what flavor of Elasticsearch we're connecting to. Sniff out the answer!
 
     final CloseableHttpAsyncClient httpClient = newHttpClient(config);
 
@@ -96,8 +93,9 @@ public interface SinkOps extends Closeable {
         throw new RuntimeException("Unrecognized sink: " + fav);
     }
 
-    // Verify client connectivity
-    sinkOps.ping();
+    log.info("Verifying connectivity to {}...", fav.flavor);
+    ObjectNode info = sinkOps.info();
+    log.info("Successfully connected to {}. Sink info: {}", fav.flavor, redactSystem(info));
 
     return sinkOps;
   }

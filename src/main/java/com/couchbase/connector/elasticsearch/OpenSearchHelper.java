@@ -128,7 +128,7 @@ public class OpenSearchHelper {
   private static SSLContext sslContext(ConnectorConfig config) {
     try {
       KeyStore trustStore = KeyStoreHelper.trustStoreFrom(
-          "OpenSearch",
+          "Elasticsearch",
           config.elasticsearch().caCert(),
           config.trustStore().orElse(null)
       ).get();

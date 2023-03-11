@@ -16,7 +16,6 @@
 
 package com.couchbase.connector.elasticsearch;
 
-import com.couchbase.client.dcp.util.Version;
 import com.couchbase.connector.elasticsearch.sink.Operation;
 import com.couchbase.connector.elasticsearch.sink.SinkBulkResponse;
 import com.couchbase.connector.elasticsearch.sink.SinkBulkResponseItem;
@@ -60,6 +59,7 @@ import static com.couchbase.client.core.util.CbCollections.transform;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 
+@SuppressWarnings("DuplicatedCode") // Same code as ElasticsearchSinkOps, but uses classes from different packages.
 public class OpenSearchSinkOps implements SinkOps, SinkTestOps {
   private final OpenSearchClient client;
 
@@ -71,14 +71,9 @@ public class OpenSearchSinkOps implements SinkOps, SinkTestOps {
   }
 
   @Override
-  public Version version() {
-    TextNode node = (TextNode) info().at("/version/number");
-    return Version.parseVersion(node.textValue());
-  }
-
   public ObjectNode info() {
-    // Instead of calling client.info(), make the request "manually" for compatibility with both OpenSearch
-    // and the legacy versions of Elasticsearch hosted by Amazon.
+    // client.info() does not work with the versions of Elasticsearch hosted on Amazon OpenSearch service.
+    // For maximum compatibility with both OpenSearch and Elasticsearch, make the request "manually".
 
     try {
       JsonpDeserializer<ObjectNode> deserializer = new JsonpDeserializerBase<>(EnumSet.allOf(JsonParser.Event.class)) {
@@ -89,11 +84,11 @@ public class OpenSearchSinkOps implements SinkOps, SinkTestOps {
       };
 
       Endpoint<InfoRequest, ObjectNode, ErrorResponse> infoEndpoint = new SimpleEndpoint<>(
-          request -> "GET", // Request method
-          request -> "/", // Request path
-          request -> emptyMap(), // Request parameters
-          SimpleEndpoint.emptyMap(), // Request headers
-          false, // has request body
+          request -> "GET", // method
+          request -> "/", // path
+          request -> emptyMap(), // parameters
+          SimpleEndpoint.emptyMap(), // headers
+          false, // has request body?
           deserializer
       );
 
