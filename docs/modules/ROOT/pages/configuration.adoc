@@ -515,7 +515,7 @@ The connector configuration may reference environment variables.
 
 Variable substitution happens in a separate step before the TOML is parsed.
 Values are replaced verbatim, without regard to context.
-When using variables in string values, make sure the result conforms to the the https://github.com/toml-lang/toml#string[TOML string syntax].
+When using variables in string values, make sure the result conforms to the https://github.com/toml-lang/toml#string[TOML string syntax].
 
 Here's an example with completely made up config properties, and placeholders that reference environment variables `NAME`, `AGE`, and `FAVORITE_COLOR`:
 [source,toml]
