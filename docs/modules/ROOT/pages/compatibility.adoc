@@ -37,6 +37,9 @@ h| Elasticsearch↓ | 4.1 | 4.2.0 - 4.2.1 | 4.2.2 - 4.2.7 | 4.2.8 - 4.2.15 | 4.3
 
 == OpenSearch
 
+CAUTION: This is an experimental feature.
+If you'd like to share feedback, please post in the https://forums.couchbase.com/c/elasticsearch-connector/36[Elasticsearch category] on the Couchbase Forum.
+
 OpenSearch version support is informed by the https://opensearch.org/releases.html#maintenance-policy[OpenSearch Maintenance Policy].
 
 [%autowidth,cols="^,1*^"]
@@ -52,12 +55,18 @@ h| OpenSearch↓    | 4.4.5 and later
 [[elastic-cloud]]
 == Elastic Cloud
 
+CAUTION: This is an experimental feature.
+If you'd like to share feedback, please post in the https://forums.couchbase.com/c/elasticsearch-connector/36[Elasticsearch category] on the Couchbase Forum.
+
 Connector versions 4.4.5 and later are compatible with Elastic Cloud.
 
 See xref:configuration.adoc#elastic-cloud[how to configure the connector for Elastic Cloud].
 
 [[amazon-opensearch-service]]
 == Amazon OpenSearch Service
+
+CAUTION: This is an experimental feature.
+If you'd like to share feedback, please post in the https://forums.couchbase.com/c/elasticsearch-connector/36[Elasticsearch category] on the Couchbase Forum.
 
 Connector versions 4.4.5 and later are compatible with Amazon OpenSearch Service.
 

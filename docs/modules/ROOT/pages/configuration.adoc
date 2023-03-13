@@ -547,6 +547,9 @@ If you have trouble connecting, make sure the IP address of the machine running 
 [[elastic-cloud]]
 === Elastic Cloud
 
+CAUTION: This is an experimental feature.
+If you'd like to share feedback, please post in the https://forums.couchbase.com/c/elasticsearch-connector/36[Elasticsearch category] on the Couchbase Forum.
+
 Starting with version 4.4.5, the connector supports Elastic Cloud, the Software-as-a-Service offering from Elastic.
 
 [source,toml]
@@ -582,6 +585,9 @@ password = 'your-elastic-cloud-api-key'
 
 [[amazon-opensearch-service]]
 === Amazon OpenSearch Service
+
+CAUTION: This is an experimental feature.
+If you'd like to share feedback, please post in the https://forums.couchbase.com/c/elasticsearch-connector/36[Elasticsearch category] on the Couchbase Forum.
 
 Starting with version 4.4.5, the connector supports Amazon OpenSearch Service.
 
