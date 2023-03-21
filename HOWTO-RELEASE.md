@@ -30,6 +30,9 @@ When you're satisfied with the test results, it's time to...
 5. Commit these changes, with message "Prepare x.y.z release"
 (where x.y.z is the version you're releasing).
 
+# Check for Docker base image updates
+
+Look for a new version of the Docker base image, and update the Dockerfiles if necessary.
 
 ## Tag the release
 
