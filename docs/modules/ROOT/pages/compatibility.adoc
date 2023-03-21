@@ -47,8 +47,8 @@ OpenSearch version support is informed by the https://opensearch.org/releases.ht
  |             1+h| Connector
 h| OpenSearch↓    | 4.4.5 and later
  | 2.0.0 - 2.6.0  | ✔
- | 1.3.8          | ✔
- | 1.3.3 - 1.3.7  | ◎
+ | 1.3.9          | ✔
+ | 1.3.3 - 1.3.8  | ◎
  | 1.0.0 - 1.3.2  | ✖
 |===
 

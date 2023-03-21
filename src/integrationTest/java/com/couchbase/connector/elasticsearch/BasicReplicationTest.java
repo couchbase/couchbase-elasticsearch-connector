@@ -110,7 +110,7 @@ public class BasicReplicationTest {
     // If possible, we also want to support the last release of the previous major version.
     final Set<String> opensearchVersions = new LinkedHashSet<>(Arrays.asList(
         "2.6.0", // latest version
-        "1.3.8", // latest version of previous major
+        "1.3.9", // latest version of previous major
         "1.3.3" // oldest supported version (first version compatible with opensearch-java client)
     ));
 

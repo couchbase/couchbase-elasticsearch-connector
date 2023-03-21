@@ -8,6 +8,38 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.4.5]]
+== Version 4.4.5 (2023-03-21)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.4.5/couchbase-elasticsearch-connector-4.4.5.zip[Download]
+
+This version adds experimental support for Elastic Cloud, OpenSearch, and Amazon OpenSearch Service.
+If you'd like to share feedback on these features, please post in the https://forums.couchbase.com/c/elasticsearch-connector/36[Elasticsearch category] on the Couchbase Forum.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-286[CBES-286]:
+Add xref:configuration.adoc#elastic-cloud[experimental support for Elastic Cloud].
+
+* https://issues.couchbase.com/browse/CBES-285[CBES-285]:
+Add experimental support for OpenSearch.
+No special configuration is required; the connector automatically detects you're using OpenSearch instead of Elasticsearch.
+
+* https://issues.couchbase.com/browse/CBES-243[CBES-243]:
+Add xref:configuration.adoc#amazon-opensearch-service[experimental support for Amazon OpenSearch Service].
+
+* https://issues.couchbase.com/browse/CBES-287[CBES-287]:
+When connecting to Elasticsearch/OpenSearch with TLS, the well-known Certificate Authority (CA) certificates from the JVM's `cacerts` trust store are now trusted by default, unless you specify different CA certificates to trust.
+
+* https://issues.couchbase.com/browse/CBES-288[CBES-288]:
+Add Consul 1.15.1 to the compatibility matrix as a supported version.
+
+* https://issues.couchbase.com/browse/CBES-290[CBES-290]:
+Upgrade Couchbase Java SDK from `3.4.3` to `3.4.4`.
+
+* https://issues.couchbase.com/browse/CBES-291[CBES-291]:
+Upgrade Couchbase DCP client from `0.44.0` to `0.45.0`.
+
 [[v4.4.4]]
 == Version 4.4.4 (2023-02-17)
 
@@ -133,9 +165,10 @@ The connector now supports Elasticsearch 8, and it's easier to configure the tru
 
 * The minimum required version of Elasticsearch is now `7.14.0`.
 
-* Amazon OpenSearch is not supported.
+* OpenSearch and Amazon OpenSearch Service are not supported.
 If you're using a previous version of the connector with OpenSearch, please remain on that version for now.
 We're investigating restoring support in a future version.
+*UPDATE*: <<v4.4.5>> restores support for OpenSearch and Amazon OpenSearch Service as an experimental feature.
 
 === Enhancements
 
