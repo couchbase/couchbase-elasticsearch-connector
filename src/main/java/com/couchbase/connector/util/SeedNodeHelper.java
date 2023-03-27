@@ -60,7 +60,8 @@ public class SeedNodeHelper {
 
       // The Java client calls seedNodesFromConnectionString during bootstrap, but the results
       // are not accessible here. Call it again.
-      Set<String> seedHosts = ConnectionStringUtil.seedNodesFromConnectionString(connectionString, true, tls, eventBus)
+      boolean dnsSrvEnabled = bucket.environment().ioConfig().dnsSrvEnabled();
+      Set<String> seedHosts = ConnectionStringUtil.seedNodesFromConnectionString(connectionString, dnsSrvEnabled, tls, eventBus)
           .stream()
           .map(SeedNode::address)
           .collect(toSet());
