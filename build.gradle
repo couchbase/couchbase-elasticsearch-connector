@@ -85,6 +85,13 @@ dependencies {
   implementation 'com.fasterxml.jackson.core:jackson-databind'
   implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
 
+  constraints {
+    // Remove this constraint when upgrading to Jackson 2.15
+    implementation('org.yaml:snakeyaml:2.0') {
+      because 'CVE-2022-1471'
+    }
+  }
+
   implementation 'io.fabric8:kubernetes-client:5.11.2'
   implementation 'com.github.therapi:therapi-json-rpc:0.5.0'
 
