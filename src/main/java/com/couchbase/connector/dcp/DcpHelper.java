@@ -16,6 +16,8 @@
 
 package com.couchbase.connector.dcp;
 
+import com.couchbase.client.core.deps.io.netty.buffer.ByteBuf;
+import com.couchbase.client.core.deps.io.netty.util.IllegalReferenceCountException;
 import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.core.logging.RedactionLevel;
 import com.couchbase.client.dcp.Authenticator;
@@ -29,8 +31,6 @@ import com.couchbase.client.dcp.StreamTo;
 import com.couchbase.client.dcp.config.DcpControl;
 import com.couchbase.client.dcp.config.HostAndPort;
 import com.couchbase.client.dcp.core.env.NetworkResolution;
-import com.couchbase.client.core.deps.io.netty.buffer.ByteBuf;
-import com.couchbase.client.core.deps.io.netty.util.IllegalReferenceCountException;
 import com.couchbase.client.dcp.highlevel.DatabaseChangeListener;
 import com.couchbase.client.dcp.highlevel.Deletion;
 import com.couchbase.client.dcp.highlevel.DocumentChange;
@@ -38,6 +38,7 @@ import com.couchbase.client.dcp.highlevel.Mutation;
 import com.couchbase.client.dcp.highlevel.SnapshotMarker;
 import com.couchbase.client.dcp.highlevel.StreamFailure;
 import com.couchbase.client.dcp.message.PartitionAndSeqno;
+import com.couchbase.client.dcp.message.StreamFlag;
 import com.couchbase.client.dcp.state.FailoverLogEntry;
 import com.couchbase.client.dcp.state.PartitionState;
 import com.couchbase.client.dcp.state.SessionState;
@@ -120,6 +121,7 @@ public class DcpHelper {
         .bucket(config.bucket())
         .authenticator(authenticator(config))
         .controlParam(DcpControl.Names.SET_NOOP_INTERVAL, 20)
+        .optionalStreamFlags(Set.of(StreamFlag.IGNORE_PURGED_TOMBSTONES))
         .compression(config.dcp().compression())
         .collectionsAware(true)
         .scopeName(config.scope())
