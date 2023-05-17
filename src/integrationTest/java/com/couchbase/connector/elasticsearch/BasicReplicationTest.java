@@ -92,7 +92,7 @@ public class BasicReplicationTest {
     final boolean exhaustive = Boolean.parseBoolean(System.getProperty("com.couchbase.integrationTest.exhaustive"));
 
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
-        "enterprise-7.1.3",
+        "enterprise-7.1.4",
         "community-7.1.3"
 //        "enterprise-6.6.5",
 //        "community-6.6.0"
@@ -101,7 +101,7 @@ public class BasicReplicationTest {
     // This list is informed by https://www.elastic.co/support/eol
     // If possible, we also want to support the last release of the previous major version.
     final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "8.6.2", // latest version
+        "8.7.1", // latest version
         "7.17.9", // latest version of previous major
         "7.14.0" // oldest supported version (first version that sends required "X-Elastic-Product" header)
     ));
@@ -109,7 +109,7 @@ public class BasicReplicationTest {
     // This list is informed by https://opensearch.org/releases.html
     // If possible, we also want to support the last release of the previous major version.
     final Set<String> opensearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "2.6.0", // latest version
+        "2.7.0", // latest version
         "1.3.9", // latest version of previous major
         "1.3.3" // oldest supported version (first version compatible with opensearch-java client)
     ));

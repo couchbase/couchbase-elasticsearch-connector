@@ -64,15 +64,15 @@ dependencies {
   implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.20.0'
   implementation 'org.slf4j:jcl-over-slf4j:2.0.6'
 
-  implementation 'com.couchbase.client:java-client:3.4.4'
-  implementation 'com.couchbase.client:dcp-client:0.46.0-SNAPSHOT'
+  implementation 'com.couchbase.client:java-client:3.4.6'
+  implementation 'com.couchbase.client:dcp-client:0.46.0'
 
   implementation 'com.squareup.okhttp3:okhttp:4.10.0'
 
-  implementation 'co.elastic.clients:elasticsearch-java:8.6.2'
+  implementation 'co.elastic.clients:elasticsearch-java:8.7.1'
 
-  implementation('org.opensearch.client:opensearch-java:2.3.0')
-  implementation("org.opensearch.client:opensearch-rest-client:2.6.0")
+  implementation('org.opensearch.client:opensearch-java:2.4.0')
+  implementation("org.opensearch.client:opensearch-rest-client:2.7.0")
   implementation('org.apache.httpcomponents.client5:httpclient5:5.2.1')
 
   implementation(platform('software.amazon.awssdk:bom:2.20.26'))
@@ -81,16 +81,9 @@ dependencies {
   implementation("software.amazon.awssdk:regions")
   implementation("software.amazon.awssdk:auth")
 
-  implementation platform('com.fasterxml.jackson:jackson-bom:2.14.2')
+  implementation platform('com.fasterxml.jackson:jackson-bom:2.15.0')
   implementation 'com.fasterxml.jackson.core:jackson-databind'
   implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
-
-  constraints {
-    // Remove this constraint when upgrading to Jackson 2.15
-    implementation('org.yaml:snakeyaml:2.0') {
-      because 'CVE-2022-1471'
-    }
-  }
 
   implementation 'io.fabric8:kubernetes-client:5.11.2'
   implementation 'com.github.therapi:therapi-json-rpc:0.5.0'
@@ -111,7 +104,7 @@ dependencies {
   testImplementation 'org.apache.commons:commons-lang3:3.12.0'
   testImplementation 'commons-io:commons-io:2.11.0'
   testImplementation('org.assertj:assertj-core:3.24.2')
-  integrationTestImplementation 'com.jayway.jsonpath:json-path:2.7.0'
+  integrationTestImplementation 'com.jayway.jsonpath:json-path:2.8.0'
 
   implementation platform('org.testcontainers:testcontainers-bom:1.17.6')
   integrationTestImplementation 'org.testcontainers:testcontainers'
