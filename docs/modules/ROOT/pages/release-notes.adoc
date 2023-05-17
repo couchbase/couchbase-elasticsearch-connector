@@ -8,6 +8,35 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.4.6]]
+== Version 4.4.6 (2023-05-17)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.4.6/couchbase-elasticsearch-connector-4.4.6.zip[Download]
+
+If the connector is stopped for an extended period of time, it can now resume from where it left off, without having to roll back to zero.
+This behavior requires Couchbase Server 7.2 or later.
+
+Added Elasticsearch 8.7 and OpenSearch 2.7 to the compatibility matrix as supported versions.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-297[CBES-297]:
+When resuming from an old checkpoint (where the connector's sequence number is lower than Couchbase Server's purge sequence number), the connector no longer rolls back to zero.
+This behavior requires Couchbase Server 7.2 or later.
+
+* https://issues.couchbase.com/browse/CBES-300[CBES-300]:
+Upgrade Couchbase Java SDK from `3.4.4` to `3.4.6`.
+
+* https://issues.couchbase.com/browse/CBES-301[CBES-301]:
+Upgrade Couchbase DCP client from `0.45.0` to `0.46.0`.
+
+=== Bug Fixes
+
+* https://issues.couchbase.com/browse/CBES-293[CBES-293]:
+The connector now honors the `io.enableDnsSrv` client setting.
+Previously, it would always attempt DNS SRV resolution on an eligible Couchbase Server hostname, regardless of whether DNS SRV was disabled via the client setting.
+This typically has no functional impact, but the old behavior was generating noise in the logs.
+
 [[v4.4.5]]
 == Version 4.4.5 (2023-03-21)
 
