@@ -13,7 +13,7 @@ dist: package-artifact
 
 package-artifact: create-tarball
 	gzip -9 dist/$(artifact).tar
-	mv dist/$(artifact).{tar.gz,tgz}
+	mv dist/$(artifact).tar.gz dist/$(artifact).tgz
 
 create-tarball: compile
 	mkdir -p dist/$(product)/$(appDir)
