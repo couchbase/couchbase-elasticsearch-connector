@@ -1,6 +1,6 @@
 plugins {
-  id "com.github.jk1.dependency-license-report" version "1.16"
-  id 'org.unbroken-dome.test-sets' version '4.0.0'
+  id "com.github.jk1.dependency-license-report" version "2.5"
+  id 'org.unbroken-dome.test-sets' version '4.1.0'
 }
 
 import org.apache.tools.ant.filters.ReplaceTokens
@@ -162,8 +162,10 @@ tasks.withType(CreateStartScripts) {
   }
 }
 
-mainClassName = "com.couchbase.connector.elasticsearch.ElasticsearchConnector"
-applicationDefaultJvmArgs = ['-server']
+application {
+  mainClass = "com.couchbase.connector.elasticsearch.ElasticsearchConnector"
+  applicationDefaultJvmArgs = ['-server']
+}
 
 startScripts {
   applicationName = 'cbes'
@@ -191,15 +193,17 @@ def requireFileExists(filename) {
   return filename
 }
 
-def readmeFilename = requireFileExists("DIST_README.txt")
-applicationDistribution.from(".") {
-  include(readmeFilename, requireFileExists("LICENSE"))
-  rename(readmeFilename, 'README.txt')
-}
+application {
+  def readmeFilename = requireFileExists("DIST_README.txt")
+  applicationDistribution.from(".") {
+    include(readmeFilename, requireFileExists("LICENSE"))
+    rename(readmeFilename, 'README.txt')
+  }
 
-applicationDistribution.into("notices") {
-  // https://github.com/jk1/Gradle-License-Report
-  from(generateLicenseReport)
+  applicationDistribution.into("notices") {
+    // https://github.com/jk1/Gradle-License-Report
+    from(generateLicenseReport)
+  }
 }
 
 def getGitInfo() {
