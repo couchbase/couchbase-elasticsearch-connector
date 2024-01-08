@@ -92,25 +92,23 @@ public class BasicReplicationTest {
     final boolean exhaustive = Boolean.parseBoolean(System.getProperty("com.couchbase.integrationTest.exhaustive"));
 
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
-        "enterprise-7.1.4",
-        "community-7.1.3"
-//        "enterprise-6.6.5",
-//        "community-6.6.0"
+        "enterprise-7.2.3",
+        "community-7.2.2"
     );
 
     // This list is informed by https://www.elastic.co/support/eol
     // If possible, we also want to support the last release of the previous major version.
     final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "8.7.1", // latest version
-        "7.17.9", // latest version of previous major
+        "8.11.3", // latest version
+        "7.17.16", // latest version of previous major
         "7.14.0" // oldest supported version (first version that sends required "X-Elastic-Product" header)
     ));
 
     // This list is informed by https://opensearch.org/releases.html
     // If possible, we also want to support the last release of the previous major version.
     final Set<String> opensearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "2.7.0", // latest version
-        "1.3.9", // latest version of previous major
+        "2.11.1", // latest version
+        "1.3.14", // latest version of previous major
         "1.3.3" // oldest supported version (first version compatible with opensearch-java client)
     ));
 
@@ -250,13 +248,13 @@ public class BasicReplicationTest {
                 .put("green", "00")
                 .put("blue", "00")
             )));
-        assertDocumentRejected(es, CATCH_ALL_INDEX, redKey, "mapper_parsing_exception");
+        assertDocumentRejected(es, CATCH_ALL_INDEX, redKey, "_parsing_exception");
 
         // Elasticsearch doesn't support BigInteger fields. This error surfaces when creating the index request,
         // before the request is sent to Elasticsearch. Make sure we trapped the error and converted it to a rejection.
         final String bigIntKey = "veryLargeNumber";
         upsertWithRetry(bucket, JsonDocument.create(bigIntKey, JsonObject.create().put("number", new BigInteger("17626319910530664276"))));
-        assertDocumentRejected(es, CATCH_ALL_INDEX, bigIntKey, "mapper_parsing_exception");
+        assertDocumentRejected(es, CATCH_ALL_INDEX, bigIntKey, "_parsing_exception");
       }
     }
   }

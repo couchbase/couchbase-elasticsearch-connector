@@ -42,15 +42,15 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class AutonomousOpsTest {
 
-  static final String CONSUL_DOCKER_IMAGE = "consul:1.15.1";
+  static final String CONSUL_DOCKER_IMAGE = "hashicorp/consul:1.17.1";
 
   static {
     ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
     TestConnectorGroup.buildConnector();
   }
 
-  private static final String couchbaseVersion = "enterprise-7.1.1";
-  private static final String elasticsearchVersion = "7.17.9";
+  private static final String couchbaseVersion = "enterprise-7.2.3";
+  private static final String elasticsearchVersion = "7.17.16";
 
   private static CustomCouchbaseContainer couchbase;
   private static SinkContainer sink;

@@ -18,8 +18,10 @@ package com.couchbase.connector.dcp;
 
 import com.couchbase.client.core.deps.io.netty.buffer.ByteBuf;
 import com.couchbase.client.core.deps.io.netty.util.IllegalReferenceCountException;
+import com.couchbase.client.core.env.NetworkResolution;
 import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.core.logging.RedactionLevel;
+import com.couchbase.client.core.util.HostAndPort;
 import com.couchbase.client.dcp.Authenticator;
 import com.couchbase.client.dcp.CertificateAuthenticator;
 import com.couchbase.client.dcp.Client;
@@ -29,8 +31,6 @@ import com.couchbase.client.dcp.StaticCredentialsProvider;
 import com.couchbase.client.dcp.StreamFrom;
 import com.couchbase.client.dcp.StreamTo;
 import com.couchbase.client.dcp.config.DcpControl;
-import com.couchbase.client.dcp.config.HostAndPort;
-import com.couchbase.client.dcp.core.env.NetworkResolution;
 import com.couchbase.client.dcp.highlevel.DatabaseChangeListener;
 import com.couchbase.client.dcp.highlevel.Deletion;
 import com.couchbase.client.dcp.highlevel.DocumentChange;
@@ -235,11 +235,13 @@ public class DcpHelper {
       }
 
       final PartitionState ps = sessionState.get(partition);
-      ps.setStartSeqno(checkpoint.getSeqno());
-      ps.setSnapshot(
+      ps.setStartSeqno(
+          checkpoint.getSeqno(),
           new SnapshotMarker(
               checkpoint.getSnapshot().getStartSeqno(),
-              checkpoint.getSnapshot().getEndSeqno()));
+              checkpoint.getSnapshot().getEndSeqno()
+          )
+      );
 
       // Use seqno -1 (max unsigned) so this synthetic failover log entry will always be pruned
       // if the initial streamOpen request gets a rollback response. If there's no rollback

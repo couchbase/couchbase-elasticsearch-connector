@@ -20,7 +20,7 @@ package com.couchbase.connector.dcp;
 import com.couchbase.client.core.config.CouchbaseBucketConfig;
 import com.couchbase.client.core.config.NodeInfo;
 import com.couchbase.client.core.service.ServiceType;
-import com.couchbase.client.dcp.config.HostAndPort;
+import com.couchbase.client.core.util.HostAndPort;
 
 import java.util.List;
 import java.util.Map;

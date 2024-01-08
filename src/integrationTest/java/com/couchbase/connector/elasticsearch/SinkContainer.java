@@ -38,7 +38,7 @@ public interface SinkContainer extends Closeable {
     }
 
     return new OpensearchSinkContainer(
-        new OpensearchContainer("opensearchproject/opensearch:" + version)
+        new OpensearchContainer<>("opensearchproject/opensearch:" + version)
             .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger("container.opensearch")))
             .withStartupTimeout(Duration.ofMinutes(5))
     );

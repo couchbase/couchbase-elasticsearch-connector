@@ -26,7 +26,7 @@ import com.couchbase.client.core.env.PropertyLoader;
 import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.core.service.ServiceType;
 import com.couchbase.client.core.util.ConnectionString;
-import com.couchbase.client.dcp.config.HostAndPort;
+import com.couchbase.client.core.util.HostAndPort;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.Collection;
