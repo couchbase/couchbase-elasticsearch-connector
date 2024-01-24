@@ -65,7 +65,7 @@ dependencies {
   implementation 'org.slf4j:jcl-over-slf4j:2.0.10'
 
   implementation 'com.couchbase.client:java-client:3.5.2'
-  implementation 'com.couchbase.client:dcp-client:0.48.0-SNAPSHOT'
+  implementation 'com.couchbase.client:dcp-client:0.48.0'
 
   implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
