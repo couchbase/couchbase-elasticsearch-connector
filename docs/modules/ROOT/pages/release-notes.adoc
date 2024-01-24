@@ -8,6 +8,35 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.4.7]]
+== Version 4.4.7 (2024-01-24)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.4.7/couchbase-elasticsearch-connector-4.4.7.zip[Download]
+
+This maintenance release improves the robustness of the connector in certain conditions.
+
+Added Elasticsearch 8.12, OpenSearch 2.11, and Consul 1.17.1 to the compatibility matrix as supported versions.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-305[CBES-305]:
+Upgrade Couchbase Java SDK from `3.4.6` to `3.5.2`.
+
+* https://issues.couchbase.com/browse/CBES-306[CBES-306]:
+Upgrade Couchbase DCP client from `0.46.0` to `0.48.0`.
+
+=== Bug Fixes
+
+* https://issues.couchbase.com/browse/JDCP-239[JDCP-239]:
+Improved reliability of initial startup during a Couchbase Server cluster rebalance, or before a newly-created bucket is ready.
+
+* https://issues.couchbase.com/browse/JDCP-240[JDCP-240]:
+When a partition is not active on any Couchbase Server node, the checkpoint management "catch up" command now waits for the partition to become active somewhere, instead of clearing the partition's checkpoint.
+
+* https://issues.couchbase.com/browse/JDCP-241[JDCP-241]:
+Improved handling of an edge case that could cause the connector to stop streaming for a partition.
+If a DCP socket connection is lost after receiving a snapshot marker for a partition and before receiving the first item in the snapshot, the connector now recovers instead of failing to resume streaming for that partition.
+
 [[v4.4.6]]
 == Version 4.4.6 (2023-05-17)
 
