@@ -69,7 +69,7 @@ dependencies {
 
   implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
-  implementation 'co.elastic.clients:elasticsearch-java:8.11.3'
+  implementation 'co.elastic.clients:elasticsearch-java:8.12.0'
 
   implementation('org.opensearch.client:opensearch-java:2.8.1')
   implementation("org.opensearch.client:opensearch-rest-client:2.11.1")
