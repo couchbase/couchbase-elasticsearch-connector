@@ -64,8 +64,8 @@ dependencies {
   implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.23.1'
   implementation 'org.slf4j:jcl-over-slf4j:2.0.12'
 
-  implementation 'com.couchbase.client:java-client:3.5.2'
-  implementation 'com.couchbase.client:dcp-client:0.48.0'
+  implementation 'com.couchbase.client:java-client:3.6.1'
+  implementation 'com.couchbase.client:dcp-client:0.50.0-SNAPSHOT'
 
   implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
