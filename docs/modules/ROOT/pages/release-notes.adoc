@@ -8,6 +8,24 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.4.8]]
+== Version 4.4.8 (2024-04-16)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.4.8/couchbase-elasticsearch-connector-4.4.8.zip[Download]
+
+This maintenance release updates the Couchbase Java SDK to the most recent version.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-308[CBES-308]:
+Upgrade Couchbase Java SDK from `3.5.2` to `3.6.1`.
++
+Notably:
+
+** https://issues.couchbase.com/browse/JVMCBC-1499[JVMCBC-1499]
+Disabled DNS SRV caching.
+The connector now responds quicker to DNS changes in dynamic environments like Kubernetes.
+
 [[v4.4.7]]
 == Version 4.4.7 (2024-01-24)
 
