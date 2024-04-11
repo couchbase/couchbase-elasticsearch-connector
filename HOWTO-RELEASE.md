@@ -69,13 +69,20 @@ If the release succeeded, now's the time to publish the tag:
 
 ## Publish Docker image
 
-First, stage the image on the internal repo using [this Jenkins job](https://sdk.jenkins.couchbase.com/job/connectors/job/elasticsearch-docker-publish-internal/).
+A daily job builds a Docker image from the current `master` branch.
+After pushing the tag, and **before making any other changes to the repo,** sit on your butt until the new image appears here:
 
-Then use [this other Jenkins job](https://sdk.jenkins.couchbase.com/job/dockerhub-release/) to promote the image to Docker Hub.
-Run it twice (`Build with parameters`). The first time, use the actual version for both INTERNAL_TAG and EXTERNAL_TAG.
-The second time, use the action version for INTERNAL_TAG and `latest` for EXTERNAL_TAG.
+https://github.com/orgs/cb-vanilla/packages/container/package/elasticsearch-connector
+
+When you've identified the image built from the release tag, file a CBD issue in Jira.
+
+* Subject: Release Docker image for Elasticsearch connector x.y.z
+* Component: build
+* Description: link to the image to release
 
 ## Prepare for next dev cycle
+
+**STOP!** Did you wait for the Docker image to be built? Yes? Okay. Go!
 
 Increment the version number in `build.gradle` and restore the `-SNAPSHOT` suffix.
 Commit and push to Gerrit.
