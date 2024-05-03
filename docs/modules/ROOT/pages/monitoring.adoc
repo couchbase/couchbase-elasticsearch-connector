@@ -49,6 +49,8 @@ An estimate of the number of Couchbase document changes yet to be processed.
 This is a general indication of how well the connector is keeping up with changes in Couchbase.
 Note that the count only includes changes in the Couchbase partitions handled by this connector instance.
 This value is dynamic; it goes up when changes happen in Couchbase, and goes down as the changes are processed by the connector.
++
+NOTE: The `cbes.backlog` metric maybe significantly less accurate when the connector is configured to replicate only a specific scope or specific collections.
 
 `cbes.writeQueue`::
 Reports the number of document events currently buffered in memory.
