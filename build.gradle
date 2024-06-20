@@ -63,6 +63,7 @@ task exhaustiveTest(group: "Verification", description: "Runs the integration te
 dependencies {
   implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.23.1'
   implementation 'org.slf4j:jcl-over-slf4j:2.0.12'
+  implementation 'co.elastic.logging:log4j2-ecs-layout:1.6.0'
 
   implementation 'com.couchbase.client:java-client:3.6.1'
   implementation 'com.couchbase.client:dcp-client:0.50.0'
