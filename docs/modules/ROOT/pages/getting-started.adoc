@@ -21,9 +21,67 @@ If this is your first time working with the connector, we recommend starting wit
 
 If a single connector process cannot handle all of your traffic, multiple connector processes can be deployed in "distributed" mode.
 In this mode each process is manually configured to handle only a subset of the replication workload.
+
+.Distributed data flow with ElasticSearch
+[plantuml]
+....
+
+skin rose
+skinparam actorStyle awesome
+
+
+database "Travel\nSample" as travelSample
+
+component "Filter by type\nevent" as vBucketFilter
+
+component "Elastic\nConnector 1" as ecs1
+component "Elastic\nConnector 2" as ecs2
+
+database "ElasticSearch\nAirport\nIndex" as pi1
+database "ElasticSearch\nHotels\nIndex" as pi2
+component "ElasticSearch API" as elasticSearch
+
+travelSample --> vBucketFilter
+vBucketFilter --> ecs1 : airports
+vBucketFilter --> ecs2 : hotels
+
+ecs1 --> pi1
+ecs2 --> pi2
+
+actor "User" as user
+
+pi1 --> elasticSearch
+pi2 --> elasticSearch
+
+user --up-> elasticSearch: query
+
+user <-right- elasticSearch: result
+
+note left of vBucketFilter
+You can use an Eventing function to filter
+the records and dispatch them to
+ separately-configured
+connectors.
+end note
+
+note bottom of ecs1
+The connector will keep the index up to date;
+adding, updating, or deleting records to/from
+the index in response to requests from the
+Filter event.
+end note
+
+note right of elasticSearch
+Use the API to carry out ElasticSearch queries
+ on the indexes.
+end note
+
+@enduml
+....
+
 Distributed mode can scale to handle high volumes of traffic, but is inflexible; adding an additional process to a distributed connector group requires stopping and reconfiguring _all_ of the processes in the group.
 
-NOTE: Solo mode is effectively the same as distributed mode with a group size of 1.
+NOTE: `Solo mode` is effectively the same as `Distributed mode` with a group size of 1.
 
 === Autonomous Operations
 
