@@ -13,7 +13,7 @@ repositories {
   maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
 }
 
-version = "4.4.8"
+version = "4.4.9-SNAPSHOT"
 
 def targetJavaRelease = 11
 def jvmVersion = "11"
@@ -65,15 +65,15 @@ dependencies {
   implementation 'org.slf4j:jcl-over-slf4j:2.0.12'
   implementation 'co.elastic.logging:log4j2-ecs-layout:1.6.0'
 
-  implementation 'com.couchbase.client:java-client:3.6.1'
-  implementation 'com.couchbase.client:dcp-client:0.50.0'
+  implementation 'com.couchbase.client:java-client:3.7.1'
+  implementation 'com.couchbase.client:dcp-client:0.51.0-SNAPSHOT'
 
   implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
-  implementation 'co.elastic.clients:elasticsearch-java:8.12.0'
+  implementation 'co.elastic.clients:elasticsearch-java:8.14.3'
 
-  implementation('org.opensearch.client:opensearch-java:2.11.1')
-  implementation("org.opensearch.client:opensearch-rest-client:2.11.1")
+  implementation('org.opensearch.client:opensearch-java:2.12.0')
+  implementation("org.opensearch.client:opensearch-rest-client:2.15.0")
   implementation('org.apache.httpcomponents.client5:httpclient5:5.3.1')
 
   implementation(platform('software.amazon.awssdk:bom:2.20.26'))
@@ -82,7 +82,7 @@ dependencies {
   implementation("software.amazon.awssdk:regions")
   implementation("software.amazon.awssdk:auth")
 
-  implementation platform('com.fasterxml.jackson:jackson-bom:2.17.0')
+  implementation platform('com.fasterxml.jackson:jackson-bom:2.17.2')
   implementation 'com.fasterxml.jackson.core:jackson-databind'
   implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
 
@@ -94,20 +94,20 @@ dependencies {
   implementation 'io.dropwizard.metrics:metrics-json:4.2.16'
   implementation 'io.dropwizard.metrics:metrics-jvm:4.2.16'
 
-  implementation 'com.google.guava:guava:33.1.0-jre'
-  implementation 'org.apache.commons:commons-text:1.11.0'
+  implementation 'com.google.guava:guava:33.2.1-jre'
+  implementation 'org.apache.commons:commons-text:1.12.0'
   implementation 'org.apache.tuweni:tuweni-toml:2.0.0'
 
   implementation 'net.sf.jopt-simple:jopt-simple:5.0.4'
   implementation 'info.picocli:picocli:4.7.1'
 
   testImplementation 'junit:junit:4.13.2'
-  testImplementation 'org.apache.commons:commons-lang3:3.14.0'
+  testImplementation 'org.apache.commons:commons-lang3:3.15.0'
   testImplementation 'commons-io:commons-io:2.16.1'
-  testImplementation('org.assertj:assertj-core:3.25.3')
+  testImplementation('org.assertj:assertj-core:3.26.3')
   integrationTestImplementation 'com.jayway.jsonpath:json-path:2.9.0'
 
-  implementation platform('org.testcontainers:testcontainers-bom:1.19.7')
+  implementation platform('org.testcontainers:testcontainers-bom:1.20.0')
   integrationTestImplementation 'org.testcontainers:testcontainers'
   integrationTestImplementation 'org.testcontainers:couchbase'
   integrationTestImplementation 'org.testcontainers:elasticsearch'

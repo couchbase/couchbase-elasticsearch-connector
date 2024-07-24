@@ -42,7 +42,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class AutonomousOpsTest {
 
-  static final String CONSUL_DOCKER_IMAGE = "hashicorp/consul:1.17.1";
+  static final String CONSUL_DOCKER_IMAGE = "hashicorp/consul:1.19.1";
 
   static {
     ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
