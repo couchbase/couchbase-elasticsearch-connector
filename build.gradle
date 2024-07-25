@@ -66,7 +66,7 @@ dependencies {
   implementation 'co.elastic.logging:log4j2-ecs-layout:1.6.0'
 
   implementation 'com.couchbase.client:java-client:3.7.1'
-  implementation 'com.couchbase.client:dcp-client:0.51.0-SNAPSHOT'
+  implementation 'com.couchbase.client:dcp-client:0.51.0'
 
   implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
