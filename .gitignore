@@ -23,7 +23,7 @@ Temporary Items
 
 .gradle/
 build/
-dist/
+/dist/
 .idea/
 *.iml
 *.ipr
