@@ -8,6 +8,26 @@ Release notes, installation instructions, and download archive for the Couchbase
 Scroll down to the version you want, then click the "Download" link to get the full connector distribution.
 Refer to xref:getting-started.adoc[] for detailed installation instructions.
 
+[[v4.4.9]]
+== Version 4.4.9 (2024-07-25)
+
+https://packages.couchbase.com/clients/connectors/elasticsearch/4.4.9/couchbase-elasticsearch-connector-4.4.9.zip[Download]
+
+This maintenance release updates the Couchbase Java SDK to the most recent version.
+
+Added Elasticsearch 8.14, OpenSearch 2.15, and Consul 1.19.1 to the compatibility matrix as supported versions.
+
+=== Enhancements
+
+* https://issues.couchbase.com/browse/CBES-311[CBES-311]:
+The connector now includes the `co.elastic.logging:log4j2-ecs-layout` library as a convenience for users who want to configure Log4j2 to use this layout.
+
+* https://issues.couchbase.com/browse/CBES-314[CBES-314]:
+Upgrade Couchbase Java SDK from `3.6.1` to `3.7.1`.
+
+* https://issues.couchbase.com/browse/CBES-310[CBES-310]:
+Upgrade Couchbase DCP client from `0.50.0` to `0.51.0`.
+
 [[v4.4.8]]
 == Version 4.4.8 (2024-04-16)
 
