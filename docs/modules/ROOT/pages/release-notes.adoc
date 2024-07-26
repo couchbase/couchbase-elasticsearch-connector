@@ -26,7 +26,12 @@ The connector now includes the `co.elastic.logging:log4j2-ecs-layout` library as
 Upgrade Couchbase Java SDK from `3.6.1` to `3.7.1`.
 
 * https://issues.couchbase.com/browse/CBES-310[CBES-310]:
-Upgrade Couchbase DCP client from `0.50.0` to `0.51.0`.
+Upgrade Couchbase DCP client from `0.50.0` to `0.51.0`. Notably:
+
+** https://issues.couchbase.com/browse/JDCP-245[JDCP-245]:
+The DCP client now sets the `ACTIVE_VB_ONLY` flag when opening a stream.
+This prevents the connector from inadvertently streaming from a replica partition,
+which could cause problems with some versions of Couchbase Server.
 
 [[v4.4.8]]
 == Version 4.4.8 (2024-04-16)
