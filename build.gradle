@@ -65,8 +65,8 @@ dependencies {
   implementation 'org.slf4j:jcl-over-slf4j:2.0.12'
   implementation 'co.elastic.logging:log4j2-ecs-layout:1.6.0'
 
-  implementation 'com.couchbase.client:java-client:3.7.1'
-  implementation 'com.couchbase.client:dcp-client:0.51.0'
+  implementation 'com.couchbase.client:java-client:3.7.5'
+  implementation 'com.couchbase.client:dcp-client:0.52.0'
 
   implementation(platform('com.squareup.okhttp3:okhttp-bom:4.12.0'))
 
