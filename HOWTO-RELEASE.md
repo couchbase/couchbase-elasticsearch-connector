@@ -87,13 +87,15 @@ When you've identified the image built from the release tag, file a CBD issue in
 Increment the version number in `build.gradle` and restore the `-SNAPSHOT` suffix.
 Commit and push to Gerrit.
 
-## Update Black Duck scan configuration
+## Update the build manifest
 
-Clone the build-tools repository http://review.couchbase.org/admin/repos/build-tools
+Clone the manifest repository https://review.couchbase.org/admin/repos/manifest
 
-Edit `blackduck/couchbase-connector-elasticsearch/scan-config.json`
+Edit `manifest/couchbase-elasticsearch-connector/master.xml`
 
-Copy and paste the latest version entry; update it to refer to the version under development. For example, if you just bumped the version to 4.3.2-SNAPSHOT, the new version you're adding here should be "4.3.2"
+Inside the `project` element, look for an `annotation` element where `name="VERSION"`.
+Update this element's `value` property to refer to the version under development, without the SNAPSHOT suffix.
+For example, if you just bumped the version to 4.3.2-SNAPSHOT, the version you're specifying in the manifest should be "4.3.2".
 
 Commit the change.
 
