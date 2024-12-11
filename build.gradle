@@ -86,7 +86,10 @@ dependencies {
   implementation 'com.fasterxml.jackson.core:jackson-databind'
   implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
 
-  implementation 'io.fabric8:kubernetes-client:5.11.2'
+  implementation platform('io.fabric8:kubernetes-client-bom:7.0.0')
+  implementation 'io.fabric8:kubernetes-client'
+  implementation 'io.fabric8:kubernetes-httpclient-okhttp'
+
   implementation 'com.github.therapi:therapi-json-rpc:0.5.0'
 
   implementation platform('io.micrometer:micrometer-bom:1.10.5')
