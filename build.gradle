@@ -110,11 +110,11 @@ dependencies {
   testImplementation('org.assertj:assertj-core:3.26.3')
   integrationTestImplementation 'com.jayway.jsonpath:json-path:2.9.0'
 
-  implementation platform('org.testcontainers:testcontainers-bom:1.20.0')
+  implementation platform('org.testcontainers:testcontainers-bom:1.20.4')
   integrationTestImplementation 'org.testcontainers:testcontainers'
   integrationTestImplementation 'org.testcontainers:couchbase'
   integrationTestImplementation 'org.testcontainers:elasticsearch'
-  integrationTestImplementation 'org.opensearch:opensearch-testcontainers:2.0.1'
+  integrationTestImplementation 'org.opensearch:opensearch-testcontainers:2.1.2'
 
   def immutablesVersion = '2.10.1'
   compileOnly "org.immutables:value:${immutablesVersion}"

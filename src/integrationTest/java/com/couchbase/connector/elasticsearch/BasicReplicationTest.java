@@ -92,24 +92,23 @@ public class BasicReplicationTest {
     final boolean exhaustive = Boolean.parseBoolean(System.getProperty("com.couchbase.integrationTest.exhaustive"));
 
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
-        "enterprise-7.6.2",
-//         "community-7.6.2" // complains about being unable to configure external SSL ports, since TLS is an enterprise-only feature. Needs Testcontainers patch.
-        "community-7.2.2"
+        "enterprise-7.6.4",
+        "community-7.6.2"
     );
 
     // This list is informed by https://www.elastic.co/support/eol
     // If possible, we also want to support the last release of the previous major version.
     final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "8.14.3", // latest version
-        "7.17.22", // latest version of previous major
+        "8.16.1", // latest version
+        "7.17.26", // latest version of previous major
         "7.14.0" // oldest supported version (first version that sends required "X-Elastic-Product" header)
     ));
 
     // This list is informed by https://opensearch.org/releases.html
     // If possible, we also want to support the last release of the previous major version.
     final Set<String> opensearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "2.15.0", // latest version
-        "1.3.18", // latest version of previous major
+        "2.18.0", // latest version
+        "1.3.19", // latest version of previous major
         "1.3.3" // oldest supported version (first version compatible with opensearch-java client)
     ));
 
