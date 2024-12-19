@@ -13,7 +13,7 @@ repositories {
   maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
 }
 
-version = "4.4.11"
+version = "4.4.12-SNAPSHOT"
 
 def targetJavaRelease = 11
 def jvmVersion = "11"
