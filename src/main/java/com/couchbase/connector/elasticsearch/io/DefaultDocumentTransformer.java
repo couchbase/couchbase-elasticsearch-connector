@@ -25,10 +25,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.HashMap;
@@ -130,8 +130,7 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
 
   private static final TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE = new TypeReference<>() {};
 
-  @Nullable
-  private Map<String, Object> getDocumentAsMap(byte[] bytes) {
+  private @Nullable Map<String, Object> getDocumentAsMap(byte[] bytes) {
     try {
       return jsonMapper.readValue(bytes, MAP_TYPE_REFERENCE);
     } catch (IOException notJsonObject) {
@@ -139,8 +138,7 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
     }
   }
 
-  @Nullable
-  private static Map<String, Object> wrapIfCounter(byte[] bytes) {
+  private static @Nullable Map<String, Object> wrapIfCounter(byte[] bytes) {
     final Long counter = getCounterValue(bytes);
     if (counter == null) {
       return null;
@@ -156,8 +154,7 @@ public class DefaultDocumentTransformer implements DocumentTransformer {
    * number from 0 to 2^64-1 inclusive, returns the signed long representation
    * of the number. Otherwise returns null.
    */
-  @Nullable
-  static Long getCounterValue(byte[] bytes) {
+  static @Nullable Long getCounterValue(byte[] bytes) {
     try {
       final JsonParser parser = jsonFactory.createParser(bytes);
       if (parser.nextValue() != JsonToken.VALUE_NUMBER_INT) {

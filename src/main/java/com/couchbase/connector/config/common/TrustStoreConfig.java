@@ -21,10 +21,10 @@ import com.couchbase.connector.config.toml.ConfigTable;
 import com.couchbase.connector.util.KeyStoreHelper;
 import com.google.common.base.Supplier;
 import org.immutables.value.Value;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.security.KeyStore;
 import java.util.Optional;
 

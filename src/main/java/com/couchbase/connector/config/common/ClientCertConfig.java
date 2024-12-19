@@ -20,8 +20,8 @@ import com.couchbase.connector.config.toml.ConfigPosition;
 import com.couchbase.connector.config.toml.ConfigTable;
 import com.couchbase.connector.util.KeyStoreHelper;
 import org.immutables.value.Value;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.security.KeyStore;
 
 import static com.couchbase.connector.config.ConfigHelper.readPassword;

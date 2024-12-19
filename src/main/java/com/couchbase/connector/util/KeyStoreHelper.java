@@ -20,10 +20,10 @@ import com.couchbase.client.core.env.SecurityConfig;
 import com.couchbase.connector.config.ConfigException;
 import com.couchbase.connector.config.common.TrustStoreConfig;
 import com.google.common.hash.Hashing;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;

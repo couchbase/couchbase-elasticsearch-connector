@@ -35,10 +35,10 @@ import com.fasterxml.jackson.core.filter.JsonPointerBasedFilter;
 import com.fasterxml.jackson.core.filter.TokenFilter;
 import io.micrometer.core.instrument.Timer;
 import org.immutables.value.Value;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.List;
 
@@ -63,8 +63,7 @@ public class RequestFactory {
     this.rejectLogConfig = rejectLogConfig;
   }
 
-  @Nullable
-  public RejectOperation newRejectionLogRequest(final Operation origRequest, SinkBulkResponseItem f) {
+  public @Nullable RejectOperation newRejectionLogRequest(final Operation origRequest, SinkBulkResponseItem f) {
     if (rejectLogConfig.index() == null) {
       origRequest.getEvent().release();
       return null;
@@ -72,8 +71,7 @@ public class RequestFactory {
     return new RejectOperation(rejectLogConfig.index(), origRequest, f);
   }
 
-  @Nullable
-  public RejectOperation newRejectionLogRequest(final Event origEvent, MatchResult matchResult, Throwable failure) {
+  public @Nullable RejectOperation newRejectionLogRequest(final Event origEvent, MatchResult matchResult, Throwable failure) {
     if (rejectLogConfig.index() == null) {
       return null;
     }
@@ -82,8 +80,7 @@ public class RequestFactory {
         origEvent, matchResult.index(), opType, failure.getMessage());
   }
 
-  @Nullable
-  public Operation newDocWriteRequest(final Event e) {
+  public @Nullable Operation newDocWriteRequest(final Event e) {
     if (isMetadata(e)) {
       return null;
     }
@@ -119,8 +116,7 @@ public class RequestFactory {
     return new DeleteOperation(matchResult.index(), event);
   }
 
-  @Nullable
-  private IndexOperation newIndexRequest(final Event event, final MatchResult matchResult) {
+  private @Nullable IndexOperation newIndexRequest(final Event event, final MatchResult matchResult) {
     try {
       final Timer.Sample timerContext = Timer.start();
       Object document = documentTransformer.getElasticsearchDocument(event);
@@ -182,8 +178,8 @@ public class RequestFactory {
     String index();
   }
 
-  @Nullable // null means no match
-  private MatchResult match(final Event event) {
+  // null means no match
+  private @Nullable MatchResult match(final Event event) {
     for (TypeConfig type : types) {
       String index = type.matcher().getIndexIfMatches(event);
       if (index != null) {

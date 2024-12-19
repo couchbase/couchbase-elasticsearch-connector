@@ -17,7 +17,7 @@
 package com.couchbase.connector.elasticsearch.sink;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.io.Closeable;
 import java.util.Collection;
@@ -35,8 +35,8 @@ public interface SinkTestOps extends Closeable {
 
   class MultiGetItem {
     public String id;
-    @Nullable public String error;
-    @Nullable public JsonNode document;
+    public @Nullable String error;
+    public @Nullable JsonNode document;
 
     public MultiGetItem(String id, @Nullable String error, @Nullable JsonNode document) {
       this.id = requireNonNull(id);

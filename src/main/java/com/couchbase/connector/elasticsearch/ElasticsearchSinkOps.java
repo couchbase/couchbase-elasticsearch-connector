@@ -40,7 +40,7 @@ import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,9 +108,8 @@ public class ElasticsearchSinkOps implements SinkOps, SinkTestOps {
           @Override
           public SinkErrorCause error() {
             return it.error() == null ? null : new SinkErrorCause() {
-              @Nullable
               @Override
-              public String reason() {
+              public @Nullable String reason() {
                 return it.error().reason();
               }
 

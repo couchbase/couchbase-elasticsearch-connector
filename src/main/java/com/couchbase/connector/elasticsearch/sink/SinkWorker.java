@@ -18,10 +18,10 @@ package com.couchbase.connector.elasticsearch.sink;
 
 import com.couchbase.connector.dcp.Event;
 import com.couchbase.connector.elasticsearch.ErrorListener;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;

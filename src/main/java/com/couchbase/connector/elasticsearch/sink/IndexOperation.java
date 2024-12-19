@@ -17,8 +17,7 @@
 package com.couchbase.connector.elasticsearch.sink;
 
 import com.couchbase.connector.dcp.Event;
-
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import static java.util.Objects.requireNonNull;
 
@@ -49,13 +48,11 @@ public class IndexOperation extends BaseOperation {
     return Type.INDEX;
   }
 
-  @Nullable
-  public String pipeline() {
+  public @Nullable String pipeline() {
     return pipeline;
   }
 
-  @Nullable
-  public String routing() {
+  public @Nullable String routing() {
     return routing;
   }
 

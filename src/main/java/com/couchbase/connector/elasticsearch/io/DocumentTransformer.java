@@ -17,8 +17,7 @@
 package com.couchbase.connector.elasticsearch.io;
 
 import com.couchbase.connector.dcp.Event;
-
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public interface DocumentTransformer {
   /**

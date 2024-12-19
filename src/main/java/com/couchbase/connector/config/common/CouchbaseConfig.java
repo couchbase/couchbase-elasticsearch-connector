@@ -22,8 +22,8 @@ import com.couchbase.connector.config.ScopeAndCollection;
 import com.couchbase.connector.config.toml.ConfigTable;
 import com.google.common.collect.ImmutableList;
 import org.immutables.value.Value;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.List;

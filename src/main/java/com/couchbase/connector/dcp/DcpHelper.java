@@ -51,10 +51,10 @@ import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.couchbase.connector.config.common.TrustStoreConfig;
 import com.couchbase.connector.elasticsearch.Metrics;
 import com.google.common.collect.ImmutableList;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;

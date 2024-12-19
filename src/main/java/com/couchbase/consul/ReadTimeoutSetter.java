@@ -22,7 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import okhttp3.Interceptor;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -47,9 +47,8 @@ public class ReadTimeoutSetter implements Interceptor {
   public static final Duration CALL_TIMEOUT = addConsulJitter(MAX_WAIT)
       .plus(Duration.ofSeconds(10)); // *extra* grace period for response processing, etc.
 
-  @NotNull
   @Override
-  public Response intercept(@NotNull Chain chain) throws IOException {
+  public @NonNull Response intercept(@NonNull Chain chain) throws IOException {
     Request request = chain.request();
     boolean hasIndex = request.url().queryParameterNames().contains("index");
 

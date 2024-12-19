@@ -21,7 +21,7 @@ import okhttp3.Callback;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
@@ -40,12 +40,12 @@ public class OkHttpHelper {
 
       call.enqueue(new Callback() {
         @Override
-        public void onFailure(@NotNull Call call, @NotNull IOException e) {
+        public void onFailure(@NonNull Call call, @NonNull IOException e) {
           sink.error(e);
         }
 
         @Override
-        public void onResponse(@NotNull Call call, @NotNull okhttp3.Response response) throws IOException {
+        public void onResponse(@NonNull Call call, okhttp3.@NonNull Response response) throws IOException {
           try (response) {
             sink.success(responseTransformer.apply(response));
           } catch (Throwable t) {

@@ -23,8 +23,8 @@ import com.couchbase.connector.dcp.Event;
 import com.fasterxml.jackson.core.JsonPointer;
 import com.google.common.base.Strings;
 import org.immutables.value.Value;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

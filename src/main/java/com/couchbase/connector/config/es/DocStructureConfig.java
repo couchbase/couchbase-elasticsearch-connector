@@ -19,8 +19,7 @@ package com.couchbase.connector.config.es;
 import com.couchbase.connector.config.toml.ConfigTable;
 import com.google.common.base.Strings;
 import org.immutables.value.Value;
-
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @Value.Immutable
 public interface DocStructureConfig {

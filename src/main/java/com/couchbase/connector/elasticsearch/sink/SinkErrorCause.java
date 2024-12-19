@@ -16,7 +16,7 @@
 
 package com.couchbase.connector.elasticsearch.sink;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public interface SinkErrorCause {
   @Nullable

@@ -27,7 +27,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import jakarta.json.stream.JsonGenerator;
 import jakarta.json.stream.JsonParser;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.opensearch.client.ResponseException;
 import org.opensearch.client.json.JsonpDeserializer;
 import org.opensearch.client.json.JsonpDeserializerBase;
@@ -126,9 +126,8 @@ public class OpenSearchSinkOps implements SinkOps, SinkTestOps {
           @Override
           public SinkErrorCause error() {
             return it.error() == null ? null : new SinkErrorCause() {
-              @Nullable
               @Override
-              public String reason() {
+              public @Nullable String reason() {
                 return it.error().reason();
               }
 
