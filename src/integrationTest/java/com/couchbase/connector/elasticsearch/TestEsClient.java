@@ -47,6 +47,10 @@ class TestEsClient implements AutoCloseable {
   private final SinkTestOps sinkOps;
   private final ElasticsearchSinkOps elasticsearchSinkOps;
 
+  public TestEsClient(PatchableConfig configPatcher) {
+    this(configPatcher.toConfig());
+  }
+
   public TestEsClient(ConnectorConfig config) {
     this.sinkOps = (SinkTestOps) SinkOps.create(config);
 

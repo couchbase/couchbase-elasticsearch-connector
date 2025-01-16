@@ -83,7 +83,7 @@ public class CheckpointBackup extends AbstractCliCommand {
     final int numVbuckets = bucketConfig.numberOfPartitions();
     final Set<Integer> vbuckets = IntStream.range(0, numVbuckets).boxed().collect(toSet());
 
-    final Map<Integer, Checkpoint> checkpoints = checkpointDao.load(bucketUuid, vbuckets);
+    final Map<Integer, Checkpoint> checkpoints = checkpointDao.loadOrDefaultToZero(bucketUuid, vbuckets);
 
     final Map<String, Object> output = new LinkedHashMap<>();
     output.put("formatVersion", 1);

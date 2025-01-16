@@ -110,6 +110,12 @@ hostnameVerification = true
 scope = ''
 collections = []
 
+# If there is no existing checkpoint for a partition, the connector
+# starts from either:
+#  ZERO - Replicate past and future changes. This is the default value.
+#  NOW - Replicate only changes that happen after the connector starts.
+defaultCheckpoint = 'ZERO'
+
 # When secure connections are enabled, you can optionally authenticate
 # using a client certificate instead of username & password.
 [couchbase.clientCertificate]

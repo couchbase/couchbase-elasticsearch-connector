@@ -23,7 +23,15 @@ public interface CheckpointDao {
 
   void save(String bucketUuid, Map<Integer, Checkpoint> vbucketToCheckpoint);
 
-  Map<Integer, Checkpoint> load(String bucketUuid, Set<Integer> vbuckets);
+  Map<Integer, Checkpoint> loadExisting(String bucketUuid, Set<Integer> vbuckets);
+
+  default Map<Integer, Checkpoint> loadOrDefaultToZero(String bucketUuid, Set<Integer> vbuckets) {
+    Map<Integer, Checkpoint> result = loadExisting(bucketUuid, vbuckets);
+    for (Integer vbucket : vbuckets) {
+      result.putIfAbsent(vbucket, Checkpoint.ZERO);
+    }
+    return result;
+  }
 
   void clear(String bucketUuid, Set<Integer> vbuckets);
 }

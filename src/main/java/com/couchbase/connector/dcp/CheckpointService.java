@@ -22,7 +22,6 @@ import io.micrometer.core.instrument.Counter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -69,8 +68,8 @@ public class CheckpointService {
     positions.set(vbucket, position);
   }
 
-  public synchronized Map<Integer, Checkpoint> load(Set<Integer> vbuckets) throws IOException {
-    final Map<Integer, Checkpoint> result = streamPositionDao.load(bucketUuid, vbuckets);
+  public synchronized Map<Integer, Checkpoint> load(Set<Integer> vbuckets) {
+    final Map<Integer, Checkpoint> result = streamPositionDao.loadOrDefaultToZero(bucketUuid, vbuckets);
     LOGGER.debug("Loaded checkpoints: {}", result);
 
     for (Map.Entry<Integer, Checkpoint> entry : result.entrySet()) {

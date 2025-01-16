@@ -101,6 +101,11 @@ public class CheckpointClear extends AbstractCliCommand {
   }
 
   private static void setCheckpointToNow(ConnectorConfig config, Set<SeedNode> kvNodes, CheckpointDao checkpointDao) throws IOException {
+    Map<Integer, Checkpoint> now = getNowForAllPartitions(config, kvNodes);
+    checkpointDao.save("", now);
+  }
+
+  public static Map<Integer, Checkpoint> getNowForAllPartitions(ConnectorConfig config, Set<SeedNode> kvNodes) {
     final Client dcpClient = DcpHelper.newClient(config.group().name(), config.couchbase(), kvNodes, config.trustStore().orElse(null));
     try {
       dcpClient.connect().block();
@@ -117,7 +122,7 @@ public class CheckpointClear extends AbstractCliCommand {
         now.put(i, new Checkpoint(p.getLastUuid(), seqno, new SnapshotMarker(seqno, seqno)));
       }
 
-      checkpointDao.save("", now);
+      return now;
 
     } finally {
       dcpClient.disconnect().block();

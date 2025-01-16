@@ -35,6 +35,11 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 
 @Value.Immutable
 public interface CouchbaseConfig {
+  enum DefaultCheckpoint {
+    ZERO,
+    NOW,
+  }
+
   List<String> hosts();
 
   NetworkResolution network();
@@ -51,6 +56,11 @@ public interface CouchbaseConfig {
   @Value.Default
   default ScopeAndCollection metadataCollection() {
     return ScopeAndCollection.DEFAULT;
+  }
+
+  @Value.Default
+  default DefaultCheckpoint defaultCheckpoint() {
+    return DefaultCheckpoint.ZERO;
   }
 
   @Nullable
@@ -83,7 +93,7 @@ public interface CouchbaseConfig {
   }
 
   static ImmutableCouchbaseConfig from(ConfigTable config) {
-    config.expectOnly("bucket", "metadataBucket", "metadataCollection", "scope", "collections", "hosts", "network", "username", "pathToPassword", "clientCertificate", "dcp", "secureConnection", "pathToCaCertificate", "hostnameVerification", "env");
+    config.expectOnly("bucket", "metadataBucket", "metadataCollection", "defaultCheckpoint", "scope", "collections", "hosts", "network", "username", "pathToPassword", "clientCertificate", "dcp", "secureConnection", "pathToCaCertificate", "hostnameVerification", "env");
 
     final String sourceBucket = config.getString("bucket").orElse("default");
     final String networkName = config.getString("network").orElse("auto");
@@ -98,6 +108,7 @@ public interface CouchbaseConfig {
         .collections(config.getOptionalList("collections", ScopeAndCollection::parse))
         .metadataBucket(isNullOrEmpty(metadataBucket) ? sourceBucket : metadataBucket)
         .metadataCollection(isNullOrEmpty(metadataCollection) ? ScopeAndCollection.DEFAULT : ScopeAndCollection.parse(metadataCollection))
+        .defaultCheckpoint(config.getEnum("defaultCheckpoint", DefaultCheckpoint.class).orElse(DefaultCheckpoint.ZERO))
         .hosts(config.getRequiredStrings("hosts"))
         .network(networkName.isEmpty() ? NetworkResolution.AUTO : NetworkResolution.valueOf(networkName))
         .username(config.getString("username").orElse(""))
