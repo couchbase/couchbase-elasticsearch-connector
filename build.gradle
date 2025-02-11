@@ -82,6 +82,7 @@ dependencies {
   implementation("software.amazon.awssdk:apache-client")
   implementation("software.amazon.awssdk:regions")
   implementation("software.amazon.awssdk:auth")
+  implementation("software.amazon.awssdk:sts")
 
   implementation platform('com.fasterxml.jackson:jackson-bom:2.18.2')
   implementation 'com.fasterxml.jackson.core:jackson-databind'
