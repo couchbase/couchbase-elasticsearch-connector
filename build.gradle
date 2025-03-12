@@ -71,11 +71,11 @@ dependencies {
 
   implementation(platform('com.squareup.okhttp3:okhttp-bom:4.12.0'))
 
-  implementation 'co.elastic.clients:elasticsearch-java:8.14.3'
+  implementation 'co.elastic.clients:elasticsearch-java:8.17.3'
 
-  implementation('org.opensearch.client:opensearch-java:2.12.0')
-  implementation("org.opensearch.client:opensearch-rest-client:2.15.0")
-  implementation('org.apache.httpcomponents.client5:httpclient5:5.3.1')
+  implementation('org.opensearch.client:opensearch-java:2.22.0')
+  implementation("org.opensearch.client:opensearch-rest-client:2.19.1")
+  implementation('org.apache.httpcomponents.client5:httpclient5:5.4.2')
 
   implementation(platform('software.amazon.awssdk:bom:2.20.26'))
   implementation("software.amazon.awssdk:sdk-core")
