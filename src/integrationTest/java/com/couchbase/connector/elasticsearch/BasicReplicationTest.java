@@ -16,17 +16,25 @@
 
 package com.couchbase.connector.elasticsearch;
 
-import com.couchbase.client.core.config.BucketCapabilities;
+import com.couchbase.client.core.config.ClusterConfig;
 import com.couchbase.client.core.deps.io.netty.util.ResourceLeakDetector;
 import com.couchbase.client.core.msg.kv.MutationToken;
+import com.couchbase.client.core.service.ServiceType;
+import com.couchbase.client.core.topology.ClusterTopologyWithBucket;
+import com.couchbase.client.core.topology.CouchbaseBucketTopology;
+import com.couchbase.client.dcp.util.PartitionSet;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Collection;
 import com.couchbase.client.java.json.JsonObject;
 import com.couchbase.client.java.kv.MutationResult;
+import com.couchbase.client.java.kv.ScanOptions;
+import com.couchbase.client.java.kv.ScanResult;
+import com.couchbase.client.java.kv.ScanType;
+import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.cluster.consul.AsyncTask;
+import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
-import com.couchbase.connector.config.es.ImmutableConnectorConfig;
-import com.couchbase.connector.dcp.CouchbaseHelper;
+import com.couchbase.connector.dcp.CouchbaseCheckpointDao;
 import com.couchbase.connector.elasticsearch.cli.CheckpointClear;
 import com.couchbase.connector.testcontainers.CustomCouchbaseContainer;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -46,10 +54,14 @@ import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
-import static com.couchbase.client.core.config.BucketCapabilities.COLLECTIONS;
+import static com.couchbase.client.java.diagnostics.WaitUntilReadyOptions.waitUntilReadyOptions;
 import static com.couchbase.connector.dcp.CouchbaseHelper.forceKeyToPartition;
 import static com.couchbase.connector.elasticsearch.ElasticsearchVersionSniffer.Flavor.ELASTICSEARCH;
 import static com.couchbase.connector.elasticsearch.ElasticsearchVersionSniffer.Flavor.OPENSEARCH;
@@ -57,14 +69,18 @@ import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.close;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.upsertWithRetry;
 import static com.couchbase.connector.elasticsearch.IntegrationTestHelper.waitForTravelSampleReplication;
 import static com.couchbase.connector.elasticsearch.TestConfigHelper.readConfig;
-import static com.couchbase.connector.elasticsearch.TestConfigHelper.withBucketName;
 import static com.couchbase.connector.testcontainers.CustomCouchbaseContainer.newCouchbaseCluster;
+import static com.couchbase.connector.testcontainers.Poller.poll;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.commons.lang3.StringUtils.substringAfterLast;
+import static org.apache.commons.lang3.StringUtils.substringBefore;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
+import static org.junit.Assert.fail;
 
 /**
  * MUST NOT be run in parallel.
@@ -84,7 +100,7 @@ public class BasicReplicationTest {
 
   private static CustomCouchbaseContainer couchbase;
   private static SinkContainer sink;
-  private static ImmutableConnectorConfig commonConfig;
+  private static PatchableConfig commonConfig;
 
   @Parameterized.Parameters(name = "cb={0}, sink={2} {1}")
   public static Iterable<Object[]> versionsToTest() {
@@ -148,6 +164,7 @@ public class BasicReplicationTest {
     this.sinkFlavor = requireNonNull(flavor);
   }
 
+  @SuppressWarnings("HttpUrlsUsage")
   @Before
   public void setup() throws Exception {
     if (couchbaseVersion.equals(cachedCouchbaseContainerVersion)) {
@@ -178,8 +195,8 @@ public class BasicReplicationTest {
       cachedSinkFlavor = sinkFlavor;
     }
 
-    commonConfig = ConnectorConfig.from(readConfig(couchbase, sink));
-    CheckpointClear.clear(commonConfig);
+    commonConfig = PatchableConfig.from(ConnectorConfig.from(readConfig(couchbase, sink)));
+    CheckpointClear.clear(commonConfig.toConfig());
 
     try (TestEsClient es = new TestEsClient(commonConfig)) {
       es.deleteAllIndexes();
@@ -191,16 +208,147 @@ public class BasicReplicationTest {
     close(couchbase, sink);
   }
 
+  private static AsyncTask runConnectorAndWaitForReady(ConnectorConfig config) throws Exception {
+    CountDownLatch readyLatch = new CountDownLatch(1);
+    AsyncTask result = AsyncTask.run(() -> new ElasticsearchConnector.ConnectorRunner(config)
+        .onReady(readyLatch::countDown)
+        .run()
+    );
+    if (!readyLatch.await(60, SECONDS)) {
+      result.close();
+      throw new TimeoutException("Timed out waiting for connector to start");
+    }
+    return result;
+  }
+
+  private static PartitionSet partitionsWithCheckpoints(
+      Collection metadataCollection,
+      String groupName
+  ) {
+    // Example checkpoint document ID: "_connector:cbes:example-group:checkpoint:0#86"
+    Set<Integer> result = metadataCollection.scan(
+            ScanType.prefixScan("_connector:cbes:" + groupName + ":checkpoint"),
+            ScanOptions.scanOptions().idsOnly(true)
+        )
+        .map(ScanResult::id)
+        .map(id -> substringAfterLast(id, ":"))
+        .map(id -> substringBefore(id, "#"))
+        .map(Integer::valueOf)
+        .collect(Collectors.toSet());
+
+    return PartitionSet.from(result);
+  }
+
+  /**
+   * Creates one document before the connector starts, and one document after.
+   * Always expects the "after" document to be replicated.
+   * Expects the "before" document to be replicated only if the default checkpoint is not NOW.
+   */
+  private void testDefaultCheckpoint(CouchbaseConfig.DefaultCheckpoint defaultCheckpoint) throws Exception {
+    try (TestCouchbaseClient cb = new TestCouchbaseClient(commonConfig)) {
+      Bucket bucket = cb.createTempBucket(couchbase);
+      Collection collection = bucket.defaultCollection();
+
+      ConnectorConfig config = commonConfig
+          .withBucket(bucket)
+          .withCouchbase(couchbase -> couchbase.withDefaultCheckpoint(defaultCheckpoint))
+          // Make responsible for only the first half of partitions, so we can verify
+          // the connector doesn't create checkpoints for partitions that don't belong to it.
+          .withGroup(group -> group.withStaticMembership(Membership.of(1, 2)))
+          .toConfig();
+
+      int bucketPartitions = numPartitions(bucket);
+      String beforeDocId = forceKeyToPartition("before", 0, bucketPartitions).orElseThrow();
+      String afterDocId = forceKeyToPartition("after", 0, bucketPartitions).orElseThrow();
+
+      collection.upsert(beforeDocId, Map.of("magicWord", "abracadabra"));
+
+      try (
+          TestEsClient es = new TestEsClient(config);
+          AsyncTask ignore = runConnectorAndWaitForReady(config);
+      ) {
+        collection.upsert(afterDocId, Map.of("magicWord", "xyzzy"));
+        es.waitForDocument(CATCH_ALL_INDEX, afterDocId);
+
+        switch (defaultCheckpoint) {
+          case ZERO:
+            es.waitForDocument(CATCH_ALL_INDEX, beforeDocId);
+            break;
+          case NOW:
+            assertEquals(Optional.empty(), es.getDocument(CATCH_ALL_INDEX, beforeDocId));
+            break;
+          default:
+            throw new UnsupportedOperationException("unrecognized default checkpoint: " + defaultCheckpoint);
+        }
+
+        PartitionSet firstHalfOfPartitions = PartitionSet.allPartitions(bucketPartitions / 2);
+        System.out.println("firstHalfOfPartitions = " + firstHalfOfPartitions);
+
+        String groupName = config.group().name();
+        poll()
+            .withTimeout(Duration.ofSeconds(60))
+            .until(() -> {
+              PartitionSet partitionsWithCheckpoints = partitionsWithCheckpoints(collection, groupName);
+              System.out.println("partitionsWithCheckpoints = " + partitionsWithCheckpoints);
+              return firstHalfOfPartitions.equals(partitionsWithCheckpoints);
+            });
+
+        // wait a bit to ensure no more slip in...
+        SECONDS.sleep(3);
+        assertEquals(
+            firstHalfOfPartitions,
+            partitionsWithCheckpoints(collection, groupName)
+        );
+
+        // Cross-check with checkpoint DAO
+        assertEquals(
+            firstHalfOfPartitions,
+            PartitionSet.from(
+                new CouchbaseCheckpointDao(collection, groupName)
+                    .loadExisting("", PartitionSet.allPartitions(bucketPartitions).toSet())
+                    .keySet()
+            )
+        );
+      }
+    }
+  }
+
+  @Test
+  public void defaultCheckpointZero() throws Throwable {
+    testDefaultCheckpoint(CouchbaseConfig.DefaultCheckpoint.ZERO);
+  }
+
+  @Test
+  public void defaultCheckpointNow() throws Throwable {
+    testDefaultCheckpoint(CouchbaseConfig.DefaultCheckpoint.NOW);
+  }
+
+  private static int numPartitions(Bucket bucket) {
+    int result = getTopology(bucket).numberOfPartitions();
+    assertNotEquals(0, result);
+    if (result % 2 != 0) {
+      fail("expected bucket to have even number of partitions, but got " + result);
+    }
+    return result;
+  }
+
+  private static CouchbaseBucketTopology getTopology(Bucket bucket) {
+    bucket.waitUntilReady(Duration.ofSeconds(30), waitUntilReadyOptions().serviceTypes(ServiceType.KV));
+    ClusterConfig clusterConfig = bucket.core().configurationProvider().config();
+    ClusterTopologyWithBucket topology = requireNonNull(clusterConfig.bucketTopology(bucket.name()));
+    return (CouchbaseBucketTopology) topology.bucket();
+  }
+
   @Test
   public void createDeleteReject() throws Throwable {
     try (TestCouchbaseClient cb = new TestCouchbaseClient(commonConfig)) {
       final Bucket bucket = cb.createTempBucket(couchbase);
       final Collection collection = bucket.defaultCollection();
 
-      final ImmutableConnectorConfig config = withBucketName(commonConfig, bucket.name());
+      final ConnectorConfig config = commonConfig.withBucket(bucket).toConfig();
 
       try (TestEsClient es = new TestEsClient(config);
-           AsyncTask connector = AsyncTask.run(() -> ElasticsearchConnector.run(config))) {
+           AsyncTask ignore = runConnectorAndWaitForReady(config)) {
 
         assertIndexInferredFromDocumentId(bucket, es);
 
@@ -283,22 +431,10 @@ public class BasicReplicationTest {
     assertThat(content.path("error").textValue()).contains(reason);
   }
 
-  private void assumeSupportsCollections(TestCouchbaseClient client) {
-    assumeTrue("Skipping this test because the server does not support collections.",
-        hasCapability(client.cluster().bucket("travel-sample"), COLLECTIONS));
-  }
-
-  private static boolean hasCapability(Bucket bucket, BucketCapabilities capability) {
-    return CouchbaseHelper.getConfig(bucket.core(), bucket.name())
-        .block(Duration.ofMinutes(1))
-        .bucketCapabilities()
-        .contains(capability);
-  }
-
   @Test
   public void canReplicateTravelSample() throws Throwable {
     try (TestEsClient es = new TestEsClient(commonConfig);
-         AsyncTask connector = AsyncTask.run(() -> ElasticsearchConnector.run(commonConfig))) {
+         AsyncTask ignore = runConnectorAndWaitForReady(commonConfig.toConfig())) {
       waitForTravelSampleReplication(es);
     }
   }

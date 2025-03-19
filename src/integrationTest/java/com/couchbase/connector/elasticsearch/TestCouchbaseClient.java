@@ -41,6 +41,10 @@ class TestCouchbaseClient implements Closeable {
     this(ConnectorConfig.from(config));
   }
 
+  public TestCouchbaseClient(PatchableConfig patcher) {
+    this(patcher.toConfig());
+  }
+
   public TestCouchbaseClient(ImmutableConnectorConfig config) {
     this.cluster = CouchbaseHelper.createCluster(
         config.couchbase(),

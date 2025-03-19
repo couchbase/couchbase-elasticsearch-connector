@@ -32,15 +32,18 @@ import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.cluster.PanicButton;
 import com.couchbase.connector.cluster.k8s.ReplicaChangeWatcher;
 import com.couchbase.connector.cluster.k8s.StatefulSetInfo;
+import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.couchbase.connector.config.common.ImmutableGroupConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.config.es.ImmutableConnectorConfig;
+import com.couchbase.connector.dcp.Checkpoint;
 import com.couchbase.connector.dcp.CheckpointDao;
 import com.couchbase.connector.dcp.CheckpointService;
 import com.couchbase.connector.dcp.CouchbaseCheckpointDao;
 import com.couchbase.connector.dcp.CouchbaseHelper;
 import com.couchbase.connector.dcp.DcpHelper;
 import com.couchbase.connector.elasticsearch.cli.AbstractCliCommand;
+import com.couchbase.connector.elasticsearch.cli.CheckpointClear;
 import com.couchbase.connector.elasticsearch.io.RequestFactory;
 import com.couchbase.connector.elasticsearch.sink.SinkOps;
 import com.couchbase.connector.elasticsearch.sink.SinkWorkerGroup;
@@ -56,7 +59,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
@@ -168,11 +174,49 @@ public class ElasticsearchConnector extends AbstractCliCommand {
     }
   }
 
+  public static class ConnectorRunner {
+    private final ConnectorConfig config;
+    private PanicButton panicButton = new DefaultPanicButton();
+    private Duration startupQuietPeriod = Duration.ZERO;
+    private Runnable onReady = () -> {
+    };
+
+    public ConnectorRunner(ConnectorConfig config) {
+      this.config = config;
+    }
+
+    public ConnectorRunner panicButton(PanicButton panicButton) {
+      this.panicButton = panicButton;
+      return this;
+    }
+
+    public ConnectorRunner onReady(Runnable onReady) {
+      this.onReady = onReady;
+      return this;
+    }
+
+    public ConnectorRunner startupQuietPeriod(Duration startupQuietPeriod) {
+      this.startupQuietPeriod = startupQuietPeriod;
+      return this;
+    }
+
+    public void run() throws Throwable {
+      ElasticsearchConnector.run(config, panicButton, startupQuietPeriod, onReady);
+    }
+  }
+
   public static void run(ConnectorConfig config) throws Throwable {
-    run(config, new DefaultPanicButton(), Duration.ZERO);
+    new ConnectorRunner(config).run();
   }
 
   public static void run(ConnectorConfig config, PanicButton panicButton, Duration startupQuietPeriod) throws Throwable {
+    new ConnectorRunner(config)
+        .panicButton(panicButton)
+        .startupQuietPeriod(startupQuietPeriod)
+        .run();
+  }
+
+  private static void run(ConnectorConfig config, PanicButton panicButton, Duration startupQuietPeriod, Runnable onReady) throws Throwable {
     final Throwable fatalError;
 
     final Membership membership = config.group().staticMembership();
@@ -254,6 +298,8 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         }
         checkpointService.init(numPartitions, () -> DcpHelper.getCurrentSeqnosAsMap(dcpClient, partitions, Duration.ofSeconds(5)));
 
+        maybeSetDefaultCheckpoints(config, checkpointDao, bucketUuid, partitions, kvNodes);
+
         dcpClient.initializeState(StreamFrom.BEGINNING, StreamTo.INFINITY).block();
         initSessionState(dcpClient, checkpointService, partitions);
 
@@ -289,6 +335,7 @@ public class ElasticsearchConnector extends AbstractCliCommand {
         }
 
         LOGGER.info("Elasticsearch connector startup complete.");
+        onReady.run();
 
         fatalError = workers.awaitFatalError();
         LOGGER.error("Terminating due to fatal error from worker", fatalError);
@@ -319,4 +366,53 @@ public class ElasticsearchConnector extends AbstractCliCommand {
     MILLISECONDS.sleep(500); // give stdout a chance to quiet down so the stack trace on stderr isn't interleaved with stdout.
     throw fatalError;
   }
+
+  /**
+   * Set any missing checkpoints to the default value.
+   */
+  private static void maybeSetDefaultCheckpoints(
+      ConnectorConfig config,
+      CheckpointDao checkpointDao,
+      String bucketUuid,
+      Set<Integer> paritionsAssignedToMe,
+      Set<SeedNode> kvNodes
+  ) {
+    Map<Integer, Checkpoint> existingCheckpoints = checkpointDao.loadExisting(bucketUuid, paritionsAssignedToMe);
+
+    if (existingCheckpoints.keySet().equals(paritionsAssignedToMe)) {
+      LOGGER.info("defaultCheckpoint: Each assigned partitions has a checkpoint; default not required.");
+      return;
+    }
+
+    CouchbaseConfig.DefaultCheckpoint defaultCheckpoint = config.couchbase().defaultCheckpoint();
+
+    Map<Integer, Checkpoint> defaults;
+    switch (defaultCheckpoint) {
+      case NOW:
+        defaults = CheckpointClear.getNowForAllPartitions(config, kvNodes);
+        break;
+
+      case ZERO:
+        defaults = new HashMap<>();
+        paritionsAssignedToMe.forEach(p -> defaults.put(p, Checkpoint.ZERO));
+        break;
+
+      default:
+        throw new RuntimeException("Unexpected default checkpoint type: " + defaultCheckpoint);
+    }
+
+    defaults.keySet().retainAll(paritionsAssignedToMe); // narrow to just the partitions assigned to this member
+    defaults.keySet().removeAll(existingCheckpoints.keySet()); // don't clobber existing checkpoints
+
+    LOGGER.info(
+        "defaultCheckpoint: At least one assigned partition does not have a checkpoint." +
+            " Creating '{}' checkpoints for partitions: {}",
+        defaultCheckpoint,
+        PartitionSet.from(defaults.keySet())
+    );
+
+    LOGGER.debug("defaultCheckpoint: Saving '{}' checkpoints: {}", defaultCheckpoint, new TreeMap<>(defaults));
+    checkpointDao.save(bucketUuid, defaults);
+  }
+
 }

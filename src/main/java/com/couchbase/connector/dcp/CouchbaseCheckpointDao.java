@@ -18,6 +18,7 @@ package com.couchbase.connector.dcp;
 
 import com.couchbase.client.core.error.DocumentNotFoundException;
 import com.couchbase.client.core.error.TemporaryFailureException;
+import com.couchbase.client.core.error.subdoc.PathNotFoundException;
 import com.couchbase.client.java.Collection;
 import com.couchbase.client.java.codec.RawBinaryTranscoder;
 import com.couchbase.client.java.kv.LookupInResult;
@@ -26,9 +27,11 @@ import com.couchbase.client.java.kv.MutateInSpec;
 import com.couchbase.connector.elasticsearch.io.BackoffPolicyBuilder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -158,24 +161,14 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
   }
 
   @Override
-  public Map<Integer, Checkpoint> load(String bucketUuid, Set<Integer> vbuckets) {
+  public Map<Integer, Checkpoint> loadExisting(String bucketUuid, Set<Integer> vbuckets) {
     final Map<Integer, Checkpoint> result = new LinkedHashMap<>();
 
     for (int vbucket : vbuckets) {
       final JsonNode content = readCheckpointForPartition(vbucket);
-
-      if (content == null) {
-        result.put(vbucket, Checkpoint.ZERO);
-      } else {
-//        final String checkpointBucketUuid = document.get("bucketUuid").asText();
-//        if (checkpointBucketUuid.equals(bucketUuid)) {
+      if (content != null) {
         final Checkpoint checkpoint = mapper.convertValue(content.get("checkpoint"), Checkpoint.class);
         result.put(vbucket, checkpoint);
-//        } else {
-//          LOGGER.warn("Bucket UUID mismatch");
-//          // todo think about how we would get into this state
-//          // todo throw IllegalStateException??
-//        }
       }
     }
 
@@ -185,16 +178,22 @@ public class CouchbaseCheckpointDao implements CheckpointDao {
   private static final String XATTR_NAME = "cbes";
 
   /**
-   * @return (nullable) context of the checkpoint document, or null if there was any kind of failure.
+   * Returns the partition's checkpoint as JSON,
+   * or null if the document or XATTR does not exist.
+   *
+   * @throws RuntimeException if any other error occurs
    */
-  private JsonNode readCheckpointForPartition(int partition) {
+  private @Nullable JsonNode readCheckpointForPartition(int partition) {
     try {
       String documentId = documentIdForVbucket(partition);
       LookupInResult lookup = collection.lookupIn(documentId, singletonList(LookupInSpec.get(XATTR_NAME).xattr()));
       return mapper.readTree(lookup.contentAs(0, byte[].class));
 
-    } catch (Exception e) {
+    } catch (DocumentNotFoundException | PathNotFoundException e) {
       return null;
+
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to deserialize checkpoint JSON", e);
     }
   }
 }
