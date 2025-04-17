@@ -5,7 +5,7 @@ Discussion:
   https://forums.couchbase.com/c/elasticsearch-connector/36
 
 Issue tracker:
-  https://issues.couchbase.com/projects/CBES
+  https://github.com/couchbase/couchbase-elasticsearch-connector/issues
 
 Source code:
   https://github.com/couchbase/couchbase-elasticsearch-connector
