@@ -78,6 +78,7 @@ dependencies {
   implementation('org.apache.httpcomponents.client5:httpclient5:5.4.2')
 
   implementation(platform('software.amazon.awssdk:bom:2.20.26'))
+  implementation(platform('io.netty:netty-bom:4.1.119.Final')) // AWS SDK uses Netty. Force version upgrade.
   implementation("software.amazon.awssdk:sdk-core")
   implementation("software.amazon.awssdk:apache-client")
   implementation("software.amazon.awssdk:regions")
