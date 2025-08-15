@@ -25,6 +25,8 @@ import com.couchbase.client.core.env.PasswordAuthenticator;
 import com.couchbase.client.core.env.PropertyLoader;
 import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.core.service.ServiceType;
+import com.couchbase.client.core.topology.ClusterTopologyWithBucket;
+import com.couchbase.client.core.topology.CouchbaseBucketTopology;
 import com.couchbase.client.core.util.ConnectionString;
 import com.couchbase.client.core.util.HostAndPort;
 import com.couchbase.client.java.Bucket;
@@ -205,6 +207,33 @@ public class CouchbaseHelper {
             Mono.justOrEmpty(clusterConfig.bucketConfig(bucketName)))
         .filter(CouchbaseHelper::hasPartitionInfo)
         .next();
+  }
+
+  public static Mono<ClusterTopologyWithBucket> getTopology(Core core, String bucketName) {
+    return core
+        .configurationProvider()
+        .configs()
+        .flatMap(clusterConfig ->
+            Mono.justOrEmpty(clusterConfig.bucketTopology(bucketName)))
+        .filter(CouchbaseHelper::hasPartitionInfo)
+        .next();
+  }
+
+  /**
+   * Returns true unless the topology is from a newly-created bucket
+   * whose partition count is not yet available.
+   */
+  private static boolean hasPartitionInfo(ClusterTopologyWithBucket topology) {
+    CouchbaseBucketTopology bucketTopology = (CouchbaseBucketTopology) topology.bucket();
+    return bucketTopology.numberOfPartitions() > 0;
+  }
+
+  public static Mono<ClusterTopologyWithBucket> getTopology(Bucket bucket) {
+    return getTopology(bucket.core(), bucket.name());
+  }
+
+  public static ClusterTopologyWithBucket getTopology(Bucket bucket, Duration timeout) {
+    return getTopology(bucket).block(timeout);
   }
 
   /**

@@ -116,6 +116,12 @@ public class Metrics {
     new JvmThreadMetrics().bindTo(registry);
   }
 
+  public static void commonTags(Iterable<Tag> tags) {
+    prometheusRegistry.config().commonTags(tags);
+    dropwizardRegistry.config().commonTags(tags);
+    // but don't tag the JVM-specific metrics, because they're not specific to the cluster/bucket.
+  }
+
   private Metrics() {
     throw new AssertionError("not instantiable");
   }

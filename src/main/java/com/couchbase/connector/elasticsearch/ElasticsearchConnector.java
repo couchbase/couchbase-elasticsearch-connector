@@ -19,6 +19,8 @@ package com.couchbase.connector.elasticsearch;
 import com.codahale.metrics.Slf4jReporter;
 import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.core.logging.LogRedaction;
+import com.couchbase.client.core.topology.ClusterIdentifier;
+import com.couchbase.client.core.topology.ClusterTopology;
 import com.couchbase.client.dcp.Client;
 import com.couchbase.client.dcp.StreamFrom;
 import com.couchbase.client.dcp.StreamTo;
@@ -53,6 +55,7 @@ import com.couchbase.connector.util.RuntimeHelper;
 import com.couchbase.connector.util.ThrowableHelper;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.micrometer.core.instrument.Tag;
 import joptsimple.OptionSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +71,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 import static com.couchbase.client.core.logging.RedactableArgument.redactSystem;
+import static com.couchbase.client.core.util.CbCollections.listOf;
 import static com.couchbase.connector.VersionHelper.getVersionString;
 import static com.couchbase.connector.dcp.DcpHelper.initEventListener;
 import static com.couchbase.connector.dcp.DcpHelper.initSessionState;
@@ -240,6 +244,15 @@ public class ElasticsearchConnector extends AbstractCliCommand {
       // Wait for couchbase server to come online, then open the bucket.
       final Bucket bucket = CouchbaseHelper.waitForBucket(cluster, config.couchbase().bucket());
       final Set<SeedNode> kvNodes = CouchbaseHelper.getKvNodes(config.couchbase(), bucket);
+
+      ClusterTopology topology = CouchbaseHelper.getTopology(bucket, bucket.environment().timeoutConfig().connectTimeout());
+      ClusterIdentifier clusterId = topology.id();
+      String clusterUuid = clusterId == null ? "" : clusterId.clusterUuid();
+      LOGGER.debug("Connected to Couchbase Server cluster with UUID: {}", clusterUuid);
+      Metrics.commonTags(listOf(
+          Tag.of("clusterUuid", clusterUuid),
+          Tag.of("bucket", bucket.name())
+      ));
 
       final boolean storeMetadataInSourceBucket = config.couchbase().metadataBucket().equals(config.couchbase().bucket());
       final Bucket metadataBucket = storeMetadataInSourceBucket ? bucket : CouchbaseHelper.waitForBucket(cluster, config.couchbase().metadataBucket());
