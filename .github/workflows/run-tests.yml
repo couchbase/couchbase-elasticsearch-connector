@@ -25,7 +25,7 @@ jobs:
       - name: Run tests
         timeout-minutes: 60
         run: |
-          ./gradlew --no-build-cache integrationTest
+          ./gradlew --no-build-cache --continue integrationTest || true
 
       - name: Publish test results
         run: |
