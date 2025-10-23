@@ -29,7 +29,9 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: 'gradle'
+
+      - name: Set up Gradle (for more sophisticated caching)
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Run tests
         timeout-minutes: 60
