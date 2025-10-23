@@ -32,6 +32,7 @@ import com.couchbase.client.java.kv.ScanResult;
 import com.couchbase.client.java.kv.ScanType;
 import com.couchbase.connector.cluster.Membership;
 import com.couchbase.connector.cluster.consul.AsyncTask;
+import com.couchbase.connector.config.ScopeAndCollection;
 import com.couchbase.connector.config.common.CouchbaseConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
 import com.couchbase.connector.dcp.CouchbaseCheckpointDao;
@@ -108,25 +109,26 @@ public class BasicReplicationTest {
     final boolean exhaustive = Boolean.parseBoolean(System.getProperty("com.couchbase.integrationTest.exhaustive"));
 
     final ImmutableSet<String> couchbaseVersions = ImmutableSet.of(
-        "enterprise-7.6.4",
-        "community-7.6.2"
+        "enterprise-8.0.0", // latest version
+        "enterprise-7.6.7", // latest version of previous minor
+        "community-8.0.0"
     );
 
     // This list is informed by https://www.elastic.co/support/eol
     // If possible, we also want to support the last release of the previous major version.
-    final Set<String> elasticsearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "8.16.1", // latest version
-        "7.17.26", // latest version of previous major
-        "7.14.0" // oldest supported version (first version that sends required "X-Elastic-Product" header)
-    ));
+    final Set<String> elasticsearchVersions = ImmutableSet.of(
+        "9.1.5", // latest version
+        "8.19.5", // latest version of previous major
+        "7.14.0" // oldest version we expect to work (first version that sends required "X-Elastic-Product" header)
+    );
 
     // This list is informed by https://opensearch.org/releases.html
     // If possible, we also want to support the last release of the previous major version.
-    final Set<String> opensearchVersions = new LinkedHashSet<>(Arrays.asList(
-        "2.18.0", // latest version
-        "1.3.19", // latest version of previous major
-        "1.3.3" // oldest supported version (first version compatible with opensearch-java client)
-    ));
+    final Set<String> opensearchVersions = ImmutableSet.of(
+        "3.3.1", // latest version
+        "2.19.3", // latest version of previous major
+        "1.3.3" // oldest version we expect to work (first version compatible with opensearch-java client)
+    );
 
     String newestCouchbase = Iterables.get(couchbaseVersions, 0);
     String newestElasticsearch = Iterables.get(elasticsearchVersions, 0);
@@ -433,8 +435,14 @@ public class BasicReplicationTest {
 
   @Test
   public void canReplicateTravelSample() throws Throwable {
-    try (TestEsClient es = new TestEsClient(commonConfig);
-         AsyncTask ignore = runConnectorAndWaitForReady(commonConfig.toConfig())) {
+    PatchableConfig config = commonConfig
+        // Avoid warnings about document ID collisions!
+        .withCollections(List.of(ScopeAndCollection.DEFAULT));
+
+    try (
+        TestEsClient es = new TestEsClient(config);
+        AsyncTask ignore = runConnectorAndWaitForReady(config.toConfig())
+    ) {
       waitForTravelSampleReplication(es);
     }
   }

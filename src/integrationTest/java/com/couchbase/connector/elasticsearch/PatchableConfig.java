@@ -17,6 +17,7 @@
 package com.couchbase.connector.elasticsearch;
 
 import com.couchbase.client.java.Bucket;
+import com.couchbase.connector.config.ScopeAndCollection;
 import com.couchbase.connector.config.common.ImmutableCouchbaseConfig;
 import com.couchbase.connector.config.common.ImmutableGroupConfig;
 import com.couchbase.connector.config.es.ConnectorConfig;
@@ -43,6 +44,12 @@ public class PatchableConfig {
     return withCouchbase(couchbase -> couchbase
         .withBucket(bucketName)
         .withMetadataBucket(bucketName)
+    );
+  }
+
+  public PatchableConfig withCollections(Iterable<ScopeAndCollection> collections) {
+    return withCouchbase(couchbase -> couchbase
+        .withCollections(collections)
     );
   }
 
