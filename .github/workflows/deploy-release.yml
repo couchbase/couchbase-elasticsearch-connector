@@ -1,0 +1,45 @@
+name: Maven Deploy Release
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        description: Tag to release. Must already exist.
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Verify the ref is actually a tag
+        run: git tag --list | grep --line-regexp ${{ inputs.tag }}
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: arn:aws:iam::786014483886:role/SDK_GHA
+          aws-region: us-west-1
+
+      - name: Build and publish
+        run: |
+          ./gradlew clean build
+          VERS=${{ inputs.tag }}
+          ARTIFACT=couchbase-elasticsearch-connector-${VERS}.zip
+          aws s3 cp --acl public-read build/distributions/${ARTIFACT} s3://packages.couchbase.com/clients/connectors/elasticsearch/${VERS}/${ARTIFACT}
