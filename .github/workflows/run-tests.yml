@@ -4,8 +4,17 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
 on:
-  push:
   workflow_dispatch:
+  push:
+    paths-ignore:
+      - '*.md'
+      - '*.adoc'
+      - '.gitignore'
+      - '.editorconfig'
+      - 'examples/**'
+      - 'Dockerfile*'
+      - '.github/workflows/**'
+      - '!.github/workflows/run-tests.yml'
 
 jobs:
   build:
