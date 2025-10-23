@@ -1,4 +1,4 @@
-name: Maven Deploy Release
+name: Deploy Release
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

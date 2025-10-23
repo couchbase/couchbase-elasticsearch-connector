@@ -7,70 +7,87 @@ and publish it to S3.
 ## Prerequisites
 
 You will need:
-* AWS credentials with write access to the `packages.couchbase.com` S3 bucket.
-* The [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/), for uploading the distribution archive to S3.
-* A local Docker installation, if you wish to run the integration tests.
-
-All set? In that case...
+* A local Docker installation if you wish to run the integration tests.
 
 
-## Let's do this!
+## Before you start
 
-Start by running `./gradlew clean integrationTest` to make sure the project builds successfully,
-and the unit and integration tests pass.
-When you're satisfied with the test results, it's time to...
+### Use a clean, up-to-date workspace
+
+Make sure your local repository is up-to-date:
+
+    git pull --rebase --autostash
+
+Make sure you don't have any uncommitted files in your workspace; `git status` should say "nothing to commit, working tree clean".
+
+
+## Check for Docker base image updates
+
+Look for a new version of the Docker base image, and update the Dockerfiles if necessary.
+
+
+### Check test results
+
+Check the **Run Tests** GHA workflow and verify the connector was built successfully.
+https://github.com/couchbase/couchbase-elasticsearch-connector/actions/workflows/run-tests.yml
+
+If there were issues with the workflow, resolve them before proceeding with the release.
+
+Some tests might fail due to timeouts in the GHA environment.
+If that happens, try running them locally:
+
+    ./gradlew clean integrationTest
+
+When you are satisfied with the test results, move on the next step.
 
 
 ## Bump the project version number
 
 1. Edit `build.gradle` and remove the `-SNAPSHOT` suffix from the version string.
-2. Edit `docs/modules/ROOT/pages/_attributes` and bump the `:version:` attribute.
-3. Edit `README.adoc` and bump the version numbers if appropriate.
-4. Check whether `compatibility.adoc` needs to be updated to include the new version.
-5. Commit these changes, with message "Prepare x.y.z release"
+2. Commit these changes, with message "Prepare x.y.z release"
 (where x.y.z is the version you're releasing).
-
-# Check for Docker base image updates
-
-Look for a new version of the Docker base image, and update the Dockerfiles if necessary.
 
 ## Tag the release
 
-Run the command `git tag -s x.y.z` (where x.y.z is the release version number).
+After submitting the version bump change in Gerrit, run `git pull` so your local repo matches what's in Gerrit.
 
+Run the command `git tag -s x.y.z` (where x.y.z is the release version number).
 Suggested tag message is "Release x.y.z".
 
-Don't push the tag right away, though.
-Wait until the release is successful and you're sure there will be no more changes.
-Otherwise it can be a pain to remove an unwanted tag from Gerrit.
+It's hard to change a tag once it has been pushed to Gerrit, so at this point you might want to do any final sanity checking.
+At a minimum, make sure `./gradlew clean build` succeeds.
+
+## Trigger the release workflow
+
+Go to the **Deploy Release** GitHub Action:
+
+https://github.com/couchbase/couchbase-elasticsearch-connector/actions/workflows/deploy-release.yml
+
+Press the "Run workflow" button.
+Leave "Use workflow from" at the default of "Branch: master".
+Input the name of the tag you created in the previous step.
+
+Take a deep breath, then push the "Run workflow" button to start the release process.
+
+The workflow builds and uploads the connector distribution to our public S3 bucket.
+If it succeeds, you should be able to download the connector distribution from here:
+
+    https://packages.couchbase.com/clients/connectors/elasticsearch/<VERSION>/couchbase-elasticsearch-connector-<VERSION>.zip
 
 
-## Go! Go! Go!
+## Update documentation
 
-Here it is, the moment of truth.
-When you're ready to build the distribution archive:
+In the `docs-elastic-search` repo:
 
-    ./gradlew clean build
+1. Edit `modules/ROOT/pages/_attributes` and bump the `:version:` attribute.
+2. Verify `compatibility.adoc` is up-to-date.
+3. If releasing a new minor version, edit `docs/antora.yml` and update the version number.
 
-If the build is successful, you're ready to publish the distribution archive to S3 with this shell command:
-
-    VERS=x.y.z
-    aws s3 cp build/distributions/couchbase-elasticsearch-connector-${VERS}.zip \
-        s3://packages.couchbase.com/clients/connectors/elasticsearch/${VERS}/couchbase-elasticsearch-connector-${VERS}.zip \
-        --acl public-read
-
-
-Whew, you did it!
-Or building or publishing failed and you're looking at a cryptic error message, in which case you might want to check out the Troubleshooting section below.
-
-If the release succeeded, now's the time to publish the tag:
-
-    git push origin x.y.z
 
 ## Publish Docker image
 
 A daily job builds a Docker image from the current `master` branch.
-After pushing the tag, and **before making any other changes to the repo,** sit on your butt until the new image appears here:
+After pushing the tag, and **before making any other changes to the connector repo,** sit on your butt until the new image appears here:
 
 https://github.com/orgs/cb-vanilla/packages/container/package/elasticsearch-connector
 
@@ -98,8 +115,3 @@ Update this element's `value` property to refer to the version under development
 For example, if you just bumped the version to 4.3.2-SNAPSHOT, the version you're specifying in the manifest should be "4.3.2".
 
 Commit the change.
-
-## Troubleshooting
-
-* Take another look at the Prerequisites section.
-Did you miss anything?
