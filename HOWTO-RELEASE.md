@@ -21,9 +21,11 @@ Make sure your local repository is up-to-date:
 Make sure you don't have any uncommitted files in your workspace; `git status` should say "nothing to commit, working tree clean".
 
 
-## Check for Docker base image updates
+## Check for dependency updates
 
 Look for a new version of the Docker base image, and update the Dockerfiles if necessary.
+
+Make sure the Jackson and Netty versions in the build script are up-to-date. 
 
 
 ### Check test results
