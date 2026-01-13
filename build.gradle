@@ -62,7 +62,7 @@ task exhaustiveTest(group: "Verification", description: "Runs the integration te
 
 dependencies {
   implementation 'org.jspecify:jspecify:1.0.0'
-  implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.23.1'
+  implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3'
   implementation 'org.slf4j:jcl-over-slf4j:2.0.17'
   implementation 'co.elastic.logging:log4j2-ecs-layout:1.6.0'
 
