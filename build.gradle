@@ -79,7 +79,7 @@ dependencies {
   implementation('org.apache.httpcomponents.client5:httpclient5:5.4.4')
 
   implementation(platform('software.amazon.awssdk:bom:2.31.2'))
-  implementation(platform('io.netty:netty-bom:4.1.128.Final')) // AWS SDK uses Netty. Force version upgrade.
+  implementation(platform('io.netty:netty-bom:4.1.130.Final')) // AWS SDK uses Netty. Force version upgrade.
   implementation("software.amazon.awssdk:sdk-core")
   implementation("software.amazon.awssdk:apache-client")
   implementation("software.amazon.awssdk:regions")
@@ -90,7 +90,7 @@ dependencies {
   implementation 'com.fasterxml.jackson.core:jackson-databind'
   implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
 
-  implementation platform('io.fabric8:kubernetes-client-bom:7.0.0')
+  implementation platform('io.fabric8:kubernetes-client-bom:7.5.2')
   implementation 'io.fabric8:kubernetes-client'
   implementation 'io.fabric8:kubernetes-httpclient-okhttp'
 
