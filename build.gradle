@@ -114,7 +114,7 @@ dependencies {
   testImplementation('org.assertj:assertj-core:3.27.6')
   integrationTestImplementation 'com.jayway.jsonpath:json-path:2.9.0'
 
-  integrationTestImplementation platform('org.testcontainers:testcontainers-bom:1.20.4')
+  integrationTestImplementation platform('org.testcontainers:testcontainers-bom:1.21.4')
   integrationTestImplementation 'org.testcontainers:testcontainers'
   integrationTestImplementation 'org.testcontainers:couchbase'
   integrationTestImplementation 'org.testcontainers:elasticsearch'
