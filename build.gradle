@@ -91,6 +91,11 @@ dependencies {
   implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
 
   implementation platform('io.fabric8:kubernetes-client-bom:7.5.2')
+  constraints {
+    implementation('io.vertx:vertx-core:4.5.27') {
+      because("Previous version is affected by CVE-2026-6860")
+    }
+  }
   implementation 'io.fabric8:kubernetes-client'
   implementation 'io.fabric8:kubernetes-httpclient-okhttp'
 
