@@ -118,7 +118,7 @@ dependencies {
   testImplementation 'junit:junit:4.13.2'
   testImplementation 'org.apache.commons:commons-lang3:3.19.0'
   testImplementation 'commons-io:commons-io:2.20.0'
-  testImplementation('org.assertj:assertj-core:3.27.6')
+  testImplementation('org.assertj:assertj-core:3.27.7')
   integrationTestImplementation 'com.jayway.jsonpath:json-path:2.9.0'
 
   integrationTestImplementation platform('org.testcontainers:testcontainers-bom:1.21.4')
