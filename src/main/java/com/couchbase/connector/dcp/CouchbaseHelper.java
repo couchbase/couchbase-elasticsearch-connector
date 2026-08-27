@@ -27,6 +27,7 @@ import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.core.service.ServiceType;
 import com.couchbase.client.core.topology.ClusterTopologyWithBucket;
 import com.couchbase.client.core.topology.CouchbaseBucketTopology;
+import com.couchbase.client.core.util.CbCollections;
 import com.couchbase.client.core.util.ConnectionString;
 import com.couchbase.client.core.util.HostAndPort;
 import com.couchbase.client.java.Bucket;
@@ -79,6 +80,10 @@ public class CouchbaseHelper {
             security
                 .enableTls(true)
                 .enableHostnameVerification(config.hostnameVerification());
+
+            if (!CbCollections.isNullOrEmpty(config.cipherSuites())) {
+              security.ciphers(config.cipherSuites());
+            }
 
             if (!config.caCert().isEmpty()) {
               // The user specified a CA cert specifically for Couchbase. Trust it and no others!

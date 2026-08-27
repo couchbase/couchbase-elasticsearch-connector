@@ -28,6 +28,7 @@ import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import static com.couchbase.connector.config.ConfigHelper.readCertificates;
 import static com.couchbase.connector.config.ConfigHelper.readPassword;
@@ -79,6 +80,11 @@ public interface CouchbaseConfig {
 
   boolean hostnameVerification();
 
+  @Value.Default
+  default List<String> cipherSuites() {
+    return ImmutableList.of();
+  }
+
   DcpConfig dcp();
 
   ClientCertConfig clientCert();
@@ -93,7 +99,7 @@ public interface CouchbaseConfig {
   }
 
   static ImmutableCouchbaseConfig from(ConfigTable config) {
-    config.expectOnly("bucket", "metadataBucket", "metadataCollection", "defaultCheckpoint", "scope", "collections", "hosts", "network", "username", "pathToPassword", "clientCertificate", "dcp", "secureConnection", "pathToCaCertificate", "hostnameVerification", "env");
+    config.expectOnly("bucket", "metadataBucket", "metadataCollection", "defaultCheckpoint", "scope", "collections", "hosts", "network", "username", "pathToPassword", "clientCertificate", "dcp", "secureConnection", "pathToCaCertificate", "hostnameVerification", "cipherSuites", "env");
 
     final String sourceBucket = config.getString("bucket").orElse("default");
     final String networkName = config.getString("network").orElse("auto");
@@ -116,6 +122,7 @@ public interface CouchbaseConfig {
         .secureConnection(config.getBoolean("secureConnection").orElse(false))
         .caCert(readCertificates(config, parentConfigName, "pathToCaCertificate"))
         .hostnameVerification(config.getBoolean("hostnameVerification").orElse(true))
+        .cipherSuites(config.getOptionalList("cipherSuites", Function.identity()))
         .dcp(DcpConfig.from(config.getTableOrEmpty("dcp")))
         .clientCert(ClientCertConfig.from(config.getTableOrEmpty("clientCertificate"), "couchbase.clientCertificate"))
         .env(parseEnv(config.getTableOrEmpty("env")))

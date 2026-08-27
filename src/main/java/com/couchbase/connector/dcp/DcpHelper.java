@@ -21,6 +21,7 @@ import com.couchbase.client.core.deps.io.netty.util.IllegalReferenceCountExcepti
 import com.couchbase.client.core.env.NetworkResolution;
 import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.core.logging.RedactionLevel;
+import com.couchbase.client.core.util.CbCollections;
 import com.couchbase.client.core.util.HostAndPort;
 import com.couchbase.client.dcp.Authenticator;
 import com.couchbase.client.dcp.CertificateAuthenticator;
@@ -137,6 +138,10 @@ public class DcpHelper {
       SecurityConfig.Builder securityBuilder = SecurityConfig.builder()
           .enableTls(true)
           .enableHostnameVerification(config.hostnameVerification());
+
+      if (!CbCollections.isNullOrEmpty(config.cipherSuites())) {
+        securityBuilder.ciphers(config.cipherSuites());
+      }
 
       if (!config.caCert().isEmpty()) {
         // trust only the certificate the user specified
