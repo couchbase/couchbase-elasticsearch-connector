@@ -86,7 +86,7 @@ dependencies {
   implementation("software.amazon.awssdk:auth")
   implementation("software.amazon.awssdk:sts")
 
-  implementation platform('com.fasterxml.jackson:jackson-bom:2.20.0')
+  implementation platform('com.fasterxml.jackson:jackson-bom:2.21.5')
   implementation 'com.fasterxml.jackson.core:jackson-databind'
   implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
 
