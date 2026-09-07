@@ -111,6 +111,8 @@ public class OpenSearchHelper {
     CloseableHttpAsyncClient client = HttpAsyncClients.custom()
         .setConnectionManager(cm)
         .setIOReactorConfig(ioReactorConfig)
+        // Since httpclient5 5.6.x these requests would be double decompressed without this line
+        .disableContentCompression()
         .evictExpiredConnections()
         .evictIdleConnections(TimeValue.ofMilliseconds(connectionIdleTime(config).toMillis()))
         .setDefaultCredentialsProvider((authScope, context) -> credentials)
