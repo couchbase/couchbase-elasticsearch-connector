@@ -235,6 +235,9 @@ public class ElasticsearchConnector extends AbstractCliCommand {
     LogRedaction.setRedactionLevel(config.logging().redactionLevel());
     DcpHelper.setRedactionLevel(config.logging().redactionLevel());
 
+    // Must happen after Metrics has finished its own static initialization to sidestep a potential race condition
+    Metrics.bindJvmMetrics();
+
     try (Slf4jReporter metricReporter = newSlf4jReporter(config.metrics().logInterval());
          HttpServer httpServer = new HttpServer(config.metrics().httpPort(), membership);
          SinkOps esClient = SinkOps.create(config)

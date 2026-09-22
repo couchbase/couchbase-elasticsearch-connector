@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
@@ -108,12 +109,18 @@ public class Metrics {
   static {
     registry.add(prometheusRegistry);
     registry.add(dropwizardRegistry);
+  }
 
-    new ClassLoaderMetrics().bindTo(registry);
-    new JvmMemoryMetrics().bindTo(registry);
-    new JvmGcMetrics().bindTo(registry);
-    new ProcessorMetrics().bindTo(registry);
-    new JvmThreadMetrics().bindTo(registry);
+  private static final AtomicBoolean jvmMetricsBound = new AtomicBoolean();
+
+  public static void bindJvmMetrics() {
+    if (jvmMetricsBound.compareAndSet(false, true)) {
+      new ClassLoaderMetrics().bindTo(registry);
+      new JvmMemoryMetrics().bindTo(registry);
+      new JvmGcMetrics().bindTo(registry);
+      new ProcessorMetrics().bindTo(registry);
+      new JvmThreadMetrics().bindTo(registry);
+    }
   }
 
   public static void commonTags(Iterable<Tag> tags) {
